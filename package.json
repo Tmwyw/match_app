@@ -1,0 +1,34 @@
+{
+  "name": "tg-app-meet",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:up": "docker compose --env-file .env up -d",
+    "db:down": "docker compose --env-file .env down",
+    "db:logs": "docker compose logs -f postgres",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @tg-app-meet/api prisma:migrate",
+    "db:studio": "dotenv -e .env -- pnpm --filter @tg-app-meet/api prisma:studio",
+    "db:generate": "dotenv -e .env -- pnpm --filter @tg-app-meet/api prisma:generate",
+    "dev:api": "dotenv -e .env -- pnpm --filter @tg-app-meet/api dev",
+    "dev:web": "dotenv -e .env -- pnpm --filter @tg-app-meet/web dev",
+    "dev:bot": "dotenv -e .env -- pnpm --filter @tg-app-meet/bot dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^7.4.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
+  }
+}

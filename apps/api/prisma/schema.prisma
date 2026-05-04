@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  OWNER
+}
+
+enum SwipeAction {
+  LIKE
+  SKIP
+}
+
+model User {
+  id         String   @id @default(cuid())
+  telegramId BigInt   @unique
+  username   String?
+  role       Role
+  anonId     String   @unique
+  createdAt  DateTime @default(now())
+
+  buyerProfile   BuyerProfile?
+  ownerProfile   OwnerProfile?
+  sentSwipes     Swipe[]         @relation("from")
+  receivedSwipes Swipe[]         @relation("to")
+  matchesA       Match[]         @relation("a")
+  matchesB       Match[]         @relation("b")
+  messages       Message[]
+  reveals        ContactReveal[]
+}
+
+model BuyerProfile {
+  userId     String  @id
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verticals  String[]
+  geos       String[]
+  budgetMin  Int
+  budgetMax  Int
+  experience Int
+  bio        String?
+  isActive   Boolean @default(true)
+}
+
+model OwnerProfile {
+  userId       String  @id
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offerName    String
+  vertical     String
+  geos         String[]
+  payoutType   String
+  payoutAmount Int
+  requirements String?
+  bio          String?
+  isActive     Boolean @default(true)
+}
+
+model Swipe {
+  id        String      @id @default(cuid())
+  fromId    String
+  toId      String
+  from      User        @relation("from", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User        @relation("to", fields: [toId], references: [id], onDelete: Cascade)
+  action    SwipeAction
+  createdAt DateTime    @default(now())
+
+  @@unique([fromId, toId])
+  @@index([toId, action])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  userA     User     @relation("a", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("b", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  chat      Chat?
+
+  @@unique([userAId, userBId])
+}
+
+model Chat {
+  id        String          @id @default(cuid())
+  matchId   String          @unique
+  match     Match           @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+  messages  Message[]
+  reveals   ContactReveal[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([chatId, createdAt])
+}
+
+model ContactReveal {
+  id         String   @id @default(cuid())
+  chatId     String
+  chat       Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  acceptedAt DateTime @default(now())
+
+  @@unique([chatId, userId])
+}
