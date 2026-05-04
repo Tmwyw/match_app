@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import type { PublicUser, Role } from "@tg-app-meet/shared";
+import type { MyProfileResponse, PublicUser, Role } from "@tg-app-meet/shared";
 import { api } from "./api";
 import { useAuth } from "./auth/useAuth";
+import { Deck } from "./discover/Deck";
+import { MatchesList } from "./matches/MatchesList";
+import { Nav, type Tab } from "./Nav";
 import { RolePicker } from "./onboarding/RolePicker";
 import { BuyerProfileForm } from "./profile/BuyerProfileForm";
 import { MyProfile } from "./profile/MyProfile";
@@ -109,7 +112,42 @@ function ProfileFlow({
     );
   }
 
-  return <MyProfile user={user} profile={profile.data} onUpdated={profile.refresh} />;
+  return (
+    <Home user={user} profile={profile.data} onProfileUpdated={profile.refresh} />
+  );
+}
+
+function Home({
+  user,
+  profile,
+  onProfileUpdated,
+}: {
+  user: PublicUser;
+  profile: MyProfileResponse;
+  onProfileUpdated: () => void;
+}) {
+  const [tab, setTab] = useState<Tab>("discover");
+
+  return (
+    <div className="min-h-full flex flex-col">
+      <div className="flex-1">
+        {tab === "discover" && (
+          <Deck onMatched={() => setTab("matches")} />
+        )}
+        {tab === "matches" && (
+          <MatchesList
+            onOpenChat={() => {
+              // Phase 4 will open the chat view; for now stub: stay on matches.
+            }}
+          />
+        )}
+        {tab === "profile" && (
+          <MyProfile user={user} profile={profile} onUpdated={onProfileUpdated} />
+        )}
+      </div>
+      <Nav current={tab} onChange={setTab} />
+    </div>
+  );
 }
 
 function CenteredHint({
@@ -136,7 +174,7 @@ function HealthDebug() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
   return (
-    <details className="fixed bottom-2 right-2 text-xs text-tg-hint">
+    <details className="fixed bottom-16 right-2 text-xs text-tg-hint">
       <summary>debug</summary>
       <pre className="bg-tg-secondary-bg p-2 rounded">
         {error ? `error: ${error}` : health ? JSON.stringify(health) : "checking…"}

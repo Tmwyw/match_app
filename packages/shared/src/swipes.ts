@@ -3,15 +3,15 @@ import { z } from "zod";
 export const SwipeAction = z.enum(["LIKE", "SKIP"]);
 export type SwipeAction = z.infer<typeof SwipeAction>;
 
-export const SwipeInput = z.object({
-  toId: z.string().min(1),
+export const SwipeRequest = z.object({
+  toUserId: z.string().min(1),
   action: SwipeAction,
 });
-export type SwipeInput = z.infer<typeof SwipeInput>;
+export type SwipeRequest = z.infer<typeof SwipeRequest>;
 
-export const SwipeResult = z.object({
+export const SwipeResponse = z.object({
   matched: z.boolean(),
   matchId: z.string().nullable(),
   chatId: z.string().nullable(),
 });
-export type SwipeResult = z.infer<typeof SwipeResult>;
+export type SwipeResponse = z.infer<typeof SwipeResponse>;

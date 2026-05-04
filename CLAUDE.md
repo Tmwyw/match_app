@@ -72,7 +72,9 @@ Phase 1 — auth (done). `POST /auth/telegram` validates initData (HMAC + 24h fr
 
 Phase 2 — onboarding & profiles (done). `POST /onboarding/role` atomically assigns role + per-role `anonId` from `AnonCounter`. `GET/POST/PATCH /me/profile` with role-aware Zod (BuyerProfileInput / OwnerProfileInput). Frontend: `RolePicker`, `BuyerProfileForm`, `OwnerProfileForm`, `MyProfile` (read+edit), `useProfile()` hook, App.tsx state-machine routing (auth → role → profile → my-profile).
 
-Phase 3 — swipes & match (current). `GET /discover`, `POST /swipes`, mutual LIKE creates Match + Chat.
+Phase 3 — swipes & match (done). `GET /discover` returns one compatible card of the opposite role (vertical/geo overlap, exclude already-swiped). `POST /swipes` is idempotent; mutual LIKE → atomic `Match` + `Chat` (lex-normalized pair). `GET /matches` returns each match with the other user's `PublicCard` (no telegramId/username). Frontend: `Deck` (Like/Skip + match overlay), `MatchesList`, bottom tab `Найти/Матчи/Профиль`.
+
+Phase 4 — anonymous chat (current). Socket.io `/chat` namespace, anti-deanon filter, history via REST.
 
 Phase 4 — anonymous chat. Socket.io `/chat` namespace, anti-deanon filter, history via REST.
 

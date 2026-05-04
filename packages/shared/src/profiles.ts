@@ -96,3 +96,9 @@ export const PublicCard = z.discriminatedUnion("role", [
   PublicOwnerCard,
 ]);
 export type PublicCard = z.infer<typeof PublicCard>;
+
+export const DiscoverResponse = z.object({
+  card: PublicCard.nullable(),
+  remaining: z.number().int().nonnegative(),
+});
+export type DiscoverResponse = z.infer<typeof DiscoverResponse>;
