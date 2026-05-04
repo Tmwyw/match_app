@@ -12,6 +12,11 @@ enum Role {
   OWNER
 }
 
+model AnonCounter {
+  role Role @id
+  next Int  @default(1)
+}
+
 enum SwipeAction {
   LIKE
   SKIP
