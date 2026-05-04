@@ -64,11 +64,11 @@ Health check: `GET http://localhost:3001/health` → `{ "status": "ok" }`.
 
 ## Phases
 
-Phase 0 — skeleton (current). Workspace, docker postgres, prisma schema + migration, NestJS `/health`, Vite "Hello %username%", bot `/start` with Web App button.
+Phase 0 — skeleton (done). Workspace, docker postgres, prisma schema + migration, NestJS `/health`, Vite "Hello %username%", bot `/start` with Web App button.
 
-Phase 1 — auth. `POST /auth/telegram` validates initData → upserts user → JWT. Frontend `useAuth()` hook.
+Phase 1 — auth (done). `POST /auth/telegram` validates initData (HMAC + 24h freshness) → upserts user → JWT (30d). `GET /me` (Bearer-protected). Frontend `useAuth()` hook + `apps/web/src/api.ts` fetch wrapper. `User.role` and `User.anonId` made nullable — assigned in Phase 2.
 
-Phase 2 — onboarding & profiles. Role pick (BUYER/OWNER), profile create/edit, `anonId` generation.
+Phase 2 — onboarding & profiles (current). Role pick (BUYER/OWNER), profile create/edit, `anonId` generation.
 
 Phase 3 — swipes & match. `GET /discover`, `POST /swipes`, mutual LIKE creates Match + Chat.
 
@@ -88,6 +88,7 @@ Payments, moderation/reports, analytics, boosts/subscriptions, deep antifraud, C
 
 See `apps/api/prisma/schema.prisma`. Source of truth. Mirror any structural change here in a sentence so future-Claude can scan it fast.
 
+- `User` — `role` and `anonId` are nullable; populated during Phase 2 onboarding, NULL after first auth.
 - `User` (1)─(1) `BuyerProfile` | `OwnerProfile`  (role-tagged)
 - `Swipe (from → to, action)` — unique on `(fromId, toId)`
 - Mutual LIKE → `Match` — unique on `(userAId, userBId)`
