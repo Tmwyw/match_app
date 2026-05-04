@@ -17,7 +17,7 @@ export function ChipGroup<T extends string>({
 }: Props<T>) {
   const toggle = (opt: T) => {
     if (mode === "single") {
-      onChange([opt]);
+      onChange(value[0] === opt ? [] : [opt]);
       return;
     }
     if (value.includes(opt)) {
@@ -37,11 +37,12 @@ export function ChipGroup<T extends string>({
             type="button"
             key={opt}
             onClick={() => toggle(opt)}
+            aria-pressed={active}
             className={cn(
-              "rounded-button px-3.5 py-2 text-sm font-medium transition active:scale-[0.97]",
+              "rounded-chip px-3.5 py-2 text-sm font-medium transition active:scale-[0.97] border",
               active
-                ? "bg-accent text-accent-text"
-                : "bg-card text-tg-text",
+                ? "bg-accent text-accent-text border-accent shadow-[0_4px_14px_-4px_rgba(123,97,255,0.55)]"
+                : "bg-card text-tg-text border-app-border-strong hover:border-accent/40",
             )}
           >
             {opt}

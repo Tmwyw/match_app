@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { MyProfileResponse, PublicUser, Role } from "@tg-app-meet/shared";
 import { api } from "./api";
 import { useAuth } from "./auth/useAuth";
+import { ChatScreen } from "./chat/ChatScreen";
 import { Deck } from "./discover/Deck";
 import { MatchesList } from "./matches/MatchesList";
 import { RolePicker } from "./onboarding/RolePicker";
@@ -12,6 +13,12 @@ import { OwnerProfileForm } from "./profile/OwnerProfileForm";
 import { useProfile } from "./profile/useProfile";
 import { getTelegramWebApp } from "./telegram";
 import { Button, CenteredMessage, TabBar, type TabItem } from "./ui";
+
+export type OpenChat = {
+  chatId: string;
+  otherAnonId: string;
+  otherRole: Role;
+};
 
 type Tab = "discover" | "matches" | "profile";
 type Health = { status: string; db: string; ts: string };
@@ -143,6 +150,7 @@ function Home({
   onProfileUpdated: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("discover");
+  const [openChat, setOpenChat] = useState<OpenChat | null>(null);
 
   return (
     <div className="min-h-full flex flex-col">
@@ -150,21 +158,29 @@ function Home({
         {tab === "discover" && (
           <Deck
             myRole={profile.role}
-            onMatched={() => setTab("matches")}
+            onMatched={(payload) => {
+              setOpenChat(payload);
+              setTab("matches");
+            }}
           />
         )}
         {tab === "matches" && (
-          <MatchesList
-            onOpenChat={() => {
-              // Phase 4 will open the chat view; for now stub: stay on matches.
-            }}
-          />
+          <MatchesList onOpenChat={(payload) => setOpenChat(payload)} />
         )}
         {tab === "profile" && (
           <MyProfile user={user} profile={profile} onUpdated={onProfileUpdated} />
         )}
       </div>
       <TabBar items={TABS} active={tab} onChange={setTab} />
+      {openChat && (
+        <ChatScreen
+          chatId={openChat.chatId}
+          currentUser={user}
+          otherAnonId={openChat.otherAnonId}
+          otherRole={openChat.otherRole}
+          onBack={() => setOpenChat(null)}
+        />
+      )}
     </div>
   );
 }

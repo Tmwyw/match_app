@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "./auth/auth.module";
+import { ChatModule } from "./chat/chat.module";
 import { DiscoverModule } from "./discover/discover.module";
 import { HealthController } from "./health.controller";
 import { MatchesModule } from "./matches/matches.module";
@@ -19,6 +20,7 @@ import { UsersModule } from "./users/users.module";
     DiscoverModule,
     SwipesModule,
     MatchesModule,
+    ChatModule,
   ],
   controllers: [HealthController],
 })

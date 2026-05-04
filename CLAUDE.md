@@ -53,6 +53,8 @@ Health check: `GET http://localhost:3001/health` → `{ "status": "ok" }`.
 - **TaskStop / Ctrl+C on Windows leaves zombie node children.** When the bot misbehaves after a restart, list `node.exe` processes and force-kill bot-related ones; multiple long-pollers on the same token race for updates.
 - **`prisma generate` after a migration EPERMs on Windows if `dev:api` is running** — `@swc-node/register` keeps `query_engine-windows.dll.node` open. Stop the api dev tree first, then re-run `pnpm db:generate` (or just rerun the failed `pnpm db:migrate` once api is down).
 - **`@UsePipes()` at method level applies the pipe to ALL params, not just `@Body()`.** When a controller method also has `@CurrentUser()` (or any other custom param decorator), the Zod pipe will validate the auth payload as if it were the request body and fail with confusing "field required" errors. Bind the pipe to `@Body(new ZodValidationPipe(Schema))` instead.
+- **WebSocket auth must run as Socket.io middleware (`server.use`), not in `handleConnection`.** Async work in `handleConnection` resolves AFTER socket.io has already emitted `connect` to the client, so the client sees a phantom session even when we then `disconnect()`. Middleware in `OnGatewayInit.afterInit(server)` rejects pre-handshake → client sees `connect_error`. Pattern lives in `apps/api/src/chat/chat.gateway.ts`.
+- **Vite proxy ordering matters.** More specific paths (`/api/socket.io` with `ws: true`) MUST come BEFORE the generic `/api` entry in `apps/web/vite.config.ts`. Otherwise WS upgrade requests get routed by the catch-all and Socket.io breaks silently.
 
 ## Frontend UI
 
@@ -83,7 +85,9 @@ Phase 3 — swipes & match (done). `GET /discover` returns one compatible card o
 
 Phase 2.5 — visual design pass (done). Brand purple accent (`--accent`), Inter font, role-tinted avatars, telegram-native dark via CSS theme vars, shared `apps/web/src/ui/` primitives (Screen, AppHeader, Card, Section, Button, BigActionButton, TabBar, RoleAvatar, Field, Textarea, ChipGroup, MatchOverlay, CenteredMessage). All screens (RolePicker, profile forms, MyProfile, Deck, MatchesList) refactored to use the primitives — no per-component hardcoded colors.
 
-Phase 4 — anonymous chat (current). Socket.io `/chat` namespace, anti-deanon filter, history via REST.
+Phase 4 — anonymous chat (done). Socket.io `/chat` namespace via `@nestjs/platform-socket.io`. JWT auth in `server.use` middleware (rejects pre-`connect` so client sees `connect_error`, not phantom session). `chat:join` re-validates participation on every join (don't trust room membership). `message:send` runs `antiDeanon` (regex-scrubs `@username`, `t.me/...`, generic urls, phones, emails — replaced with `[скрыто]`) before persistence; broadcast goes to room minus sender, sender gets the saved message back via ack so optimistic UI replaces with real id+timestamp. REST `GET /chats/:chatId/messages?before&limit` for history (cursor-based, default 50, hasMore flag). Frontend: singleton socket in `apps/web/src/chat/socket.ts` (uses `/api/socket.io` Vite proxy in dev, direct `/socket.io` against `VITE_API_URL` in prod), `useChat` hook (history + live + optimistic + ack), `ChatScreen` (bubbles, sticky composer, filtered-warning banner, Lock disclaimer). `ChatScreen` rendered as `fixed inset-0 z-30` overlay over the tab content, opened from `MatchesList` tap or from `MatchOverlay` "Перейти в чат" CTA (Deck → App.openChat).
+
+Phase 5 — contact reveal (current). Both-side consent → real `@username` exchanged.
 
 Phase 4 — anonymous chat. Socket.io `/chat` namespace, anti-deanon filter, history via REST.
 
@@ -108,3 +112,4 @@ See `apps/api/prisma/schema.prisma`. Source of truth. Mirror any structural chan
 - Mutual LIKE → `Match` — unique on `(userAId, userBId)`
 - `Match` (1)─(1) `Chat` (1)─(N) `Message`
 - `Chat` (1)─(N) `ContactReveal` — when both users have a row, contacts unlock.
+- `Chat` (1)─(N) `Message` — anti-deanon regex scrub (`apps/api/src/chat/anti-deanon.ts`) runs in `ChatService.sendMessage` before insert; never trust client-side filtering.

@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { MatchesListResponse, PublicCard } from "@tg-app-meet/shared";
 import { api } from "../api";
+import type { OpenChat } from "../App";
 import { Button, Card, CenteredMessage, RoleAvatar, Screen } from "../ui";
 
 type State =
@@ -12,7 +13,7 @@ type State =
 export function MatchesList({
   onOpenChat,
 }: {
-  onOpenChat: (matchId: string, chatId: string) => void;
+  onOpenChat: (payload: OpenChat) => void;
 }) {
   const [state, setState] = useState<State>({ status: "loading" });
 
@@ -67,7 +68,13 @@ export function MatchesList({
           {state.data.map((m) => (
             <li key={m.matchId}>
               <Card
-                onClick={() => onOpenChat(m.matchId, m.chatId)}
+                onClick={() =>
+                  onOpenChat({
+                    chatId: m.chatId,
+                    otherAnonId: m.other.anonId,
+                    otherRole: m.other.role,
+                  })
+                }
                 className="flex items-center gap-3"
               >
                 <RoleAvatar role={m.other.role} size="md" />

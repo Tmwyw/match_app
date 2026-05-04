@@ -8,6 +8,7 @@ import type {
   SwipeResponse,
 } from "@tg-app-meet/shared";
 import { api, ApiError } from "../api";
+import type { OpenChat } from "../App";
 import {
   BigActionButton,
   Button,
@@ -30,7 +31,7 @@ export function Deck({
   onMatched,
 }: {
   myRole: Role;
-  onMatched: (matchId: string) => void;
+  onMatched: (payload: OpenChat) => void;
 }) {
   const [state, setState] = useState<DeckState>({ status: "loading" });
   const [submitting, setSubmitting] = useState<SwipeAction | null>(null);
@@ -152,9 +153,16 @@ export function Deck({
           otherRole={overlay.otherRole}
           otherAnonId={overlay.otherAnonId}
           onChat={() => {
-            const matchId = overlay.response.matchId;
+            const { chatId } = overlay.response;
+            const payload = chatId
+              ? {
+                  chatId,
+                  otherAnonId: overlay.otherAnonId,
+                  otherRole: overlay.otherRole,
+                }
+              : null;
             setOverlay(null);
-            if (matchId) onMatched(matchId);
+            if (payload) onMatched(payload);
           }}
           onContinue={() => setOverlay(null)}
         />
