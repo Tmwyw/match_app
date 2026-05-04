@@ -28,3 +28,6 @@ apps/api/prisma/migrations/dev.db*
 # misc
 *.tsbuildinfo
 .pnpm-store/
+
+# local tunnel binary (Windows)
+cloudflared.exe

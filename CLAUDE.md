@@ -42,6 +42,16 @@ pnpm dev:bot    # long-poll
 
 Health check: `GET http://localhost:3001/health` → `{ "status": "ok" }`.
 
+### Gotchas
+
+- **dotenv-cli `-o` flag is mandatory in all root scripts.** Without it, any system-level env var (e.g. a User-scope `BOT_TOKEN` left over from another project) silently overrides `.env` — bot will run with the wrong token and `getMe` returns the wrong username.
+- **Docker Postgres on port 5544**, not 5432 — local Windows Postgres service occupies 5432 and returns auth errors in CP1251 locale.
+- **Mini App needs HTTPS in dev.** Use `cloudflared tunnel --url http://localhost:5173`, copy the public URL into `WEB_APP_URL` in `.env`, restart the bot.
+- **Vite 5.4+ blocks unknown Host headers** (`server.allowedHosts`). For dev tunnels we set `allowedHosts: true` in `apps/web/vite.config.ts`. Don't ship that to prod — there we serve static build via nginx, not Vite dev.
+- **Mixed-content blocks API calls in dev.** Mini App is served via HTTPS (cloudflared), so it can't `fetch` to `http://localhost:3001` directly. We proxy `/api/*` through Vite (`server.proxy` in `apps/web/vite.config.ts`) and call `/api/...` from React. In prod, set `VITE_API_URL` to the real HTTPS API origin.
+- **`apps/api` runs on `@swc-node/register`, NOT `tsx`.** NestJS DI uses `Reflect.getMetadata("design:paramtypes", ...)` to resolve constructor injections by type. `tsx`/esbuild ignores `emitDecoratorMetadata`, so every injected service comes back as `undefined`. SWC honours it via `.swcrc` (`jsc.transform.decoratorMetadata: true`). Don't switch the API back to tsx.
+- **TaskStop / Ctrl+C on Windows leaves zombie node children.** When the bot misbehaves after a restart, list `node.exe` processes and force-kill bot-related ones; multiple long-pollers on the same token race for updates.
+
 ## Conventions
 
 - IDs: `cuid()`, never auto-increment.

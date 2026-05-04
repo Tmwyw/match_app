@@ -6,5 +6,16 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // dev only: allow cloudflared/ngrok tunnels to reach Vite without per-URL whitelisting
+    allowedHosts: true,
+    // proxy API calls so the Mini App can reach the backend over the same HTTPS tunnel
+    // (avoids browser mixed-content blocking when page is served via cloudflared HTTPS)
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
   },
 });

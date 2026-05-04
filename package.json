@@ -10,12 +10,12 @@
     "db:up": "docker compose --env-file .env up -d",
     "db:down": "docker compose --env-file .env down",
     "db:logs": "docker compose logs -f postgres",
-    "db:migrate": "dotenv -e .env -- pnpm --filter @tg-app-meet/api prisma:migrate",
-    "db:studio": "dotenv -e .env -- pnpm --filter @tg-app-meet/api prisma:studio",
-    "db:generate": "dotenv -e .env -- pnpm --filter @tg-app-meet/api prisma:generate",
-    "dev:api": "dotenv -e .env -- pnpm --filter @tg-app-meet/api dev",
-    "dev:web": "dotenv -e .env -- pnpm --filter @tg-app-meet/web dev",
-    "dev:bot": "dotenv -e .env -- pnpm --filter @tg-app-meet/bot dev",
+    "db:migrate": "dotenv -e .env -o -- pnpm --filter @tg-app-meet/api prisma:migrate",
+    "db:studio": "dotenv -e .env -o -- pnpm --filter @tg-app-meet/api prisma:studio",
+    "db:generate": "dotenv -e .env -o -- pnpm --filter @tg-app-meet/api prisma:generate",
+    "dev:api": "dotenv -e .env -o -- pnpm --filter @tg-app-meet/api dev",
+    "dev:web": "dotenv -e .env -o -- pnpm --filter @tg-app-meet/web dev",
+    "dev:bot": "dotenv -e .env -o -- pnpm --filter @tg-app-meet/bot dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck"
   },
@@ -27,6 +27,7 @@
       "@nestjs/core",
       "@prisma/client",
       "@prisma/engines",
+      "@swc/core",
       "esbuild",
       "prisma"
     ]

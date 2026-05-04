@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { getTelegramUser, getTelegramWebApp } from "./telegram";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+// In dev we go through the Vite proxy ("/api" → http://localhost:3001) so the
+// Mini App opened over an HTTPS tunnel doesn't hit mixed-content blocking.
+// In prod, set VITE_API_URL to your real API origin.
+const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 type Health = { status: string; db: string; ts: string };
 

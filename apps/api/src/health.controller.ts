@@ -10,8 +10,9 @@ export class HealthController {
     let db: "ok" | "down" = "ok";
     try {
       await this.prisma.$queryRaw`SELECT 1`;
-    } catch {
+    } catch (e) {
       db = "down";
+      console.error("[health] db check failed:", e instanceof Error ? e.message : e);
     }
     return { status: "ok", db, ts: new Date().toISOString() };
   }
