@@ -1,18 +1,26 @@
+import { Flame, MessagesSquare, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MyProfileResponse, PublicUser, Role } from "@tg-app-meet/shared";
 import { api } from "./api";
 import { useAuth } from "./auth/useAuth";
 import { Deck } from "./discover/Deck";
 import { MatchesList } from "./matches/MatchesList";
-import { Nav, type Tab } from "./Nav";
 import { RolePicker } from "./onboarding/RolePicker";
 import { BuyerProfileForm } from "./profile/BuyerProfileForm";
 import { MyProfile } from "./profile/MyProfile";
 import { OwnerProfileForm } from "./profile/OwnerProfileForm";
 import { useProfile } from "./profile/useProfile";
 import { getTelegramWebApp } from "./telegram";
+import { Button, CenteredMessage, TabBar, type TabItem } from "./ui";
 
+type Tab = "discover" | "matches" | "profile";
 type Health = { status: string; db: string; ts: string };
+
+const TABS: readonly TabItem<Tab>[] = [
+  { key: "discover", label: "Найти", icon: <Flame size={22} /> },
+  { key: "matches", label: "Матчи", icon: <MessagesSquare size={22} /> },
+  { key: "profile", label: "Профиль", icon: <UserRound size={22} /> },
+];
 
 export function App() {
   const auth = useAuth();
@@ -24,22 +32,29 @@ export function App() {
   }, []);
 
   if (auth.status === "loading") {
-    return <CenteredHint text="authenticating…" />;
+    return (
+      <CenteredMessage>
+        <p className="text-tg-hint text-sm">authenticating…</p>
+      </CenteredMessage>
+    );
   }
   if (auth.status === "needs-telegram") {
-    return <CenteredHint text="Open this page from inside Telegram to sign in." />;
+    return (
+      <CenteredMessage>
+        <p className="text-tg-hint text-sm">
+          Open this page from inside Telegram to sign in.
+        </p>
+      </CenteredMessage>
+    );
   }
   if (auth.status === "error") {
     return (
-      <CenteredHint>
-        <p className="text-red-500 text-sm">auth failed: {auth.error}</p>
-        <button
-          onClick={auth.refresh}
-          className="mt-2 rounded-lg border border-tg-hint/30 px-3 py-1 text-sm"
-        >
+      <CenteredMessage>
+        <p className="text-danger text-sm">auth failed: {auth.error}</p>
+        <Button variant="secondary" size="md" onClick={auth.refresh} className="mt-2">
           retry
-        </button>
-      </CenteredHint>
+        </Button>
+      </CenteredMessage>
     );
   }
 
@@ -76,19 +91,20 @@ function ProfileFlow({
   const profile = useProfile();
 
   if (profile.status === "loading") {
-    return <CenteredHint text="загружаем профиль…" />;
+    return (
+      <CenteredMessage>
+        <p className="text-tg-hint text-sm">загружаем профиль…</p>
+      </CenteredMessage>
+    );
   }
   if (profile.status === "error") {
     return (
-      <CenteredHint>
-        <p className="text-red-500 text-sm">{profile.error}</p>
-        <button
-          onClick={profile.refresh}
-          className="mt-2 rounded-lg border border-tg-hint/30 px-3 py-1 text-sm"
-        >
+      <CenteredMessage>
+        <p className="text-danger text-sm">{profile.error}</p>
+        <Button variant="secondary" size="md" onClick={profile.refresh} className="mt-2">
           retry
-        </button>
-      </CenteredHint>
+        </Button>
+      </CenteredMessage>
     );
   }
   if (profile.status === "missing") {
@@ -130,9 +146,12 @@ function Home({
 
   return (
     <div className="min-h-full flex flex-col">
-      <div className="flex-1">
+      <div className="flex-1 pb-24">
         {tab === "discover" && (
-          <Deck onMatched={() => setTab("matches")} />
+          <Deck
+            myRole={profile.role}
+            onMatched={() => setTab("matches")}
+          />
         )}
         {tab === "matches" && (
           <MatchesList
@@ -145,23 +164,8 @@ function Home({
           <MyProfile user={user} profile={profile} onUpdated={onProfileUpdated} />
         )}
       </div>
-      <Nav current={tab} onChange={setTab} />
+      <TabBar items={TABS} active={tab} onChange={setTab} />
     </div>
-  );
-}
-
-function CenteredHint({
-  text,
-  children,
-}: {
-  text?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <main className="min-h-full flex flex-col items-center justify-center gap-2 p-6 text-center">
-      {text && <p className="text-tg-hint text-sm">{text}</p>}
-      {children}
-    </main>
   );
 }
 
@@ -174,9 +178,9 @@ function HealthDebug() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
   return (
-    <details className="fixed bottom-16 right-2 text-xs text-tg-hint">
+    <details className="fixed bottom-20 right-2 text-[10px] text-tg-hint z-30">
       <summary>debug</summary>
-      <pre className="bg-tg-secondary-bg p-2 rounded">
+      <pre className="bg-card p-2 rounded text-[10px]">
         {error ? `error: ${error}` : health ? JSON.stringify(health) : "checking…"}
       </pre>
     </details>

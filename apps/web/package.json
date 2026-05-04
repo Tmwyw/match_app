@@ -13,6 +13,7 @@
     "@telegram-apps/sdk-react": "^3.1.5",
     "@telegram-apps/telegram-ui": "^2.1.8",
     "@tg-app-meet/shared": "workspace:*",
+    "lucide-react": "^1.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

@@ -54,6 +54,13 @@ Health check: `GET http://localhost:3001/health` → `{ "status": "ok" }`.
 - **`prisma generate` after a migration EPERMs on Windows if `dev:api` is running** — `@swc-node/register` keeps `query_engine-windows.dll.node` open. Stop the api dev tree first, then re-run `pnpm db:generate` (or just rerun the failed `pnpm db:migrate` once api is down).
 - **`@UsePipes()` at method level applies the pipe to ALL params, not just `@Body()`.** When a controller method also has `@CurrentUser()` (or any other custom param decorator), the Zod pipe will validate the auth payload as if it were the request body and fail with confusing "field required" errors. Bind the pipe to `@Body(new ZodValidationPipe(Schema))` instead.
 
+## Frontend UI
+
+- **Primitives live in `apps/web/src/ui/`.** When you need a button, card, input, chip-select, role avatar, tab bar, etc — import from `../ui` (or `./ui`). Don't reinvent locally with raw Tailwind in screens.
+- **Design tokens in `apps/web/src/styles.css` + `tailwind.config.js`.** Brand purple `--accent` is independent of `--tg-theme-button-color` so the accent stays consistent across user themes. `bg-card`, `bg-tg-bg`, `text-tg-text`, `text-tg-hint`, `bg-accent`, `text-accent`, `bg-role-buyer`, `bg-role-owner`, `bg-danger`, `bg-success`. Radii: `rounded-card`, `rounded-button`. Add new tokens to BOTH styles.css (CSS var) and tailwind.config.js (utility) to keep them in one place.
+- Icons: `lucide-react`. No emoji-as-icon in primitives.
+- `safe-bottom` / `pb-safe` helpers handle iPhone home-indicator padding.
+
 ## Conventions
 
 - IDs: `cuid()`, never auto-increment.
@@ -73,6 +80,8 @@ Phase 1 — auth (done). `POST /auth/telegram` validates initData (HMAC + 24h fr
 Phase 2 — onboarding & profiles (done). `POST /onboarding/role` atomically assigns role + per-role `anonId` from `AnonCounter`. `GET/POST/PATCH /me/profile` with role-aware Zod (BuyerProfileInput / OwnerProfileInput). Frontend: `RolePicker`, `BuyerProfileForm`, `OwnerProfileForm`, `MyProfile` (read+edit), `useProfile()` hook, App.tsx state-machine routing (auth → role → profile → my-profile).
 
 Phase 3 — swipes & match (done). `GET /discover` returns one compatible card of the opposite role (vertical/geo overlap, exclude already-swiped). `POST /swipes` is idempotent; mutual LIKE → atomic `Match` + `Chat` (lex-normalized pair). `GET /matches` returns each match with the other user's `PublicCard` (no telegramId/username). Frontend: `Deck` (Like/Skip + match overlay), `MatchesList`, bottom tab `Найти/Матчи/Профиль`.
+
+Phase 2.5 — visual design pass (done). Brand purple accent (`--accent`), Inter font, role-tinted avatars, telegram-native dark via CSS theme vars, shared `apps/web/src/ui/` primitives (Screen, AppHeader, Card, Section, Button, BigActionButton, TabBar, RoleAvatar, Field, Textarea, ChipGroup, MatchOverlay, CenteredMessage). All screens (RolePicker, profile forms, MyProfile, Deck, MatchesList) refactored to use the primitives — no per-component hardcoded colors.
 
 Phase 4 — anonymous chat (current). Socket.io `/chat` namespace, anti-deanon filter, history via REST.
 

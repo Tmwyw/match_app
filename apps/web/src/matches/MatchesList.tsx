@@ -1,6 +1,8 @@
+import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { MatchesListResponse, PublicCard } from "@tg-app-meet/shared";
 import { api } from "../api";
+import { Button, Card, CenteredMessage, RoleAvatar, Screen } from "../ui";
 
 type State =
   | { status: "loading" }
@@ -32,45 +34,56 @@ export function MatchesList({
   }, [load]);
 
   if (state.status === "loading") {
-    return <Centered text="загружаем матчи…" />;
+    return (
+      <CenteredMessage>
+        <p className="text-tg-hint text-sm">загружаем матчи…</p>
+      </CenteredMessage>
+    );
   }
   if (state.status === "error") {
     return (
-      <Centered>
-        <p className="text-red-500 text-sm">{state.error}</p>
-        <button
-          onClick={load}
-          className="mt-2 rounded-lg border border-tg-hint/30 px-3 py-1 text-sm"
-        >
+      <CenteredMessage>
+        <p className="text-danger text-sm">{state.error}</p>
+        <Button variant="secondary" size="md" onClick={load} className="mt-2">
           retry
-        </button>
-      </Centered>
+        </Button>
+      </CenteredMessage>
     );
   }
   if (state.data.length === 0) {
-    return <Centered text="Пока матчей нет. Лайкай кандидатов во вкладке «Найти»." />;
+    return (
+      <CenteredMessage>
+        <p className="text-tg-hint text-sm">
+          Пока матчей нет. Лайкай кандидатов во вкладке «Найти».
+        </p>
+      </CenteredMessage>
+    );
   }
   return (
-    <main className="p-4 max-w-md mx-auto flex flex-col gap-3">
-      <h1 className="text-2xl font-semibold">Мои матчи</h1>
-      <ul className="flex flex-col gap-2">
-        {state.data.map((m) => (
-          <li key={m.matchId}>
-            <button
-              onClick={() => onOpenChat(m.matchId, m.chatId)}
-              className="w-full rounded-xl border border-tg-hint/30 bg-tg-secondary-bg p-4 text-left"
-            >
-              <div className="text-xs text-tg-hint">
-                {m.other.role === "BUYER" ? "БАЕР" : "ОВНЕР"} ·{" "}
-                {new Date(m.createdAt).toLocaleDateString()}
-              </div>
-              <div className="font-semibold">{m.other.anonId}</div>
-              <div className="text-sm text-tg-hint mt-1">{summarize(m.other)}</div>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </main>
+    <Screen className="min-h-screen">
+      <div className="max-w-md mx-auto flex flex-col gap-3">
+        <h1 className="text-2xl font-bold mt-2 mb-1">Мои матчи</h1>
+        <ul className="flex flex-col gap-2">
+          {state.data.map((m) => (
+            <li key={m.matchId}>
+              <Card
+                onClick={() => onOpenChat(m.matchId, m.chatId)}
+                className="flex items-center gap-3"
+              >
+                <RoleAvatar role={m.other.role} size="md" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{m.other.anonId}</div>
+                  <div className="text-xs text-tg-hint truncate">
+                    {summarize(m.other)}
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-tg-hint shrink-0" />
+              </Card>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Screen>
   );
 }
 
@@ -79,19 +92,4 @@ function summarize(card: PublicCard): string {
     return `${card.verticals.join("/")} · ${card.geos.join(",")} · $${card.budgetMin}–${card.budgetMax}`;
   }
   return `${card.offerName} · ${card.vertical} · ${card.payoutType} $${card.payoutAmount}`;
-}
-
-function Centered({
-  text,
-  children,
-}: {
-  text?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <main className="min-h-full flex flex-col items-center justify-center gap-2 p-6 text-center">
-      {text && <p className="text-tg-hint text-sm">{text}</p>}
-      {children}
-    </main>
-  );
 }

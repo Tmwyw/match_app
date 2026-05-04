@@ -1,5 +1,7 @@
+import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type { MyProfileResponse, PublicUser } from "@tg-app-meet/shared";
+import { Button, Card, RoleAvatar, Screen } from "../ui";
 import { BuyerProfileForm } from "./BuyerProfileForm";
 import { OwnerProfileForm } from "./OwnerProfileForm";
 
@@ -38,61 +40,95 @@ export function MyProfile({ user, profile, onUpdated }: Props) {
   }
 
   return (
-    <main className="p-4 max-w-md mx-auto flex flex-col gap-4">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{user.anonId}</h1>
-          {user.username && (
-            <p className="text-tg-hint text-xs">@{user.username} · виден только тебе</p>
-          )}
-        </div>
-        <button
+    <Screen className="pb-safe min-h-screen">
+      <div className="max-w-md mx-auto flex flex-col gap-4">
+        <Header user={user} role={profile.role} />
+
+        {profile.role === "BUYER" ? (
+          <BuyerView profile={profile} />
+        ) : (
+          <OwnerView profile={profile} />
+        )}
+
+        <Button
+          variant="secondary"
+          fullWidth
           onClick={() => setEditing(true)}
-          className="rounded-lg border border-tg-hint/30 px-3 py-1 text-sm"
+          className="mt-2"
         >
-          Edit
-        </button>
-      </header>
-
-      {profile.role === "BUYER" ? (
-        <BuyerView profile={profile} />
-      ) : (
-        <OwnerView profile={profile} />
-      )}
-    </main>
+          <Pencil size={16} />
+          Редактировать
+        </Button>
+      </div>
+    </Screen>
   );
 }
 
-function BuyerView({ profile }: { profile: Extract<MyProfileResponse, { role: "BUYER" }> }) {
+function Header({
+  user,
+  role,
+}: {
+  user: PublicUser;
+  role: "BUYER" | "OWNER";
+}) {
   return (
-    <section className="flex flex-col gap-3">
-      <Row label="Вертикали" value={profile.verticals.join(", ")} />
-      <Row label="Гео" value={profile.geos.join(", ")} />
-      <Row label="Бюджет" value={`$${profile.budgetMin}–${profile.budgetMax}`} />
-      <Row label="Опыт" value={`${profile.experience} лет`} />
-      {profile.bio && <Row label="О себе" value={profile.bio} />}
-    </section>
+    <Card className="flex flex-col items-center text-center gap-3 py-6">
+      <RoleAvatar role={role} size="xl" />
+      <div>
+        <h1 className="text-2xl font-bold">{user.anonId}</h1>
+        <p className="text-tg-hint text-xs mt-1">
+          {user.username ? `@${user.username} · ` : ""}виден только тебе
+        </p>
+      </div>
+    </Card>
   );
 }
 
-function OwnerView({ profile }: { profile: Extract<MyProfileResponse, { role: "OWNER" }> }) {
+function BuyerView({
+  profile,
+}: {
+  profile: Extract<MyProfileResponse, { role: "BUYER" }>;
+}) {
   return (
-    <section className="flex flex-col gap-3">
-      <Row label="Оффер" value={profile.offerName} />
-      <Row label="Вертикаль" value={profile.vertical} />
-      <Row label="Гео" value={profile.geos.join(", ")} />
-      <Row label="Выплаты" value={`${profile.payoutType} · $${profile.payoutAmount}`} />
-      {profile.requirements && <Row label="Требования" value={profile.requirements} />}
-      {profile.bio && <Row label="О себе" value={profile.bio} />}
-    </section>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-tg-hint/30 bg-tg-secondary-bg p-3">
-      <div className="text-tg-hint text-xs">{label}</div>
-      <div className="text-sm mt-0.5 break-words">{value}</div>
+    <div className="flex flex-col gap-2">
+      <FieldCard label="Источники" value={profile.verticals.join(", ")} />
+      <FieldCard label="Гео" value={profile.geos.join(", ")} />
+      <FieldCard label="Бюджет" value={`$${profile.budgetMin}–${profile.budgetMax}`} />
+      <FieldCard label="Опыт" value={`${profile.experience} лет`} />
+      {profile.bio && <FieldCard label="О себе" value={profile.bio} />}
     </div>
+  );
+}
+
+function OwnerView({
+  profile,
+}: {
+  profile: Extract<MyProfileResponse, { role: "OWNER" }>;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <FieldCard label="Оффер" value={profile.offerName} />
+      <FieldCard label="Вертикаль" value={profile.vertical} />
+      <FieldCard label="Гео" value={profile.geos.join(", ")} />
+      <FieldCard
+        label="Выплаты"
+        value={`${profile.payoutType} · $${profile.payoutAmount}`}
+      />
+      {profile.requirements && (
+        <FieldCard label="Требования" value={profile.requirements} />
+      )}
+      {profile.bio && <FieldCard label="О себе" value={profile.bio} />}
+    </div>
+  );
+}
+
+function FieldCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="flex flex-col gap-1">
+      <span className="text-xs font-semibold uppercase tracking-wider text-tg-hint">
+        {label}
+      </span>
+      <span className="text-base break-words">{value}</span>
+    </Card>
   );
 }
