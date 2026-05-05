@@ -4,25 +4,31 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Brand-fixed palette — does NOT inherit from the user's TG theme.
-        // (We tried --tg-theme-* originally but some TG themes ship values
-        //  that collapse our cards/inputs into the page bg. Forcing our
-        //  own palette gives a consistent reference-mockup look.)
+        // Brand-fixed palette — independent of the user's TG theme so the
+        // gradient-mesh + glass design reads consistently for everyone.
         tg: {
           bg: "var(--app-bg)",
+          "bg-deep": "var(--app-bg-deep)",
           text: "var(--app-text)",
           "text-secondary": "var(--app-text-secondary)",
           hint: "var(--app-hint)",
-          "secondary-bg": "var(--app-card)",
+          "secondary-bg": "var(--app-glass)",
           button: "var(--accent)",
           "button-text": "var(--accent-text)",
         },
-        card: "var(--app-card)",
-        "card-elevated": "var(--app-card-elevated)",
-        "app-border": "var(--app-border)",
-        "app-border-strong": "var(--app-border-strong)",
+        glass: {
+          DEFAULT: "var(--app-glass)",
+          strong: "var(--app-glass-strong)",
+          elevated: "var(--app-glass-elevated)",
+        },
+        // Legacy aliases so existing screens keep compiling.
+        card: "var(--app-glass)",
+        "card-elevated": "var(--app-glass-elevated)",
+        "app-border": "var(--app-glass-border)",
+        "app-border-strong": "var(--app-glass-border-strong)",
         accent: {
           DEFAULT: "var(--accent)",
+          2: "var(--accent-2)",
           text: "var(--accent-text)",
           muted: "var(--accent-muted)",
           ring: "var(--accent-ring)",
@@ -53,8 +59,13 @@ export default {
         ],
       },
       boxShadow: {
-        action: "0 8px 24px -8px rgba(0, 0, 0, 0.45)",
-        "card-elevated": "0 1px 0 rgba(255, 255, 255, 0.04) inset",
+        action: "0 8px 24px -8px rgba(0, 0, 0, 0.5)",
+        glow: "var(--accent-glow)",
+        "glow-success": "0 8px 28px -8px rgba(16, 185, 129, 0.5)",
+        "glow-danger": "0 8px 28px -8px rgba(239, 68, 68, 0.5)",
+      },
+      backgroundImage: {
+        "accent-gradient": "linear-gradient(135deg, var(--accent), var(--accent-2))",
       },
     },
   },

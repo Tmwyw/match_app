@@ -1,4 +1,5 @@
 export { AppHeader } from "./AppHeader";
+export { Background } from "./Background";
 export { BigActionButton } from "./BigActionButton";
 export { Button } from "./Button";
 export { Card } from "./Card";
@@ -10,5 +11,6 @@ export { Screen, CenteredMessage } from "./Screen";
 export { Section } from "./Section";
 export { TabBar } from "./TabBar";
 export type { TabItem } from "./TabBar";
+export { TagInput } from "./TagInput";
 export { Textarea } from "./Textarea";
 export { cn } from "./cn";

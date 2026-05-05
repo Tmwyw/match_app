@@ -11,10 +11,11 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-text",
-  secondary: "bg-card text-tg-text",
+  primary:
+    "bg-accent-gradient text-accent-text shadow-glow border border-white/10",
+  secondary: "glass text-tg-text hover:border-app-border-strong",
   ghost: "text-accent",
-  danger: "bg-danger text-white",
+  danger: "bg-danger text-white shadow-glow-danger",
 };
 
 const sizes: Record<Size, string> = {

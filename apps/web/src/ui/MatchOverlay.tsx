@@ -20,7 +20,7 @@ export function MatchOverlay({
 }: Props) {
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="rounded-card bg-tg-bg border border-tg-hint/10 p-6 max-w-sm w-full text-center flex flex-col gap-5 shadow-action">
+      <div className="rounded-card glass-strong glass-highlight p-6 max-w-sm w-full text-center flex flex-col gap-5 shadow-action">
         <div className="flex items-center justify-center gap-4">
           <RoleAvatar role={myRole} size="lg" />
           <Heart className="text-accent" size={32} fill="currentColor" />

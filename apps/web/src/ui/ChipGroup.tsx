@@ -39,10 +39,10 @@ export function ChipGroup<T extends string>({
             onClick={() => toggle(opt)}
             aria-pressed={active}
             className={cn(
-              "rounded-chip px-3.5 py-2 text-sm font-medium transition active:scale-[0.97] border",
+              "rounded-chip px-3.5 py-2 text-sm font-medium transition active:scale-[0.97]",
               active
-                ? "bg-accent text-accent-text border-accent shadow-[0_4px_14px_-4px_rgba(123,97,255,0.55)]"
-                : "bg-card text-tg-text border-app-border-strong hover:border-accent/40",
+                ? "bg-accent-gradient text-accent-text shadow-glow border border-white/15"
+                : "glass text-tg-text hover:border-app-border-strong",
             )}
           >
             {opt}

@@ -18,10 +18,10 @@ export function Field({ label, error, hint, className, ...rest }: Props) {
       <input
         {...rest}
         className={cn(
-          "h-12 w-full rounded-input bg-card text-tg-text placeholder:text-tg-hint",
-          "border border-app-border px-4 text-base outline-none transition",
+          "h-12 w-full rounded-input glass-input text-tg-text placeholder:text-tg-hint",
+          "px-4 text-base outline-none transition",
           "focus:border-accent focus:ring-2 focus:ring-accent/40",
-          error && "border-danger ring-2 ring-danger/40 focus:border-danger focus:ring-danger/40",
+          error && "!border-danger ring-2 ring-danger/40",
           className,
         )}
       />

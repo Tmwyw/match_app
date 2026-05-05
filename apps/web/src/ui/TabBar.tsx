@@ -15,8 +15,8 @@ type Props<K extends string> = {
 
 export function TabBar<K extends string>({ items, active, onChange }: Props<K>) {
   return (
-    <nav className="sticky bottom-0 left-0 right-0 z-20 bg-tg-bg/95 backdrop-blur border-t border-tg-hint/15 safe-bottom">
-      <div className="max-w-md mx-auto flex">
+    <nav className="fixed bottom-0 left-0 right-0 z-20 px-3 pb-3 safe-bottom pointer-events-none">
+      <div className="max-w-md mx-auto pointer-events-auto glass-strong glass-highlight rounded-card flex shadow-action overflow-hidden">
         {items.map((item) => {
           const isActive = item.key === active;
           return (
@@ -24,12 +24,15 @@ export function TabBar<K extends string>({ items, active, onChange }: Props<K>) 
               key={item.key}
               onClick={() => onChange(item.key)}
               className={cn(
-                "flex-1 py-2 flex flex-col items-center gap-1 text-[11px] font-medium transition",
+                "flex-1 py-3 flex flex-col items-center gap-1 text-[11px] font-medium transition relative",
                 isActive ? "text-accent" : "text-tg-hint",
               )}
             >
               <span className="h-6 flex items-center">{item.icon}</span>
               <span>{item.label}</span>
+              {isActive && (
+                <span className="absolute -top-px left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-accent shadow-glow" />
+              )}
             </button>
           );
         })}

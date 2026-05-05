@@ -12,9 +12,9 @@ type Props = {
 };
 
 const variants: Record<Variant, string> = {
-  danger: "bg-danger text-white",
-  info: "bg-accent text-accent-text",
-  success: "bg-success text-white",
+  danger: "bg-danger text-white shadow-glow-danger border border-white/15",
+  info: "bg-accent-gradient text-accent-text shadow-glow border border-white/15",
+  success: "bg-success text-white shadow-glow-success border border-white/15",
 };
 
 export function BigActionButton({ variant, icon, ariaLabel, onClick, disabled }: Props) {
@@ -24,7 +24,7 @@ export function BigActionButton({ variant, icon, ariaLabel, onClick, disabled }:
       disabled={disabled}
       aria-label={ariaLabel}
       className={cn(
-        "h-16 w-16 rounded-full flex items-center justify-center shadow-action transition active:scale-90 disabled:opacity-50 disabled:active:scale-100",
+        "h-16 w-16 rounded-full flex items-center justify-center transition active:scale-90 disabled:opacity-50 disabled:active:scale-100",
         variants[variant],
       )}
     >

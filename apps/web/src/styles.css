@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,35 +6,45 @@
 
 /*
  * Brand palette is FIXED — independent of the user's Telegram theme.
- * This keeps the design consistent (matches the reference mockup) and
- * avoids low-contrast / invisible elements when a TG theme injects
- * weird values for --tg-theme-secondary-bg-color etc.
+ * Surfaces are translucent so the background gradient mesh shows through
+ * subtly behind blurred glass cards (iOS "liquid glass" look, approximated
+ * via backdrop-filter — full Metal-shader refraction isn't doable in CSS).
  */
 :root {
-  --app-bg: #0f1419;
-  --app-card: #1b232e;
-  --app-card-elevated: #232c39;
+  --app-bg: #06080d;
+  --app-bg-deep: #03050a;
+
+  /* Translucent glass surfaces — backdrop-blur picks up colour from the
+     animated gradient mesh underneath, giving every card subtle tinting. */
+  --app-glass: rgba(22, 28, 38, 0.55);
+  --app-glass-strong: rgba(28, 36, 50, 0.72);
+  --app-glass-elevated: rgba(36, 46, 64, 0.78);
+  --app-glass-border: rgba(255, 255, 255, 0.09);
+  --app-glass-border-strong: rgba(255, 255, 255, 0.16);
+  --app-glass-highlight: rgba(255, 255, 255, 0.22);
+
   --app-text: #ffffff;
-  --app-text-secondary: #c4cdd9;
-  --app-hint: #7d8b99;
-  --app-border: rgba(255, 255, 255, 0.08);
-  --app-border-strong: rgba(255, 255, 255, 0.14);
+  --app-text-secondary: #d4dae6;
+  --app-hint: #8590a3;
 
   --accent: #7b61ff;
+  --accent-2: #a78bff;
   --accent-text: #ffffff;
-  --accent-muted: rgba(123, 97, 255, 0.18);
-  --accent-ring: rgba(123, 97, 255, 0.45);
+  --accent-muted: rgba(123, 97, 255, 0.22);
+  --accent-ring: rgba(123, 97, 255, 0.5);
+  --accent-glow: 0 8px 32px -8px rgba(123, 97, 255, 0.55),
+                 0 2px 0 rgba(255, 255, 255, 0.18) inset;
 
   --role-buyer: #7b61ff;
   --role-owner: #14b8a6;
 
   --danger: #ef4444;
-  --danger-muted: rgba(239, 68, 68, 0.16);
+  --danger-muted: rgba(239, 68, 68, 0.18);
   --success: #10b981;
 
-  --radius-card: 18px;
-  --radius-button: 14px;
-  --radius-input: 14px;
+  --radius-card: 22px;
+  --radius-button: 16px;
+  --radius-input: 16px;
   --radius-chip: 999px;
 }
 
@@ -44,14 +54,25 @@ body,
   height: 100%;
 }
 
+/*
+ * Background gradient lives in <Background /> (fixed div with z-index: 0,
+ * inline-styled). All ancestors of the app content must stay transparent
+ * so the gradient shows through. App content sits at z-10 above it.
+ */
+html,
+body,
+#root {
+  background: transparent;
+}
+
 body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display",
     "Segoe UI", system-ui, sans-serif;
-  background-color: var(--app-bg);
   color: var(--app-text);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 /* iOS safe-area helpers */
@@ -60,6 +81,46 @@ body {
 }
 .pb-safe {
   padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+}
+
+/* Glass surface — used by Card, TabBar, AppHeader, inputs.
+   Specular highlight along the top edge mimics a refractive bevel. */
+.glass {
+  background: var(--app-glass);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--app-glass-border);
+  position: relative;
+}
+.glass-strong {
+  background: var(--app-glass-strong);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--app-glass-border);
+}
+.glass-input {
+  background: var(--app-glass-elevated);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--app-glass-border);
+}
+
+/* Specular highlight on the top edge of glass surfaces. */
+.glass-highlight::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--app-glass-highlight),
+    transparent
+  );
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 /* Subtle scrollbar in webview */
@@ -78,6 +139,6 @@ input:-webkit-autofill,
 input:-webkit-autofill:focus,
 textarea:-webkit-autofill {
   -webkit-text-fill-color: var(--app-text);
-  -webkit-box-shadow: 0 0 0 1000px var(--app-card) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--app-glass-elevated) inset;
   caret-color: var(--app-text);
 }

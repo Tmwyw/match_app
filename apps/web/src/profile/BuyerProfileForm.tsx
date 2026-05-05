@@ -1,19 +1,19 @@
 import { useState } from "react";
 import {
   BuyerProfileInput,
-  Geo,
+  GeoPresets,
   type MyBuyerProfile,
   type MyProfileResponse,
-  Vertical,
+  VerticalPresets,
 } from "@tg-app-meet/shared";
 import { api } from "../api";
 import {
   AppHeader,
   Button,
-  ChipGroup,
   Field,
   Screen,
   Section,
+  TagInput,
   Textarea,
 } from "../ui";
 
@@ -25,10 +25,8 @@ type Props = {
 
 export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
   const isEdit = Boolean(initial);
-  const [verticals, setVerticals] = useState<Vertical[]>(
-    (initial?.verticals as Vertical[]) ?? [],
-  );
-  const [geos, setGeos] = useState<Geo[]>((initial?.geos as Geo[]) ?? []);
+  const [verticals, setVerticals] = useState<string[]>(initial?.verticals ?? []);
+  const [geos, setGeos] = useState<string[]>(initial?.geos ?? []);
   const [budgetMin, setBudgetMin] = useState(
     initial ? String(initial.budgetMin) : "",
   );
@@ -82,22 +80,33 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
     }
   };
 
+  // When `onCancel` is set we're in EDIT mode, opened from MyProfile inside
+  // the tabbed Home layout. Render as a full-screen overlay so the bottom
+  // TabBar doesn't peek through under the sticky submit button.
+  // No bg on the overlay — the html gradient should show through. Cards
+  // and inputs use translucent glass so the colour underneath bleeds in.
+  const wrapperClass = isEdit
+    ? "fixed inset-0 z-40 overflow-y-auto"
+    : "min-h-screen";
+
   return (
-    <Screen className="pb-safe min-h-screen">
+    <div className={wrapperClass}>
+    <Screen noPadding className="pb-safe min-h-screen">
       <AppHeader
         title={isEdit ? "Редактирование" : "Профиль баера"}
         onBack={onCancel}
       />
-      <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto pt-2">
+      <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto px-4 pt-4">
         <Section
           title="Источники"
-          description="Где закупаешь. Можно выбрать до 5."
+          description="Где закупаешь. Выбери из подсказок или добавь свои."
         >
-          <ChipGroup
-            options={Vertical.options}
+          <TagInput
+            presets={VerticalPresets}
             value={verticals}
             onChange={setVerticals}
-            max={5}
+            max={8}
+            placeholder="Своя вертикаль (напр. CRYPTO)"
           />
           {errors.verticals && (
             <span className="text-xs text-danger px-1">{errors.verticals}</span>
@@ -105,7 +114,13 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
         </Section>
 
         <Section title="Гео" description="Регионы, по которым работаешь.">
-          <ChipGroup options={Geo.options} value={geos} onChange={setGeos} max={10} />
+          <TagInput
+            presets={GeoPresets}
+            value={geos}
+            onChange={setGeos}
+            max={15}
+            placeholder="Своё гео (напр. BR, IN)"
+          />
           {errors.geos && (
             <span className="text-xs text-danger px-1">{errors.geos}</span>
           )}
@@ -158,7 +173,7 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
           <p className="text-danger text-sm text-center">{serverError}</p>
         )}
 
-        <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg flex flex-col gap-2">
+        <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg-deep/85 backdrop-blur-md flex flex-col gap-2">
           <Button type="submit" variant="primary" fullWidth disabled={submitting}>
             {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
           </Button>
@@ -176,5 +191,6 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
         </div>
       </form>
     </Screen>
+    </div>
   );
 }

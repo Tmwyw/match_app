@@ -14,9 +14,9 @@ export function Card({ children, className, onClick, active }: Props) {
     <Wrapper
       onClick={onClick}
       className={cn(
-        "rounded-card bg-card border border-app-border p-4 text-left w-full",
+        "glass glass-highlight rounded-card p-4 text-left w-full",
         onClick && "transition active:scale-[0.99] hover:border-app-border-strong",
-        active && "border-accent ring-2 ring-accent/30",
+        active && "!border-accent ring-2 ring-accent/40 shadow-glow",
         className,
       )}
     >

@@ -1,9 +1,21 @@
 import { z } from "zod";
 import { Geo, PayoutType, Vertical } from "./roles";
 
+// `Vertical` and `Geo` enums (in roles.ts) are kept as **suggestions** for
+// the UI — but storage / input now accepts any short tag so users can write
+// niches that we haven't pre-baked (e.g. "TG_ADS", "BANGLA", their own
+// gambling vertical name, etc.). Tag = trimmed, 1-40 chars, no newlines.
+const Tag = z
+  .string()
+  .min(1)
+  .max(40)
+  .regex(/^[^\n\r]+$/u, "no line breaks");
+
+const TagList = (max: number) => z.array(Tag).min(1).max(max);
+
 const BuyerShape = z.object({
-  verticals: z.array(Vertical).min(1).max(5),
-  geos: z.array(Geo).min(1).max(10),
+  verticals: TagList(8),
+  geos: TagList(15),
   budgetMin: z.number().int().positive(),
   budgetMax: z.number().int().positive(),
   experience: z.number().int().min(0).max(50),
@@ -21,8 +33,8 @@ export type BuyerProfilePatch = z.infer<typeof BuyerProfilePatch>;
 
 const OwnerShape = z.object({
   offerName: z.string().min(2).max(100),
-  vertical: Vertical,
-  geos: z.array(Geo).min(1).max(10),
+  vertical: Tag,
+  geos: TagList(15),
   payoutType: PayoutType,
   payoutAmount: z.number().int().positive(),
   requirements: z.string().max(500).nullish(),
@@ -37,8 +49,8 @@ export type OwnerProfilePatch = z.infer<typeof OwnerProfilePatch>;
 
 export const MyBuyerProfile = z.object({
   role: z.literal("BUYER"),
-  verticals: z.array(Vertical),
-  geos: z.array(Geo),
+  verticals: z.array(z.string()),
+  geos: z.array(z.string()),
   budgetMin: z.number().int(),
   budgetMax: z.number().int(),
   experience: z.number().int(),
@@ -49,8 +61,8 @@ export type MyBuyerProfile = z.infer<typeof MyBuyerProfile>;
 export const MyOwnerProfile = z.object({
   role: z.literal("OWNER"),
   offerName: z.string(),
-  vertical: Vertical,
-  geos: z.array(Geo),
+  vertical: z.string(),
+  geos: z.array(z.string()),
   payoutType: PayoutType,
   payoutAmount: z.number().int(),
   requirements: z.string().nullable(),
@@ -68,8 +80,8 @@ export const PublicBuyerCard = z.object({
   userId: z.string(),
   anonId: z.string(),
   role: z.literal("BUYER"),
-  verticals: z.array(Vertical),
-  geos: z.array(Geo),
+  verticals: z.array(z.string()),
+  geos: z.array(z.string()),
   budgetMin: z.number().int(),
   budgetMax: z.number().int(),
   experience: z.number().int(),
@@ -82,8 +94,8 @@ export const PublicOwnerCard = z.object({
   anonId: z.string(),
   role: z.literal("OWNER"),
   offerName: z.string(),
-  vertical: Vertical,
-  geos: z.array(Geo),
+  vertical: z.string(),
+  geos: z.array(z.string()),
   payoutType: PayoutType,
   payoutAmount: z.number().int(),
   requirements: z.string().nullable(),
@@ -102,3 +114,7 @@ export const DiscoverResponse = z.object({
   remaining: z.number().int().nonnegative(),
 });
 export type DiscoverResponse = z.infer<typeof DiscoverResponse>;
+
+// Re-export presets so the UI can suggest them as quick-pick chips.
+export const VerticalPresets = Vertical.options;
+export const GeoPresets = Geo.options;

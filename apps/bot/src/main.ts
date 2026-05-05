@@ -19,7 +19,34 @@ bot.catch((err) => {
   console.error("[bot] error", err);
 });
 
+/**
+ * Pin the Mini App as the persistent menu button next to the chat input.
+ * Without this, every user sees the default "Menu" → command list. With it,
+ * the input bar shows a one-tap "Open App" button. Set globally (no chat_id)
+ * — applies as the default for every user who hasn't customised theirs.
+ *
+ * Re-applied on every boot because the URL changes in dev (cloudflared).
+ */
+async function setupMenuButton() {
+  try {
+    await bot.api.setChatMenuButton({
+      menu_button: {
+        type: "web_app",
+        text: "Open App",
+        web_app: { url: env.WEB_APP_URL },
+      },
+    });
+    console.log(`[bot] menu button → ${env.WEB_APP_URL}`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`[bot] failed to set menu button: ${msg}`);
+  }
+}
+
 console.log("[bot] starting long-polling…");
 bot.start({
-  onStart: (me) => console.log(`[bot] @${me.username} ready (web app → ${env.WEB_APP_URL})`),
+  onStart: async (me) => {
+    console.log(`[bot] @${me.username} ready (web app → ${env.WEB_APP_URL})`);
+    await setupMenuButton();
+  },
 });

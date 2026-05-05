@@ -1,11 +1,11 @@
 import { useState } from "react";
 import {
-  Geo,
+  GeoPresets,
   type MyOwnerProfile,
   type MyProfileResponse,
   OwnerProfileInput,
   PayoutType,
-  Vertical,
+  VerticalPresets,
 } from "@tg-app-meet/shared";
 import { api } from "../api";
 import {
@@ -15,6 +15,7 @@ import {
   Field,
   Screen,
   Section,
+  TagInput,
   Textarea,
 } from "../ui";
 
@@ -27,10 +28,10 @@ type Props = {
 export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
   const isEdit = Boolean(initial);
   const [offerName, setOfferName] = useState(initial?.offerName ?? "");
-  const [vertical, setVertical] = useState<Vertical[]>(
-    initial ? [initial.vertical as Vertical] : [],
+  const [vertical, setVertical] = useState<string[]>(
+    initial ? [initial.vertical] : [],
   );
-  const [geos, setGeos] = useState<Geo[]>((initial?.geos as Geo[]) ?? []);
+  const [geos, setGeos] = useState<string[]>(initial?.geos ?? []);
   const [payoutType, setPayoutType] = useState<PayoutType[]>(
     initial ? [initial.payoutType as PayoutType] : [],
   );
@@ -83,13 +84,18 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
     }
   };
 
+  const wrapperClass = isEdit
+    ? "fixed inset-0 z-40 overflow-y-auto"
+    : "min-h-screen";
+
   return (
-    <Screen className="pb-safe min-h-screen">
+    <div className={wrapperClass}>
+    <Screen noPadding className="pb-safe min-h-screen">
       <AppHeader
         title={isEdit ? "Редактирование" : "Профиль овнера"}
         onBack={onCancel}
       />
-      <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto pt-2">
+      <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto px-4 pt-4">
         <Section title="Оффер">
           <Field
             label="название"
@@ -101,20 +107,30 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
           />
         </Section>
 
-        <Section title="Вертикаль">
-          <ChipGroup
-            mode="single"
-            options={Vertical.options}
+        <Section
+          title="Вертикаль"
+          description="Выбери из подсказок или укажи свою."
+        >
+          <TagInput
+            presets={VerticalPresets}
             value={vertical}
             onChange={setVertical}
+            mode="single"
+            placeholder="Своя вертикаль"
           />
           {errors.vertical && (
             <span className="text-xs text-danger px-1">{errors.vertical}</span>
           )}
         </Section>
 
-        <Section title="Гео">
-          <ChipGroup options={Geo.options} value={geos} onChange={setGeos} max={10} />
+        <Section title="Гео" description="Регионы, на которые льёшь.">
+          <TagInput
+            presets={GeoPresets}
+            value={geos}
+            onChange={setGeos}
+            max={15}
+            placeholder="Своё гео"
+          />
           {errors.geos && (
             <span className="text-xs text-danger px-1">{errors.geos}</span>
           )}
@@ -166,7 +182,7 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
           <p className="text-danger text-sm text-center">{serverError}</p>
         )}
 
-        <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg flex flex-col gap-2">
+        <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg-deep/85 backdrop-blur-md flex flex-col gap-2">
           <Button type="submit" variant="primary" fullWidth disabled={submitting}>
             {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
           </Button>
@@ -184,5 +200,6 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
         </div>
       </form>
     </Screen>
+    </div>
   );
 }
