@@ -15,6 +15,10 @@ import { antiDeanon } from "./anti-deanon";
 const HISTORY_LIMIT_MAX = 100;
 const HISTORY_LIMIT_DEFAULT = 50;
 
+/** Internal — extends the public ack with the recipient id so the gateway
+ *  can route a DM push without a second DB round-trip. Never sent to clients. */
+export type SendMessageInternal = SendMessageResult & { recipientId: string };
+
 @Injectable()
 export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
@@ -47,10 +51,19 @@ export class ChatService {
   async sendMessage(
     senderId: string,
     input: SendMessageInput,
-  ): Promise<SendMessageResult> {
-    if (!(await this.isParticipant(senderId, input.chatId))) {
+  ): Promise<SendMessageInternal> {
+    // Single fetch covers participant check AND lets us return the recipient
+    // id to the gateway so it can decide whether to push a DM notification.
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: input.chatId },
+      include: { match: true },
+    });
+    if (!chat) throw new NotFoundException("CHAT_NOT_FOUND");
+    if (chat.match.userAId !== senderId && chat.match.userBId !== senderId) {
       throw new ForbiddenException("FORBIDDEN");
     }
+    const recipientId =
+      chat.match.userAId === senderId ? chat.match.userBId : chat.match.userAId;
 
     const { content, filtered } = antiDeanon(input.content);
     // If everything was scrubbed, store a single placeholder so the recipient
@@ -70,7 +83,7 @@ export class ChatService {
       content: row.content,
       createdAt: row.createdAt.toISOString(),
     };
-    return { message, filtered };
+    return { message, filtered, recipientId };
   }
 
   async getHistory(

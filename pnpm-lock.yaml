@@ -38,6 +38,9 @@ importers:
       '@tg-app-meet/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      grammy:
+        specifier: ^1.42.0
+        version: 1.42.0
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3

@@ -9,6 +9,7 @@ const Env = z.object({
     .union([z.literal("*"), z.string().url()])
     .default("http://localhost:5173"),
   BOT_TOKEN: z.string().min(1),
+  WEB_APP_URL: z.string().url(),
 });
 
 export const env = (() => {

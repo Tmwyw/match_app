@@ -3,6 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayDisconnect,
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -17,6 +18,7 @@ import {
 } from "@tg-app-meet/shared";
 import { Server, Socket } from "socket.io";
 import { env } from "../env";
+import { NotificationsService } from "../notifications/notifications.service";
 import { ChatService } from "./chat.service";
 
 type AuthedSocket = Socket & {
@@ -29,14 +31,21 @@ const corsOrigin = env.WEB_ORIGIN === "*" ? true : env.WEB_ORIGIN;
   namespace: "chat",
   cors: { origin: corsOrigin, credentials: corsOrigin !== true },
 })
-export class ChatGateway implements OnGatewayInit {
+export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
   private readonly logger = new Logger(ChatGateway.name);
+
+  // userId → set of currently-connected socket ids. A user may have multiple
+  // sockets (Mini App reopened in a second tab, reconnects, etc), so we
+  // track every socket and only consider the user offline when the set
+  // empties. Used by NotificationsService to decide whether to push a DM.
+  private readonly online = new Map<string, Set<string>>();
 
   @WebSocketServer() server!: Server;
 
   constructor(
     private readonly jwt: JwtService,
     private readonly chat: ChatService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   afterInit(server: Server): void {
@@ -53,6 +62,7 @@ export class ChatGateway implements OnGatewayInit {
         // Per-user room: lets the server push events (e.g. reveal:updated)
         // to a specific user regardless of which chat room they joined.
         await socket.join(userRoom(payload.sub));
+        this.markOnline(payload.sub, socket.id);
         next();
       } catch (e) {
         this.logger.warn(
@@ -63,8 +73,35 @@ export class ChatGateway implements OnGatewayInit {
     });
   }
 
+  handleDisconnect(client: AuthedSocket): void {
+    const userId = client.data.userId;
+    if (!userId) return;
+    this.markOffline(userId, client.id);
+  }
+
+  isOnline(userId: string): boolean {
+    const set = this.online.get(userId);
+    return !!set && set.size > 0;
+  }
+
   emitRevealUpdated(userId: string, status: RevealStatus): void {
     this.server.to(userRoom(userId)).emit(WsServerEvents.RevealUpdated, status);
+  }
+
+  private markOnline(userId: string, socketId: string): void {
+    let set = this.online.get(userId);
+    if (!set) {
+      set = new Set();
+      this.online.set(userId, set);
+    }
+    set.add(socketId);
+  }
+
+  private markOffline(userId: string, socketId: string): void {
+    const set = this.online.get(userId);
+    if (!set) return;
+    set.delete(socketId);
+    if (set.size === 0) this.online.delete(userId);
   }
 
   @SubscribeMessage(WsClientEvents.Join)
@@ -109,12 +146,31 @@ export class ChatGateway implements OnGatewayInit {
     if (!parsed.success) return { error: "BAD_REQUEST" };
 
     try {
-      const result = await this.chat.sendMessage(userId, parsed.data);
+      const { recipientId, ...ack } = await this.chat.sendMessage(
+        userId,
+        parsed.data,
+      );
       // Broadcast to others in the room; sender already gets the message via ack.
       client
         .to(roomFor(parsed.data.chatId))
-        .emit(WsServerEvents.MessageNew, result.message);
-      return result;
+        .emit(WsServerEvents.MessageNew, ack.message);
+
+      // Push DM only when the recipient has no live socket. Fire-and-forget:
+      // the bot API call shouldn't block the sender's ack.
+      if (!this.isOnline(recipientId)) {
+        void this.notifications
+          .notifyMessage(
+            recipientId,
+            ack.message.senderAnonId,
+            parsed.data.chatId,
+            ack.message.content,
+          )
+          .catch(() => {
+            /* swallowed inside the service too — keep belt+braces */
+          });
+      }
+
+      return ack;
     } catch (e) {
       const code =
         e instanceof Error && /forbidden/i.test(e.message)
