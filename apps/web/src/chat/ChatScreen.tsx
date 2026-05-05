@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import type { PublicUser, Role, RevealStatus } from "@tg-app-meet/shared";
+import { openTelegramUsername } from "../telegram";
 import { AppHeader, Button, CenteredMessage, RoleAvatar, cn } from "../ui";
 import { type LocalMessage, useChat } from "./useChat";
 
@@ -198,12 +199,13 @@ function RevealBanner({
         {otherUsername ? (
           <p className="text-xs text-tg-text">
             Контакт открыт.{" "}
-            <a
-              href={`tg://resolve?domain=${encodeURIComponent(otherUsername)}`}
-              className="font-semibold text-accent underline underline-offset-2"
+            <button
+              type="button"
+              onClick={() => openTelegramUsername(otherUsername)}
+              className="font-semibold text-accent underline underline-offset-2 active:opacity-70"
             >
               @{otherUsername}
-            </a>
+            </button>
           </p>
         ) : (
           <p className="text-xs text-tg-hint">
