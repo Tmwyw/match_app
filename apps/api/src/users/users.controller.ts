@@ -3,18 +3,25 @@ import {
   Delete,
   Get,
   HttpCode,
+  Param,
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
-import type { MeResponse } from "@tg-app-meet/shared";
+import type { MeResponse, PresenceResponse } from "@tg-app-meet/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { toPublicUser } from "../auth/public-user";
+import { ChatGateway } from "../chat/chat.gateway";
+import { ChatService } from "../chat/chat.service";
 import { PrismaService } from "../prisma.service";
 
 @Controller()
 export class UsersController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly chat: ChatService,
+    private readonly gateway: ChatGateway,
+  ) {}
 
   @Get("me")
   @UseGuards(JwtAuthGuard)
@@ -45,5 +52,20 @@ export class UsersController {
         anonId: null,
       },
     });
+  }
+
+  @Get("users/:userId/presence")
+  @UseGuards(JwtAuthGuard)
+  async presence(
+    @CurrentUser() current: { id: string },
+    @Param("userId") userId: string,
+  ): Promise<PresenceResponse> {
+    // Strangers don't get to fish online status — only people we share a
+    // match with. Self-query is allowed (used by debug screens).
+    await this.chat.assertSharedChat(current.id, userId);
+    const stored = await this.chat.getPresence(userId);
+    // Live online state lives in the gateway's in-memory map; merge it onto
+    // the persisted lastSeenAt for a single coherent answer.
+    return { ...stored, online: this.gateway.isOnline(userId) };
   }
 }

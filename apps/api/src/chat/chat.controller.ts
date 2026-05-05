@@ -20,10 +20,13 @@ export class ChatController {
     @CurrentUser() current: { id: string },
     @Param("chatId") chatId: string,
     @Query("before") before?: string,
+    @Query("after") after?: string,
     @Query("limit") limit?: string,
   ): Promise<ChatHistoryResponse> {
-    const beforeDate = before ? new Date(before) : undefined;
-    const limitNum = limit ? Number(limit) : 50;
-    return this.chat.getHistory(current.id, chatId, beforeDate, limitNum);
+    return this.chat.getHistory(current.id, chatId, {
+      before: before ? new Date(before) : undefined,
+      after: after ? new Date(after) : undefined,
+      limit: limit ? Number(limit) : 50,
+    });
   }
 }
