@@ -1,4 +1,11 @@
-import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
 import { SwipeRequest, type SwipeResponse } from "@tg-app-meet/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -17,5 +24,11 @@ export class SwipesController {
     @Body(new ZodValidationPipe(SwipeRequest)) body: SwipeRequest,
   ): Promise<SwipeResponse> {
     return this.swipes.swipe(current.id, body);
+  }
+
+  @Delete("last")
+  @HttpCode(204)
+  async undoLast(@CurrentUser() current: { id: string }): Promise<void> {
+    await this.swipes.undoLast(current.id);
   }
 }

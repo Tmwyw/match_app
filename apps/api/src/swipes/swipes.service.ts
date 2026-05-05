@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,9 @@ import type { SwipeRequest, SwipeResponse } from "@tg-app-meet/shared";
 import { BlocksService } from "../blocks/blocks.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma.service";
+
+/** Undo window for the most recent swipe — 60 seconds, then it sticks. */
+const UNDO_WINDOW_MS = 60_000;
 
 // Internal-only: lets us tell apart "you matched right now" from
 // "you re-swiped a person you'd already matched" so we only push DMs
@@ -93,6 +97,56 @@ export class SwipesService {
 
     const created = await ensureMatch(tx, meId, body.toUserId);
     return { ...created, justMatched: true };
+  }
+
+  /**
+   * How many people LIKE'd the current user without (yet) a reciprocal
+   * swipe of any kind. Used by the "💜 N человек тебя лайкнули" badge —
+   * we deliberately don't expose WHO so we have a paid-reveal hook later.
+   */
+  async inboundLikesCount(meId: string): Promise<number> {
+    // LIKE-swipes pointed at me where I haven't swiped the sender BACK in
+    // either direction yet. Once I respond, the candidate either turns into
+    // a Match (counted via /matches) or vanishes via SKIP, so they're no
+    // longer "pending interest".
+    return this.prisma.swipe.count({
+      where: {
+        toId: meId,
+        action: "LIKE",
+        NOT: {
+          from: { receivedSwipes: { some: { fromId: meId } } },
+        },
+      },
+    });
+  }
+
+  /**
+   * Erase the user's most recent swipe if it's still within the undo
+   * window. Refuses if the swipe already produced a Match — undoing then
+   * would orphan a real conversation.
+   */
+  async undoLast(meId: string): Promise<void> {
+    const last = await this.prisma.swipe.findFirst({
+      where: { fromId: meId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!last) throw new NotFoundException("NO_SWIPE");
+    if (Date.now() - last.createdAt.getTime() > UNDO_WINDOW_MS) {
+      throw new NotFoundException("UNDO_WINDOW_EXPIRED");
+    }
+
+    if (last.action === "LIKE") {
+      const [userAId, userBId] = sortPair(meId, last.toId);
+      const match = await this.prisma.match.findUnique({
+        where: { userAId_userBId: { userAId, userBId } },
+      });
+      if (match) {
+        // Match already exists — refuse rather than delete it. The chat
+        // may already have messages and the partner might have engaged.
+        throw new ConflictException("MATCH_EXISTS");
+      }
+    }
+    await this.prisma.swipe.delete({ where: { id: last.id } });
   }
 
   private async fireMatchNotifications(meId: string, otherId: string): Promise<void> {

@@ -1,18 +1,21 @@
 import { Flame, MessagesSquare, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { MyProfileResponse, PublicUser, Role } from "@tg-app-meet/shared";
+import type { MeResponse, MyProfileResponse, Role } from "@tg-app-meet/shared";
 import { AdminScreen } from "./admin/AdminScreen";
+import { api } from "./api";
 import { useAuth } from "./auth/useAuth";
 import { ChatScreen } from "./chat/ChatScreen";
 import { Deck } from "./discover/Deck";
+import { UserCardScreen } from "./discover/UserCardScreen";
 import { MatchesList } from "./matches/MatchesList";
 import { RolePicker } from "./onboarding/RolePicker";
 import { BuyerProfileForm } from "./profile/BuyerProfileForm";
 import { MyProfile } from "./profile/MyProfile";
 import { OwnerProfileForm } from "./profile/OwnerProfileForm";
 import { useProfile } from "./profile/useProfile";
-import { getTelegramWebApp } from "./telegram";
+import { getStartParam, getTelegramWebApp } from "./telegram";
 import { Background, Button, CenteredMessage, TabBar, type TabItem } from "./ui";
+import { useLikesCount } from "./useLikesCount";
 
 export type OpenChat = {
   chatId: string;
@@ -22,12 +25,6 @@ export type OpenChat = {
 };
 
 type Tab = "discover" | "matches" | "profile";
-
-const TABS: readonly TabItem<Tab>[] = [
-  { key: "discover", label: "Найти", icon: <Flame size={22} /> },
-  { key: "matches", label: "Матчи", icon: <MessagesSquare size={22} /> },
-  { key: "profile", label: "Профиль", icon: <UserRound size={22} /> },
-];
 
 export function App() {
   // Admin override: opening /?admin=<ADMIN_TOKEN> short-circuits the whole
@@ -52,10 +49,6 @@ export function App() {
     return <AdminScreen token={adminToken} />;
   }
 
-  // Background sits at z:0 (not behind body bg). App content is wrapped in
-  // a relative z-10 layer so it paints above the gradient. Without this
-  // wrapper, Telegram's webview defaults can put its own bg between the
-  // Background div and the rest of the tree.
   const content =
     auth.status === "loading" ? (
       <CenteredMessage>
@@ -113,7 +106,7 @@ function AuthedFlow({
   onUserChanged,
   onAccountDeleted,
 }: {
-  user: PublicUser;
+  user: MeResponse;
   onUserChanged: () => void;
   onAccountDeleted: () => void;
 }) {
@@ -136,7 +129,7 @@ function ProfileFlow({
   onUserChanged,
   onAccountDeleted,
 }: {
-  user: PublicUser;
+  user: MeResponse;
   role: Role;
   onUserChanged: () => void;
   onAccountDeleted: () => void;
@@ -197,13 +190,50 @@ function Home({
   onProfileUpdated,
   onAccountDeleted,
 }: {
-  user: PublicUser;
+  user: MeResponse;
   profile: MyProfileResponse;
   onProfileUpdated: () => void;
   onAccountDeleted: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("discover");
   const [openChat, setOpenChat] = useState<OpenChat | null>(null);
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
+  const likes = useLikesCount();
+
+  // Deep-link routing — runs once after onboarding/profile flow. We honour
+  // both the bot-side `pendingViewProfile` (set when user tapped
+  // ?start=p_<id>) and the SDK's `start_param` (set when Mini App was
+  // launched via ?startapp=p_<id>). Either path opens the same overlay.
+  useEffect(() => {
+    const fromStart = getStartParam();
+    const startTarget = fromStart?.startsWith("p_") ? fromStart.slice(2) : null;
+    const target = startTarget ?? user.pendingViewProfile;
+    if (!target || target === user.id) return;
+    setViewingProfileId(target);
+    if (user.pendingViewProfile) {
+      // Clear server-side once consumed so reopening doesn't re-trigger.
+      void api("/me/pending-view", { method: "DELETE" }).catch(() => {
+        /* harmless */
+      });
+    }
+    // Only react to the initial value — clearing setViewingProfileId(null)
+    // shouldn't re-open the card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const tabs: readonly TabItem<Tab>[] = useMemo(
+    () => [
+      { key: "discover", label: "Найти", icon: <Flame size={22} /> },
+      {
+        key: "matches",
+        label: "Матчи",
+        icon: <MessagesSquare size={22} />,
+        badge: likes.count,
+      },
+      { key: "profile", label: "Профиль", icon: <UserRound size={22} /> },
+    ],
+    [likes.count],
+  );
 
   return (
     <div className="min-h-full flex flex-col">
@@ -218,7 +248,10 @@ function Home({
           />
         )}
         {tab === "matches" && (
-          <MatchesList onOpenChat={(payload) => setOpenChat(payload)} />
+          <MatchesList
+            onOpenChat={(payload) => setOpenChat(payload)}
+            inboundLikesCount={likes.count}
+          />
         )}
         {tab === "profile" && (
           <MyProfile
@@ -229,7 +262,7 @@ function Home({
           />
         )}
       </div>
-      <TabBar items={TABS} active={tab} onChange={setTab} />
+      <TabBar items={tabs} active={tab} onChange={setTab} />
       {openChat && (
         <ChatScreen
           chatId={openChat.chatId}
@@ -238,15 +271,22 @@ function Home({
           otherAnonId={openChat.otherAnonId}
           otherRole={openChat.otherRole}
           onBack={() => setOpenChat(null)}
-          onBlocked={() => {
-            // Block triggered from menu — close the chat and let the user
-            // pick the next match. The block is server-side enforced now,
-            // so even if they navigate back the chat will 403.
-            setOpenChat(null);
+          onBlocked={() => setOpenChat(null)}
+        />
+      )}
+      {viewingProfileId && (
+        <UserCardScreen
+          userId={viewingProfileId}
+          myRole={profile.role}
+          onClose={() => setViewingProfileId(null)}
+          onMatched={(payload) => {
+            setViewingProfileId(null);
+            setOpenChat(payload);
+            setTab("matches");
+            likes.refresh();
           }}
         />
       )}
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, ChevronRight } from "lucide-react";
+import { Archive, ArchiveRestore, ChevronRight, Heart } from "lucide-react";
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
 import type { MatchesListResponse, PublicCard } from "@tg-app-meet/shared";
 import { api } from "../api";
@@ -13,8 +13,12 @@ type State =
 
 export function MatchesList({
   onOpenChat,
+  inboundLikesCount,
 }: {
   onOpenChat: (payload: OpenChat) => void;
+  /** Comes from the parent's polling hook so the banner stays in sync
+   *  with the tab badge. 0 → banner hidden. */
+  inboundLikesCount: number;
 }) {
   const [tab, setTab] = useState<Tab>("active");
   const [state, setState] = useState<State>({ status: "loading" });
@@ -60,6 +64,17 @@ export function MatchesList({
     <Screen className="min-h-screen">
       <div className="max-w-md mx-auto flex flex-col gap-3">
         <h1 className="text-2xl font-bold mt-2 mb-1">Мои матчи</h1>
+
+        {inboundLikesCount > 0 && (
+          <div className="rounded-card bg-accent-muted border border-app-border px-3 py-2.5 flex items-center gap-2.5">
+            <Heart size={18} className="text-accent shrink-0" fill="currentColor" />
+            <p className="text-sm text-tg-text">
+              Тебя лайкнули <b>{inboundLikesCount}</b>{" "}
+              {plural(inboundLikesCount, "человек", "человека", "человек")}.{" "}
+              <span className="text-tg-hint">Лайкни в ответ — получишь матч.</span>
+            </p>
+          </div>
+        )}
 
         <div className="flex gap-1 p-1 rounded-button bg-card border border-app-border self-start">
           <TabBtn active={tab === "active"} onClick={() => setTab("active")}>
@@ -183,4 +198,12 @@ function summarize(card: PublicCard): string {
     return `${card.verticals.join("/")} · ${card.geos.join(",")} · $${card.budgetMin}–${card.budgetMax}`;
   }
   return `${card.offerName} · ${card.vertical} · ${card.payoutType} $${card.payoutAmount}`;
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
 }

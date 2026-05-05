@@ -16,11 +16,20 @@ export const PublicUser = z.object({
 });
 export type PublicUser = z.infer<typeof PublicUser>;
 
+/** Auth response also delivers an initial deep-link payload (consumed once
+ *  on first /me call) — `pendingViewProfile` from the bot /start handler.
+ *  Frontend reads it, opens the user card, then clears via /me/pending-view. */
 export const AuthResponse = z.object({
   token: z.string(),
   user: PublicUser,
 });
 export type AuthResponse = z.infer<typeof AuthResponse>;
 
-export const MeResponse = PublicUser;
+/** /me extends PublicUser with side-channel counters that the profile UI
+ *  needs (referrals, pending deep-link). Keeping them out of PublicUser
+ *  means we never accidentally leak them via PublicCard. */
+export const MeResponse = PublicUser.extend({
+  referralCount: z.number().int().nonnegative(),
+  pendingViewProfile: z.string().nullable(),
+});
 export type MeResponse = z.infer<typeof MeResponse>;

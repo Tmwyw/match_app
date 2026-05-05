@@ -40,6 +40,13 @@ model User {
   // Updated by ChatGateway on every connect/disconnect. Used to render
   // "был N мин назад" in chat headers when the partner is offline.
   lastSeenAt DateTime?
+  // Set on FIRST auth from a `?start=ref_<id>` deep-link. Never updated
+  // afterwards — back-dating attribution would let users farm referrals.
+  referredById String?
+  referredBy   User?   @relation("referrer", fields: [referredById], references: [id])
+  // Bot stores `p_<userId>` deep-link payload here so Mini App opens the
+  // intended user's card on next launch. Cleared once the frontend reads it.
+  pendingViewProfile String?
 
   buyerProfile   BuyerProfile?
   ownerProfile   OwnerProfile?
@@ -53,6 +60,8 @@ model User {
   reportsAgainst Report[]        @relation("target")
   blocksMade     Block[]         @relation("blocker")
   blocksAgainst  Block[]         @relation("blocked")
+  referred       User[]          @relation("referrer")
+  notifPrefs     NotificationPrefs?
 }
 
 model BuyerProfile {
@@ -171,4 +180,17 @@ model Block {
 
   @@unique([blockerId, blockedId])
   @@index([blockerId])
+}
+
+model NotificationPrefs {
+  userId     String    @id
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches    Boolean   @default(true)
+  messages   Boolean   @default(true)
+  // When true, message DMs are batched into a periodic digest instead of
+  // firing one DM per chat. Match DMs always fire immediately.
+  digestMode Boolean   @default(false)
+  // Snooze: server skips non-match DMs while now < mutedUntil.
+  mutedUntil DateTime?
+  updatedAt  DateTime  @updatedAt
 }

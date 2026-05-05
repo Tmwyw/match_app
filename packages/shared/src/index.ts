@@ -8,3 +8,5 @@ export * from "./matches";
 export * from "./reveal";
 export * from "./reports";
 export * from "./blocks";
+export * from "./notifications";
+export * from "./discover-extra";

@@ -1,8 +1,11 @@
-import { Trash2, UserMinus } from "lucide-react";
+import { Bell, Trash2, UserMinus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import type { BlocksResponse } from "@tg-app-meet/shared";
+import type {
+  BlocksResponse,
+  NotificationPrefsResponse,
+} from "@tg-app-meet/shared";
 import { api } from "../api";
-import { AppHeader, Button, Card, RoleAvatar, Screen } from "../ui";
+import { AppHeader, Button, Card, RoleAvatar, Screen, cn } from "../ui";
 import { Modal, ModalConfirmFooter } from "../ui/Modal";
 
 type Props = {
@@ -174,6 +177,8 @@ export function SettingsScreen({ onClose, onDeleted }: Props) {
               ))}
           </section>
 
+          <NotificationsSection />
+
           <section className="flex flex-col gap-2 mt-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-tg-hint px-1">
               Аккаунт
@@ -196,5 +201,156 @@ export function SettingsScreen({ onClose, onDeleted }: Props) {
         />
       )}
     </div>
+  );
+}
+
+function NotificationsSection() {
+  const [prefs, setPrefs] = useState<NotificationPrefsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let aborted = false;
+    api<NotificationPrefsResponse>("/me/notifications")
+      .then((p) => {
+        if (!aborted) setPrefs(p);
+      })
+      .catch((e) => {
+        if (!aborted) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      aborted = true;
+    };
+  }, []);
+
+  const patch = async (
+    delta: Partial<NotificationPrefsResponse>,
+  ): Promise<void> => {
+    if (!prefs) return;
+    // Optimistic — UX feels instant on the toggles. The server is
+    // authoritative, so a failure rolls back.
+    const prev = prefs;
+    const optimistic = { ...prefs, ...delta } as NotificationPrefsResponse;
+    setPrefs(optimistic);
+    try {
+      const updated = await api<NotificationPrefsResponse>("/me/notifications", {
+        method: "PATCH",
+        body: JSON.stringify(delta),
+      });
+      setPrefs(updated);
+    } catch (e) {
+      setPrefs(prev);
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const muteFor = (hours: number) => {
+    const until = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    void patch({ mutedUntil: until });
+  };
+  const muteUntilTomorrow = () => {
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    t.setHours(9, 0, 0, 0);
+    void patch({ mutedUntil: t.toISOString() });
+  };
+  const unmute = () => void patch({ mutedUntil: null });
+
+  return (
+    <section className="flex flex-col gap-2 mt-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-tg-hint px-1 flex items-center gap-1.5">
+        <Bell size={12} /> Уведомления
+      </h2>
+      {!prefs && error && <p className="text-danger text-sm">{error}</p>}
+      {!prefs && !error && <p className="text-tg-hint text-sm">загружаем…</p>}
+      {prefs && (
+        <Card className="flex flex-col gap-3 p-4">
+          <Toggle
+            label="Матчи"
+            description="DM при новом мэтче"
+            checked={prefs.matches}
+            onChange={(v) => void patch({ matches: v })}
+          />
+          <Toggle
+            label="Сообщения"
+            description="DM когда тебе пишут офлайн"
+            checked={prefs.messages}
+            onChange={(v) => void patch({ messages: v })}
+          />
+          <Toggle
+            label="Дайджест"
+            description="Один пуш раз в 10 минут вместо отдельных"
+            checked={prefs.digestMode}
+            onChange={(v) => void patch({ digestMode: v })}
+          />
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-tg-hint mb-2">
+              Не беспокоить
+            </div>
+            {prefs.mutedUntil ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-tg-text">
+                  до {new Date(prefs.mutedUntil).toLocaleString()}
+                </span>
+                <Button variant="ghost" size="md" onClick={unmute}>
+                  Снять
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" size="md" onClick={() => muteFor(1)}>
+                  1 час
+                </Button>
+                <Button variant="secondary" size="md" onClick={() => muteFor(8)}>
+                  8 часов
+                </Button>
+                <Button variant="secondary" size="md" onClick={muteUntilTomorrow}>
+                  до утра
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+    </section>
+  );
+}
+
+function Toggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 cursor-pointer">
+      <div className="flex flex-col">
+        <span className="text-sm text-tg-text font-medium">{label}</span>
+        {description && (
+          <span className="text-[11px] text-tg-hint">{description}</span>
+        )}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative w-10 h-6 rounded-full transition shrink-0",
+          checked ? "bg-accent" : "bg-card-elevated border border-app-border",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all",
+            checked ? "left-[18px]" : "left-0.5",
+          )}
+        />
+      </button>
+    </label>
   );
 }

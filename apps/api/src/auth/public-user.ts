@@ -1,5 +1,5 @@
 import type { User } from "@prisma/client";
-import type { PublicUser } from "@tg-app-meet/shared";
+import type { MeResponse, PublicUser } from "@tg-app-meet/shared";
 
 export function toPublicUser(user: User): PublicUser {
   return {
@@ -9,5 +9,17 @@ export function toPublicUser(user: User): PublicUser {
     role: user.role,
     anonId: user.anonId,
     createdAt: user.createdAt.toISOString(),
+  };
+}
+
+/** Adds the /me-only side-channel fields. Never expose these to other users. */
+export function toMeResponse(
+  user: User,
+  extras: { referralCount: number },
+): MeResponse {
+  return {
+    ...toPublicUser(user),
+    referralCount: extras.referralCount,
+    pendingViewProfile: user.pendingViewProfile,
   };
 }

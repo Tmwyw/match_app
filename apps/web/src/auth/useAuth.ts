@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AuthResponse, MeResponse, PublicUser } from "@tg-app-meet/shared";
+import type { AuthResponse, MeResponse } from "@tg-app-meet/shared";
 import { api, ApiError, clearToken, getToken, setToken } from "../api";
 import { getTelegramWebApp } from "../telegram";
 
 type State =
   | { status: "loading"; user: null; error: null }
-  | { status: "authed"; user: PublicUser; error: null }
+  | { status: "authed"; user: MeResponse; error: null }
   | { status: "needs-telegram"; user: null; error: null }
   | { status: "banned"; user: null; error: string | null }
   | { status: "deleted"; user: null; error: null }
@@ -57,7 +57,11 @@ export function useAuth() {
         body: JSON.stringify({ initData }),
       });
       setToken(auth.token);
-      setState({ status: "authed", user: auth.user, error: null });
+      // /auth/telegram returns the slim PublicUser. Fetch /me right away
+      // so we have the side-channel fields (referralCount, pendingViewProfile)
+      // that the Home screen needs without an extra render flash.
+      const me = await api<MeResponse>("/me");
+      setState({ status: "authed", user: me, error: null });
     } catch (e) {
       if (e instanceof ApiError && e.status === 403 && e.code === "BANNED") {
         const reason = readReason(e.body);

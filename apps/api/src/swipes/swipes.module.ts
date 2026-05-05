@@ -7,5 +7,7 @@ import { SwipesService } from "./swipes.service";
   imports: [AuthModule],
   controllers: [SwipesController],
   providers: [SwipesService],
+  // Exported so UsersController can call inboundLikesCount() for /me/likes/count.
+  exports: [SwipesService],
 })
 export class SwipesModule {}

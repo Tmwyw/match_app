@@ -1,26 +1,111 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import type { NotificationPrefs } from "@prisma/client";
 import { Bot } from "grammy";
 import { env } from "../env";
 import { PrismaService } from "../prisma.service";
 
 const MESSAGE_DEBOUNCE_MS = 30_000;
 const PREVIEW_MAX = 80;
+/** How long to trust a cached prefs row before re-reading from Postgres. */
+const PREFS_CACHE_TTL_MS = 60_000;
+/** Cadence for the message-digest flush loop. */
+const DIGEST_FLUSH_INTERVAL_MS = 10 * 60_000;
+
+type CachedPrefs = { value: NotificationPrefs; cachedAt: number };
+type PendingDigest = {
+  /** Map<chatId → message preview accumulator>. */
+  perChat: Map<string, { fromAnonId: string; count: number }>;
+};
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationsService.name);
   private readonly bot: Bot;
   // key: `${chatId}:${recipientUserId}` → unix ms of last sent push
   private readonly lastMessageNotif = new Map<string, number>();
+  // key: userId → cached prefs row (TTL via cachedAt)
+  private readonly prefsCache = new Map<string, CachedPrefs>();
+  // key: recipient userId → pending message-digest accumulator (digestMode users)
+  private readonly digestQueue = new Map<string, PendingDigest>();
+  private readonly digestTimer: NodeJS.Timeout;
 
   constructor(private readonly prisma: PrismaService) {
     // Bot is used as a Telegram Bot API client only — no .start() here.
     // The long-poll bot lives in apps/bot. Two pollers on the same token
     // would race for getUpdates and lose messages.
     this.bot = new Bot(env.BOT_TOKEN);
+
+    // Periodic digest flush. Runs in-process — fine for single-instance
+    // MVP; if we shard the API later this needs Redis or a per-shard
+    // election to avoid double-sends.
+    this.digestTimer = setInterval(() => {
+      void this.flushDigests().catch((e) =>
+        this.logger.warn(`digest flush failed: ${e instanceof Error ? e.message : e}`),
+      );
+    }, DIGEST_FLUSH_INTERVAL_MS);
+    // Don't keep the event loop alive just for the timer.
+    this.digestTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    clearInterval(this.digestTimer);
+  }
+
+  async getPrefs(userId: string): Promise<NotificationPrefs> {
+    const cached = this.prefsCache.get(userId);
+    if (cached && Date.now() - cached.cachedAt < PREFS_CACHE_TTL_MS) {
+      return cached.value;
+    }
+    // Lazy-create defaults so callers never have to think about whether the
+    // row exists. Upsert keeps it idempotent under concurrent first-reads.
+    const row = await this.prisma.notificationPrefs.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
+    this.prefsCache.set(userId, { value: row, cachedAt: Date.now() });
+    return row;
+  }
+
+  async patchPrefs(
+    userId: string,
+    patch: Partial<{
+      matches: boolean;
+      messages: boolean;
+      digestMode: boolean;
+      mutedUntil: string | null;
+    }>,
+  ): Promise<NotificationPrefs> {
+    const updated = await this.prisma.notificationPrefs.upsert({
+      where: { userId },
+      create: {
+        userId,
+        ...(patch.matches !== undefined ? { matches: patch.matches } : {}),
+        ...(patch.messages !== undefined ? { messages: patch.messages } : {}),
+        ...(patch.digestMode !== undefined ? { digestMode: patch.digestMode } : {}),
+        ...(patch.mutedUntil !== undefined
+          ? { mutedUntil: patch.mutedUntil ? new Date(patch.mutedUntil) : null }
+          : {}),
+      },
+      update: {
+        ...(patch.matches !== undefined ? { matches: patch.matches } : {}),
+        ...(patch.messages !== undefined ? { messages: patch.messages } : {}),
+        ...(patch.digestMode !== undefined ? { digestMode: patch.digestMode } : {}),
+        ...(patch.mutedUntil !== undefined
+          ? { mutedUntil: patch.mutedUntil ? new Date(patch.mutedUntil) : null }
+          : {}),
+      },
+    });
+    // Drop cache so the next push uses fresh prefs immediately.
+    this.prefsCache.delete(userId);
+    return updated;
   }
 
   async notifyMatch(toUserId: string, otherAnonId: string): Promise<void> {
+    const prefs = await this.safePrefs(toUserId);
+    if (!prefs.matches) return;
+    if (this.isMuted(prefs)) return;
+
     const tgId = await this.resolveTelegramId(toUserId);
     if (tgId === null) return;
     await this.send(
@@ -35,6 +120,15 @@ export class NotificationsService {
     chatId: string,
     content: string,
   ): Promise<void> {
+    const prefs = await this.safePrefs(toUserId);
+    if (!prefs.messages) return;
+    if (this.isMuted(prefs)) return;
+
+    if (prefs.digestMode) {
+      this.enqueueDigest(toUserId, chatId, fromAnonId);
+      return;
+    }
+
     const key = `${chatId}:${toUserId}`;
     const last = this.lastMessageNotif.get(key) ?? 0;
     const now = Date.now();
@@ -49,6 +143,63 @@ export class NotificationsService {
     const preview =
       content.length > PREVIEW_MAX ? content.slice(0, PREVIEW_MAX - 1) + "…" : content;
     await this.send(tgId, `💬 ${fromAnonId}\n\n${preview}`);
+  }
+
+  private enqueueDigest(toUserId: string, chatId: string, fromAnonId: string): void {
+    let bucket = this.digestQueue.get(toUserId);
+    if (!bucket) {
+      bucket = { perChat: new Map() };
+      this.digestQueue.set(toUserId, bucket);
+    }
+    const cur = bucket.perChat.get(chatId);
+    if (cur) cur.count += 1;
+    else bucket.perChat.set(chatId, { fromAnonId, count: 1 });
+  }
+
+  private async flushDigests(): Promise<void> {
+    if (this.digestQueue.size === 0) return;
+    // Snapshot + clear so concurrent enqueues don't get dropped.
+    const snapshot = new Map(this.digestQueue);
+    this.digestQueue.clear();
+
+    for (const [userId, bucket] of snapshot) {
+      const chatCount = bucket.perChat.size;
+      const totalMsgs = Array.from(bucket.perChat.values()).reduce(
+        (sum, c) => sum + c.count,
+        0,
+      );
+      const tgId = await this.resolveTelegramId(userId);
+      if (tgId === null) continue;
+      const text =
+        chatCount === 1
+          ? `💬 ${totalMsgs} ${plural(totalMsgs, "новое сообщение", "новых сообщения", "новых сообщений")} в одном чате.`
+          : `💬 ${totalMsgs} ${plural(totalMsgs, "новое сообщение", "новых сообщения", "новых сообщений")} в ${chatCount} ${plural(chatCount, "чате", "чатах", "чатах")}.`;
+      await this.send(tgId, text);
+    }
+  }
+
+  private isMuted(prefs: NotificationPrefs): boolean {
+    return !!prefs.mutedUntil && prefs.mutedUntil.getTime() > Date.now();
+  }
+
+  /** Reads prefs without ever throwing — fall back to permissive defaults
+   *  if the DB hiccups so a notification never breaks the caller. */
+  private async safePrefs(userId: string): Promise<NotificationPrefs> {
+    try {
+      return await this.getPrefs(userId);
+    } catch (e) {
+      this.logger.warn(
+        `prefs read failed for ${userId}: ${e instanceof Error ? e.message : e}`,
+      );
+      return {
+        userId,
+        matches: true,
+        messages: true,
+        digestMode: false,
+        mutedUntil: null,
+        updatedAt: new Date(),
+      } as NotificationPrefs;
+    }
   }
 
   private async resolveTelegramId(userId: string): Promise<number | null> {
@@ -76,4 +227,12 @@ export class NotificationsService {
       this.logger.warn(`sendMessage to ${tgChatId} failed: ${msg}`);
     }
   }
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
 }

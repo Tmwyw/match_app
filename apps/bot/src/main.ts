@@ -1,9 +1,21 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { env } from "./env";
+import { handleStartPayload } from "./start-payload";
 
 const bot = new Bot(env.BOT_TOKEN);
 
 bot.command("start", async (ctx) => {
+  // ctx.match is everything after "/start " (empty string when no payload).
+  const payload = (ctx.match as string | undefined)?.trim();
+  if (ctx.from && payload) {
+    try {
+      await handleStartPayload(ctx.from.id, ctx.from.username ?? null, payload);
+    } catch (e) {
+      // Persistence failure should not break the welcome flow — the user
+      // can still open the Mini App; deep-link state just won't apply.
+      console.warn("[bot] start payload persist failed:", e);
+    }
+  }
   const kb = new InlineKeyboard().webApp("Открыть приложение", env.WEB_APP_URL);
   await ctx.reply(
     "👋 Это TG Meet — мэтчинг баеров и овнеров.\nЖми кнопку, чтобы открыть приложение.",

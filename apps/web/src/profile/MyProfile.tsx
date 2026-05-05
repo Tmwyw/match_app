@@ -1,14 +1,16 @@
-import { Banknote, Briefcase, Building2, Globe2, Pencil, Settings, Sparkles, Target } from "lucide-react";
+import { Banknote, Briefcase, Building2, Copy, Globe2, Pencil, Send, Settings, Sparkles, Target, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
-import type { MyProfileResponse, PublicUser } from "@tg-app-meet/shared";
+import { useEffect, useState } from "react";
+import type { MeResponse, MyProfileResponse, ReferralLinkResponse } from "@tg-app-meet/shared";
+import { api } from "../api";
 import { SettingsScreen } from "../settings/SettingsScreen";
+import { shareLink } from "../telegram";
 import { Button, Card, RoleAvatar, Screen } from "../ui";
 import { BuyerProfileForm } from "./BuyerProfileForm";
 import { OwnerProfileForm } from "./OwnerProfileForm";
 
 type Props = {
-  user: PublicUser;
+  user: MeResponse;
   profile: MyProfileResponse;
   onUpdated: () => void;
   /** Called after the user soft-deletes their own account from /settings.
@@ -65,6 +67,9 @@ export function MyProfile({ user, profile, onUpdated, onAccountDeleted }: Props)
           <Pencil size={16} />
           Редактировать
         </Button>
+
+        <ReferralSection referralCount={user.referralCount} />
+
         <Button
           variant="ghost"
           fullWidth
@@ -84,11 +89,94 @@ export function MyProfile({ user, profile, onUpdated, onAccountDeleted }: Props)
   );
 }
 
+function ReferralSection({ referralCount }: { referralCount: number }) {
+  const [link, setLink] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    let aborted = false;
+    api<ReferralLinkResponse>("/me/referral-link")
+      .then((r) => {
+        if (!aborted) setLink(r.link);
+      })
+      .catch((e) => {
+        if (!aborted) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      aborted = true;
+    };
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast("Скопировано");
+    } catch {
+      showToast("Не удалось скопировать");
+    }
+  };
+
+  const share = () => {
+    if (!link) return;
+    shareLink(link, "Залетай в TG Meet — мэтчинг баеров и овнеров");
+  };
+
+  return (
+    <Card className="flex flex-col gap-3 p-4 mt-2">
+      <div className="flex items-start gap-3">
+        <Users size={18} className="text-accent shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold">Пригласи друзей</div>
+          <div className="text-[11px] text-tg-hint">
+            {referralCount > 0
+              ? `Ты пригласил ${referralCount} ${pluralPeople(referralCount)}.`
+              : "Реферал привязывается, когда друг открывает приложение по твоей ссылке."}
+          </div>
+        </div>
+      </div>
+      {error && <p className="text-danger text-xs">{error}</p>}
+      {link && (
+        <div className="rounded-input bg-card-elevated border border-app-border px-3 py-2 text-xs text-tg-text break-all">
+          {link}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" size="md" fullWidth onClick={copy} disabled={!link}>
+          <Copy size={14} />
+          Скопировать
+        </Button>
+        <Button variant="primary" size="md" fullWidth onClick={share} disabled={!link}>
+          <Send size={14} />
+          Поделиться
+        </Button>
+      </div>
+      {toast && (
+        <div className="text-[11px] text-tg-hint text-center">{toast}</div>
+      )}
+    </Card>
+  );
+}
+
+function pluralPeople(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "человека";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "человека";
+  return "человек";
+}
+
 function ProfileHero({
   user,
   role,
 }: {
-  user: PublicUser;
+  user: MeResponse;
   role: "BUYER" | "OWNER";
 }) {
   const tint =
