@@ -71,6 +71,7 @@ export function MatchesList({
                 onClick={() =>
                   onOpenChat({
                     chatId: m.chatId,
+                    otherUserId: m.other.userId,
                     otherAnonId: m.other.anonId,
                     otherRole: m.other.role,
                   })

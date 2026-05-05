@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma, SwipeAction as DbSwipeAction } from "@prisma/client";
 import type { SwipeRequest, SwipeResponse } from "@tg-app-meet/shared";
+import { BlocksService } from "../blocks/blocks.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma.service";
 
@@ -18,11 +20,16 @@ export class SwipesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly blocks: BlocksService,
   ) {}
 
   async swipe(meId: string, body: SwipeRequest): Promise<SwipeResponse> {
     if (body.toUserId === meId) {
       throw new BadRequestException("CANNOT_SWIPE_SELF");
+    }
+
+    if (await this.blocks.existsBetween(meId, body.toUserId)) {
+      throw new ForbiddenException("BLOCKED");
     }
 
     const outcome = await this.prisma.$transaction<SwipeOutcome>((tx) =>
@@ -49,6 +56,9 @@ export class SwipesService {
     });
     if (!recipient) throw new NotFoundException("recipient missing");
     if (!recipient.role) throw new NotFoundException("recipient has no role");
+    if (recipient.deletedAt || recipient.bannedAt) {
+      throw new NotFoundException("recipient unavailable");
+    }
     const hasProfile =
       (recipient.role === "BUYER" && recipient.buyerProfile) ||
       (recipient.role === "OWNER" && recipient.ownerProfile);

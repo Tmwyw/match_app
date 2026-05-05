@@ -7,24 +7,33 @@ import {
   useState,
 } from "react";
 import type { PublicUser, Role, RevealStatus } from "@tg-app-meet/shared";
+import { api, ApiError } from "../api";
 import { openTelegramUsername } from "../telegram";
 import { AppHeader, Button, CenteredMessage, RoleAvatar, cn } from "../ui";
+import { ChatMenu } from "./ChatMenu";
+import { ReportDialog } from "./ReportDialog";
 import { type LocalMessage, useChat } from "./useChat";
 
 type Props = {
   chatId: string;
   currentUser: PublicUser;
+  otherUserId: string;
   otherAnonId: string;
   otherRole: Role;
   onBack: () => void;
+  /** Called after the user blocks the partner from the chat menu. The
+   *  caller closes the chat — server-side block is already enforced. */
+  onBlocked: () => void;
 };
 
 export function ChatScreen({
   chatId,
   currentUser,
+  otherUserId,
   otherAnonId,
   otherRole,
   onBack,
+  onBlocked,
 }: Props) {
   if (!currentUser.anonId) {
     // Should never happen — chat is reachable only after onboarding.
@@ -40,9 +49,11 @@ export function ChatScreen({
       chatId={chatId}
       currentUserId={currentUser.id}
       currentAnonId={currentUser.anonId}
+      otherUserId={otherUserId}
       otherAnonId={otherAnonId}
       otherRole={otherRole}
       onBack={onBack}
+      onBlocked={onBlocked}
     />
   );
 }
@@ -51,20 +62,48 @@ function ChatScreenInner({
   chatId,
   currentUserId,
   currentAnonId,
+  otherUserId,
   otherAnonId,
   otherRole,
   onBack,
+  onBlocked,
 }: {
   chatId: string;
   currentUserId: string;
   currentAnonId: string;
+  otherUserId: string;
   otherAnonId: string;
   otherRole: Role;
   onBack: () => void;
+  onBlocked: () => void;
 }) {
   const chat = useChat(chatId, currentUserId, currentAnonId);
   const [input, setInput] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleBlock = async () => {
+    const ok = window.confirm(
+      `Заблокировать ${otherAnonId}?\n\nВы перестанете видеть друг друга в поиске и не сможете писать.`,
+    );
+    if (!ok) return;
+    try {
+      await api(`/blocks/${otherUserId}`, { method: "POST" });
+      onBlocked();
+    } catch (e) {
+      const msg =
+        e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e);
+      showToast(`Не удалось заблокировать: ${msg}`);
+    }
+  };
 
   // Auto-scroll to the bottom when a message arrives or we land on the screen.
   useEffect(() => {
@@ -88,14 +127,20 @@ function ChatScreenInner({
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-tg-bg">
-      <div className="px-4">
-        <AppHeader
-          title={otherAnonId}
-          onBack={onBack}
-          right={<RoleAvatar role={otherRole} size="sm" />}
-        />
-      </div>
+    <div className="fixed inset-0 z-30 flex flex-col bg-tg-bg-deep/40 backdrop-blur-md">
+      <AppHeader
+        title={otherAnonId}
+        onBack={onBack}
+        right={
+          <div className="flex items-center gap-1">
+            <RoleAvatar role={otherRole} size="sm" />
+            <ChatMenu
+              onReport={() => setReportOpen(true)}
+              onBlock={handleBlock}
+            />
+          </div>
+        }
+      />
 
       <RevealBanner
         status={chat.revealStatus}
@@ -139,10 +184,27 @@ function ChatScreenInner({
           {chat.warning}
         </div>
       )}
+      {toast && (
+        <div className="mx-4 mb-2 rounded-button bg-card-elevated border border-app-border text-tg-text text-xs px-3 py-2">
+          {toast}
+        </div>
+      )}
+
+      {reportOpen && (
+        <ReportDialog
+          targetUserId={otherUserId}
+          chatId={chatId}
+          onClose={() => setReportOpen(false)}
+          onSuccess={() => {
+            setReportOpen(false);
+            showToast("Жалоба отправлена. Спасибо!");
+          }}
+        />
+      )}
 
       <form
         onSubmit={onSubmit}
-        className="flex items-end gap-2 px-4 pt-2 pb-4 border-t border-app-border bg-tg-bg safe-bottom"
+        className="flex items-end gap-2 px-4 pt-2 pb-4 border-t border-app-border glass-strong safe-bottom"
       >
         <textarea
           value={input}

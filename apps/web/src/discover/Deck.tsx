@@ -35,7 +35,12 @@ export function Deck({
 }) {
   const [state, setState] = useState<DeckState>({ status: "loading" });
   const [submitting, setSubmitting] = useState<SwipeAction | null>(null);
-  const [overlay, setOverlay] = useState<{ response: SwipeResponse; otherRole: Role; otherAnonId: string } | null>(null);
+  const [overlay, setOverlay] = useState<{
+    response: SwipeResponse;
+    otherUserId: string;
+    otherRole: Role;
+    otherAnonId: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setState({ status: "loading" });
@@ -72,7 +77,12 @@ export function Deck({
         body: JSON.stringify({ toUserId: card.userId, action }),
       });
       if (r.matched) {
-        setOverlay({ response: r, otherRole: card.role, otherAnonId: card.anonId });
+        setOverlay({
+          response: r,
+          otherUserId: card.userId,
+          otherRole: card.role,
+          otherAnonId: card.anonId,
+        });
       }
       await load();
     } catch (e) {
@@ -157,6 +167,7 @@ export function Deck({
             const payload = chatId
               ? {
                   chatId,
+                  otherUserId: overlay.otherUserId,
                   otherAnonId: overlay.otherAnonId,
                   otherRole: overlay.otherRole,
                 }

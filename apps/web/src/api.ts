@@ -10,6 +10,16 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+
+  /** Convenience: extract a structured `code` field from the error body
+   *  (we use this for "BANNED" / "ACCOUNT_DELETED" forbidden responses). */
+  get code(): string | null {
+    if (this.body && typeof this.body === "object" && "code" in this.body) {
+      const c = (this.body as { code: unknown }).code;
+      return typeof c === "string" ? c : null;
+    }
+    return null;
+  }
 }
 
 /**

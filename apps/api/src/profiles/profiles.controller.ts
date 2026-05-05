@@ -2,6 +2,7 @@ import { Body, Controller, Get, Patch, Post, UseGuards } from "@nestjs/common";
 import type { MyProfileResponse } from "@tg-app-meet/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RateLimitGuard } from "../common/rate-limit";
 import { ProfilesService } from "./profiles.service";
 
 @Controller("me/profile")
@@ -15,6 +16,7 @@ export class ProfilesController {
   }
 
   @Post()
+  @UseGuards(RateLimitGuard("profile-write", 10, 60_000))
   async createMine(
     @CurrentUser() current: { id: string },
     @Body() body: unknown,
@@ -23,6 +25,7 @@ export class ProfilesController {
   }
 
   @Patch()
+  @UseGuards(RateLimitGuard("profile-write", 10, 60_000))
   async patchMine(
     @CurrentUser() current: { id: string },
     @Body() body: unknown,

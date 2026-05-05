@@ -30,6 +30,13 @@ model User {
   role       Role?
   anonId     String?  @unique
   createdAt  DateTime @default(now())
+  // Soft-delete: account never physically removed (would orphan reveals/chats
+  // for the partner). Auth rejects re-login of a deleted telegramId.
+  deletedAt  DateTime?
+  // Set by admin via /admin/reports/:id/resolve { resolution: "banned" }.
+  // JwtAuthGuard + WS middleware return 403 BANNED while bannedAt != null.
+  bannedAt   DateTime?
+  banReason  String?
 
   buyerProfile   BuyerProfile?
   ownerProfile   OwnerProfile?
@@ -39,6 +46,10 @@ model User {
   matchesB       Match[]         @relation("b")
   messages       Message[]
   reveals        ContactReveal[]
+  reportsMade    Report[]        @relation("reporter")
+  reportsAgainst Report[]        @relation("target")
+  blocksMade     Block[]         @relation("blocker")
+  blocksAgainst  Block[]         @relation("blocked")
 }
 
 model BuyerProfile {
@@ -121,4 +132,33 @@ model ContactReveal {
   acceptedAt DateTime @default(now())
 
   @@unique([chatId, userId])
+}
+
+model Report {
+  id           String    @id @default(cuid())
+  reporterId   String
+  reporter     User      @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUserId String
+  target       User      @relation("target", fields: [targetUserId], references: [id], onDelete: Cascade)
+  chatId       String?
+  reason       String // "spam" | "scam" | "deanon" | "abuse" | "other"
+  details      String?
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolution   String? // "no_action" | "warned" | "banned"
+
+  @@index([targetUserId, createdAt])
+  @@index([resolvedAt])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
 }

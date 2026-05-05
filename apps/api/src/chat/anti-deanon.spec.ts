@@ -84,4 +84,52 @@ describe("antiDeanon", () => {
     const r = antiDeanon("@durov ");
     expect(r.content).toBe("[скрыто]");
   });
+
+  // ──────────────────────────────────────────────────────────────────
+  // Bypass-attempt fixation tests
+  //
+  // These document CURRENT behavior on common deanon-evasion tricks. They
+  // are NOT a claim that the filter is correct — several of these slip
+  // through. The point is to lock the behaviour: if someone tightens the
+  // filter to catch one of these, they should update the assertion in the
+  // same commit, so we never silently regress in the other direction.
+  // ──────────────────────────────────────────────────────────────────
+
+  it("[bypass] spaced-out handle '@ d u r o v' is NOT scrubbed (@ orphans on whitespace)", () => {
+    const r = antiDeanon("Я @ d u r o v");
+    expect(r.filtered).toBe(false);
+    expect(r.content).toBe("Я @ d u r o v");
+  });
+
+  it("[bypass] '@durov.' scrubs the handle but leaves the trailing dot", () => {
+    const r = antiDeanon("ник @durov. дальше");
+    expect(r.filtered).toBe(true);
+    expect(r.content).toBe("ник [скрыто]. дальше");
+  });
+
+  it("[bypass] middle-dot 't·me/durov' slips through (· isn't a literal '.')", () => {
+    const r = antiDeanon("кидай t·me/durov");
+    expect(r.filtered).toBe(false);
+    expect(r.content).toBe("кидай t·me/durov");
+  });
+
+  it("[bypass] cyrillic-lookalike '@dуrov' (cyr 'у') slips through (regex is ASCII-only)", () => {
+    // Visually identical to @durov but the 'у' is U+0443 — fails the
+    // [a-zA-Z0-9_]{4,} class, so the run isn't long enough to match.
+    const r = antiDeanon("я @dуrov");
+    expect(r.filtered).toBe(false);
+    expect(r.content).toBe("я @dуrov");
+  });
+
+  it("[bypass] full-width '@ｄｕｒｏｖ' slips through (ASCII-only class)", () => {
+    const r = antiDeanon("я @ｄｕｒｏｖ");
+    expect(r.filtered).toBe(false);
+    expect(r.content).toContain("@ｄｕｒｏｖ");
+  });
+
+  it("[bypass] zero-width-joiner inside handle splits the run", () => {
+    // '@dur​ov' — the zero-width space breaks the [a-zA-Z0-9_]{4,} match.
+    const r = antiDeanon("я @dur​ov");
+    expect(r.filtered).toBe(false);
+  });
 });

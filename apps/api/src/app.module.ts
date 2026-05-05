@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "./auth/auth.module";
+import { BlocksModule } from "./blocks/blocks.module";
 import { ChatModule } from "./chat/chat.module";
 import { DiscoverModule } from "./discover/discover.module";
 import { HealthController } from "./health.controller";
@@ -8,6 +9,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
 import { PrismaModule } from "./prisma.module";
 import { ProfilesModule } from "./profiles/profiles.module";
+import { ReportsModule } from "./reports/reports.module";
 import { RevealModule } from "./reveal/reveal.module";
 import { SwipesModule } from "./swipes/swipes.module";
 import { UsersModule } from "./users/users.module";
@@ -16,6 +18,7 @@ import { UsersModule } from "./users/users.module";
   imports: [
     PrismaModule,
     NotificationsModule,
+    BlocksModule,
     AuthModule,
     UsersModule,
     OnboardingModule,
@@ -25,6 +28,7 @@ import { UsersModule } from "./users/users.module";
     MatchesModule,
     ChatModule,
     RevealModule,
+    ReportsModule,
   ],
   controllers: [HealthController],
 })

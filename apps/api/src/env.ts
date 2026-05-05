@@ -10,6 +10,9 @@ const Env = z.object({
     .default("http://localhost:5173"),
   BOT_TOKEN: z.string().min(1),
   WEB_APP_URL: z.string().url(),
+  // Long random string (e.g. `openssl rand -hex 32`). Required to access
+  // /admin/* endpoints and the /admin?token=... screen. Never share.
+  ADMIN_TOKEN: z.string().min(16),
 });
 
 export const env = (() => {

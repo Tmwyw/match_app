@@ -9,6 +9,7 @@ import type {
   SendMessageInput,
   SendMessageResult,
 } from "@tg-app-meet/shared";
+import { BlocksService } from "../blocks/blocks.service";
 import { PrismaService } from "../prisma.service";
 import { antiDeanon } from "./anti-deanon";
 
@@ -21,7 +22,10 @@ export type SendMessageInternal = SendMessageResult & { recipientId: string };
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blocks: BlocksService,
+  ) {}
 
   async isParticipant(userId: string, chatId: string): Promise<boolean> {
     const chat = await this.prisma.chat.findUnique({
@@ -29,7 +33,15 @@ export class ChatService {
       include: { match: true },
     });
     if (!chat) return false;
-    return chat.match.userAId === userId || chat.match.userBId === userId;
+    if (chat.match.userAId !== userId && chat.match.userBId !== userId) {
+      return false;
+    }
+    const otherId =
+      chat.match.userAId === userId ? chat.match.userBId : chat.match.userAId;
+    // Block in either direction = no realtime ops. Historical messages stay
+    // in the DB; an unblock can restore the conversation later.
+    if (await this.blocks.existsBetween(userId, otherId)) return false;
+    return true;
   }
 
   /**
@@ -45,6 +57,11 @@ export class ChatService {
     if (!chat) throw new NotFoundException("CHAT_NOT_FOUND");
     if (chat.match.userAId !== userId && chat.match.userBId !== userId) {
       throw new ForbiddenException("FORBIDDEN");
+    }
+    const otherId =
+      chat.match.userAId === userId ? chat.match.userBId : chat.match.userAId;
+    if (await this.blocks.existsBetween(userId, otherId)) {
+      throw new ForbiddenException("BLOCKED");
     }
   }
 
@@ -64,6 +81,9 @@ export class ChatService {
     }
     const recipientId =
       chat.match.userAId === senderId ? chat.match.userBId : chat.match.userAId;
+    if (await this.blocks.existsBetween(senderId, recipientId)) {
+      throw new ForbiddenException("BLOCKED");
+    }
 
     const { content, filtered } = antiDeanon(input.content);
     // If everything was scrubbed, store a single placeholder so the recipient

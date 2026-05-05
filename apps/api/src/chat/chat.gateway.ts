@@ -17,8 +17,10 @@ import {
   WsServerEvents,
 } from "@tg-app-meet/shared";
 import { Server, Socket } from "socket.io";
+import { checkRateLimit } from "../common/rate-limit";
 import { env } from "../env";
 import { NotificationsService } from "../notifications/notifications.service";
+import { PrismaService } from "../prisma.service";
 import { ChatService } from "./chat.service";
 
 type AuthedSocket = Socket & {
@@ -46,6 +48,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
     private readonly jwt: JwtService,
     private readonly chat: ChatService,
     private readonly notifications: NotificationsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   afterInit(server: Server): void {
@@ -58,6 +61,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
         if (!token) return next(new Error("UNAUTHORIZED"));
         const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
         if (!payload?.sub) return next(new Error("UNAUTHORIZED"));
+
+        // Mirror the REST guard: refuse banned/deleted accounts at the
+        // handshake. Otherwise a banned user could keep their existing
+        // socket open and continue chatting until disconnect.
+        const status = await this.prisma.user.findUnique({
+          where: { id: payload.sub },
+          select: { id: true, deletedAt: true, bannedAt: true },
+        });
+        if (!status) return next(new Error("UNAUTHORIZED"));
+        if (status.deletedAt) return next(new Error("ACCOUNT_DELETED"));
+        if (status.bannedAt) return next(new Error("BANNED"));
+
         socket.data.userId = payload.sub;
         // Per-user room: lets the server push events (e.g. reveal:updated)
         // to a specific user regardless of which chat room they joined.
@@ -144,6 +159,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
 
     const parsed = SendMessageInput.safeParse(body);
     if (!parsed.success) return { error: "BAD_REQUEST" };
+
+    if (!checkRateLimit(`ws-msg:${userId}`, 20, 60_000)) {
+      return { error: "RATE_LIMITED" };
+    }
 
     try {
       const { recipientId, ...ack } = await this.chat.sendMessage(

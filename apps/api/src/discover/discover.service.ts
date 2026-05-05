@@ -1,12 +1,16 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import { Prisma, Role } from "@prisma/client";
 import type { DiscoverResponse } from "@tg-app-meet/shared";
+import { BlocksService } from "../blocks/blocks.service";
 import { PrismaService } from "../prisma.service";
 import { toPublicCard, type UserWithProfiles } from "../profiles/public-card";
 
 @Injectable()
 export class DiscoverService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blocks: BlocksService,
+  ) {}
 
   async next(meId: string): Promise<DiscoverResponse> {
     const me = await this.prisma.user.findUnique({
@@ -20,9 +24,14 @@ export class DiscoverService {
     const compat = this.buildCompatFilter(me);
     if (!compat) throw new ConflictException("PROFILE_REQUIRED");
 
+    const blockedIds = await this.blocks.relatedIds(meId);
+
     const where: Prisma.UserWhereInput = {
       role: targetRole,
-      id: { not: meId },
+      id: { notIn: [meId, ...blockedIds] },
+      // Soft-deleted and banned users are invisible to discovery on both sides.
+      deletedAt: null,
+      bannedAt: null,
       receivedSwipes: { none: { fromId: meId } },
       ...compat,
     };

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { AuthResponse } from "@tg-app-meet/shared";
 import { env } from "../env";
@@ -23,9 +23,31 @@ export class AuthService {
     }
 
     const username = tgUser.username ?? null;
+    const tgId = BigInt(tgUser.id);
+
+    // Hard refusal for soft-deleted accounts: do not silently revive on
+    // re-auth — that would leak old swipes/matches/messages back into a
+    // freshly opened Mini App that the user thought was wiped.
+    const existing = await this.prisma.user.findUnique({
+      where: { telegramId: tgId },
+    });
+    if (existing?.deletedAt) {
+      throw new ForbiddenException({
+        code: "ACCOUNT_DELETED",
+        message: "account deleted",
+      });
+    }
+    if (existing?.bannedAt) {
+      throw new ForbiddenException({
+        code: "BANNED",
+        message: "account banned",
+        reason: existing.banReason ?? null,
+      });
+    }
+
     const user = await this.prisma.user.upsert({
-      where: { telegramId: BigInt(tgUser.id) },
-      create: { telegramId: BigInt(tgUser.id), username },
+      where: { telegramId: tgId },
+      create: { telegramId: tgId, username },
       update: { username },
     });
 
