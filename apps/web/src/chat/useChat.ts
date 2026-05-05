@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ChatHistoryResponse,
   ChatMessage,
+  RevealStatus,
   SendMessageAck,
 } from "@tg-app-meet/shared";
 import { WsClientEvents, WsServerEvents } from "@tg-app-meet/shared";
@@ -21,6 +22,7 @@ type State =
 export function useChat(chatId: string, currentUserId: string, currentAnonId: string) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [warning, setWarning] = useState<string | null>(null);
+  const [revealStatus, setRevealStatus] = useState<RevealStatus | null>(null);
   const warnTimeout = useRef<number | null>(null);
 
   const showWarning = useCallback((msg: string) => {
@@ -29,10 +31,12 @@ export function useChat(chatId: string, currentUserId: string, currentAnonId: st
     warnTimeout.current = window.setTimeout(() => setWarning(null), 4000);
   }, []);
 
-  // 1. Load history via REST.
+  // 1. Load history + reveal status in parallel.
   useEffect(() => {
     let aborted = false;
     setState({ status: "loading" });
+    setRevealStatus(null);
+
     api<ChatHistoryResponse>(`/chats/${chatId}/messages?limit=50`)
       .then((h) => {
         if (aborted) return;
@@ -49,6 +53,15 @@ export function useChat(chatId: string, currentUserId: string, currentAnonId: st
           error: e instanceof Error ? e.message : String(e),
         });
       });
+
+    api<RevealStatus>(`/chats/${chatId}/reveal`)
+      .then((r) => {
+        if (!aborted) setRevealStatus(r);
+      })
+      .catch(() => {
+        // Reveal failure shouldn't break the chat; UI hides the badge if null.
+      });
+
     return () => {
       aborted = true;
     };
@@ -69,7 +82,17 @@ export function useChat(chatId: string, currentUserId: string, currentAnonId: st
       );
     };
 
+    // Server pushes a per-user RevealStatus to user-rooms — we get one for
+    // every chat we're in. Filter by chatId is implicit: the only reveal we
+    // care about right now is for this chat. Other chats' updates are also
+    // delivered but harmless because we replace state wholesale on chat
+    // switch (effect re-runs and `revealStatus` is reset).
+    const onReveal = (status: RevealStatus) => {
+      setRevealStatus(status);
+    };
+
     sock.on(WsServerEvents.MessageNew, onNew);
+    sock.on(WsServerEvents.RevealUpdated, onReveal);
 
     const join = () => sock.emit(WsClientEvents.Join, { chatId });
     if (sock.connected) join();
@@ -78,6 +101,7 @@ export function useChat(chatId: string, currentUserId: string, currentAnonId: st
     return () => {
       sock.emit(WsClientEvents.Leave, { chatId });
       sock.off(WsServerEvents.MessageNew, onNew);
+      sock.off(WsServerEvents.RevealUpdated, onReveal);
     };
   }, [chatId]);
 
@@ -140,5 +164,26 @@ export function useChat(chatId: string, currentUserId: string, currentAnonId: st
     [chatId, currentUserId, currentAnonId, showWarning],
   );
 
-  return { ...state, warning, send };
+  const requestReveal = useCallback(async () => {
+    // Optimistically flip meAccepted; the POST response (and the WS push)
+    // will overwrite with the authoritative status anyway.
+    setRevealStatus((s) => (s ? { ...s, meAccepted: true } : s));
+    try {
+      const next = await api<RevealStatus>(`/chats/${chatId}/reveal`, {
+        method: "POST",
+      });
+      setRevealStatus(next);
+    } catch (e) {
+      showWarning(e instanceof Error ? e.message : "не удалось");
+      // Re-fetch authoritative status to undo the optimistic flip.
+      try {
+        const cur = await api<RevealStatus>(`/chats/${chatId}/reveal`);
+        setRevealStatus(cur);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [chatId, showWarning]);
+
+  return { ...state, warning, send, revealStatus, requestReveal };
 }

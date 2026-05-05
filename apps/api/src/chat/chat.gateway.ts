@@ -9,6 +9,7 @@ import {
   WebSocketServer,
 } from "@nestjs/websockets";
 import {
+  type RevealStatus,
   SendMessageInput,
   type SendMessageAck,
   WsClientEvents,
@@ -49,6 +50,9 @@ export class ChatGateway implements OnGatewayInit {
         const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
         if (!payload?.sub) return next(new Error("UNAUTHORIZED"));
         socket.data.userId = payload.sub;
+        // Per-user room: lets the server push events (e.g. reveal:updated)
+        // to a specific user regardless of which chat room they joined.
+        await socket.join(userRoom(payload.sub));
         next();
       } catch (e) {
         this.logger.warn(
@@ -57,6 +61,10 @@ export class ChatGateway implements OnGatewayInit {
         next(new Error("UNAUTHORIZED"));
       }
     });
+  }
+
+  emitRevealUpdated(userId: string, status: RevealStatus): void {
+    this.server.to(userRoom(userId)).emit(WsServerEvents.RevealUpdated, status);
   }
 
   @SubscribeMessage(WsClientEvents.Join)
@@ -119,4 +127,8 @@ export class ChatGateway implements OnGatewayInit {
 
 function roomFor(chatId: string): string {
   return `chat:${chatId}`;
+}
+
+function userRoom(userId: string): string {
+  return `user:${userId}`;
 }

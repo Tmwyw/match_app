@@ -40,6 +40,7 @@ export const WsServerEvents = {
   MessageNew: "message:new",
   Joined: "chat:joined",
   Error: "chat:error",
+  RevealUpdated: "reveal:updated",
 } as const;
 
 export const WsClientEvents = {

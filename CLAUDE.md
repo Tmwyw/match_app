@@ -88,13 +88,9 @@ Phase 2.5 — visual design pass (done). Brand purple accent (`--accent`), Inter
 
 Phase 4 — anonymous chat (done). Socket.io `/chat` namespace via `@nestjs/platform-socket.io`. JWT auth in `server.use` middleware (rejects pre-`connect` so client sees `connect_error`, not phantom session). `chat:join` re-validates participation on every join (don't trust room membership). `message:send` runs `antiDeanon` (regex-scrubs `@username`, `t.me/...`, generic urls, phones, emails — replaced with `[скрыто]`) before persistence; broadcast goes to room minus sender, sender gets the saved message back via ack so optimistic UI replaces with real id+timestamp. REST `GET /chats/:chatId/messages?before&limit` for history (cursor-based, default 50, hasMore flag). Frontend: singleton socket in `apps/web/src/chat/socket.ts` (uses `/api/socket.io` Vite proxy in dev, direct `/socket.io` against `VITE_API_URL` in prod), `useChat` hook (history + live + optimistic + ack), `ChatScreen` (bubbles, sticky composer, filtered-warning banner, Lock disclaimer). `ChatScreen` rendered as `fixed inset-0 z-30` overlay over the tab content, opened from `MatchesList` tap or from `MatchOverlay` "Перейти в чат" CTA (Deck → App.openChat).
 
-Phase 5 — contact reveal (current). Both-side consent → real `@username` exchanged.
+Phase 5 — contact reveal (done). `RevealService` + `RevealController` (`apps/api/src/reveal/`) expose `GET/POST /chats/:chatId/reveal` (JWT-guarded, participant-checked via `ChatService.assertParticipant`). `POST` is idempotent via `prisma.contactReveal.upsert` on the `(chatId, userId)` unique key. After accept, the service computes a per-user `RevealStatus` for both participants and emits `WsServerEvents.RevealUpdated` (`reveal:updated`) to each user's room. **User-rooms (`user:<userId>`)** are joined automatically in `ChatGateway`'s auth middleware, so the server can push to a specific user regardless of which chat room they're in. `otherUsername` is only included when both `meAccepted && otherAccepted`; if the target user's `User.username` is `null` (Telegram-side hidden), it stays `null` even after consent and the UI shows a "set a username" hint. Frontend: `useChat` loads initial reveal status, subscribes to `reveal:updated`, exposes `requestReveal()` (optimistic flip → POST → reconcile). `ChatScreen` `<RevealBanner>` switches between four states (no consent / I accepted / they accepted / both accepted) and renders a `tg://resolve?domain=username` link once unlocked.
 
-Phase 4 — anonymous chat. Socket.io `/chat` namespace, anti-deanon filter, history via REST.
-
-Phase 5 — contact reveal. Both-side consent → real `@username` exchanged.
-
-Phase 6 — push via bot. On match / offline new message → bot DM with deep link.
+Phase 6 — push via bot (current). On match / offline new message → bot DM with deep link.
 
 Phase 7 — polish. Errors, toasts, loaders, deploy README.
 

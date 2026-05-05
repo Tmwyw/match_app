@@ -5,3 +5,4 @@ export * from "./chat";
 export * from "./auth";
 export * from "./onboarding";
 export * from "./matches";
+export * from "./reveal";

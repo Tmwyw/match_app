@@ -1,4 +1,4 @@
-import { Lock, Send } from "lucide-react";
+import { Lock, LockOpen, Send } from "lucide-react";
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { PublicUser, Role } from "@tg-app-meet/shared";
+import type { PublicUser, Role, RevealStatus } from "@tg-app-meet/shared";
 import { AppHeader, Button, CenteredMessage, RoleAvatar, cn } from "../ui";
 import { type LocalMessage, useChat } from "./useChat";
 
@@ -96,7 +96,10 @@ function ChatScreenInner({
         />
       </div>
 
-      <Disclaimer />
+      <RevealBanner
+        status={chat.revealStatus}
+        onRequestReveal={chat.requestReveal}
+      />
 
       <div
         ref={scrollerRef}
@@ -168,13 +171,108 @@ function ChatScreenInner({
   );
 }
 
-function Disclaimer() {
+function RevealBanner({
+  status,
+  onRequestReveal,
+}: {
+  status: RevealStatus | null;
+  onRequestReveal: () => Promise<void> | void;
+}) {
+  if (!status) {
+    // Loading or fetch failed — fall back to the static disclaimer so the
+    // user always sees that contacts are hidden.
+    return (
+      <BannerShell tone="muted" icon={<Lock size={14} className="text-tg-hint" />}>
+        <p className="text-xs text-tg-hint">
+          Анонимный чат. Контакты скрыты до взаимного согласия.
+        </p>
+      </BannerShell>
+    );
+  }
+
+  const { meAccepted, otherAccepted, otherUsername } = status;
+
+  if (meAccepted && otherAccepted) {
+    return (
+      <BannerShell tone="success" icon={<LockOpen size={14} className="text-success" />}>
+        {otherUsername ? (
+          <p className="text-xs text-tg-text">
+            Контакт открыт.{" "}
+            <a
+              href={`tg://resolve?domain=${encodeURIComponent(otherUsername)}`}
+              className="font-semibold text-accent underline underline-offset-2"
+            >
+              @{otherUsername}
+            </a>
+          </p>
+        ) : (
+          <p className="text-xs text-tg-hint">
+            Контакт открыт, но собеседник скрыл @username в Telegram. Попроси его установить и обнови чат.
+          </p>
+        )}
+      </BannerShell>
+    );
+  }
+
+  if (meAccepted && !otherAccepted) {
+    return (
+      <BannerShell tone="muted" icon={<Lock size={14} className="text-tg-hint" />}>
+        <p className="text-xs text-tg-hint">
+          Ты разрешил обмен контактами. Ждём собеседника.
+        </p>
+      </BannerShell>
+    );
+  }
+
+  // Otherwise: I haven't accepted yet — button visible. Copy depends on
+  // whether the other side already raised their hand.
+  const text = otherAccepted
+    ? "Собеседник готов открыть контакт. Сделай шаг навстречу?"
+    : "Анонимный чат · контакты скрыты до взаимного согласия.";
+
+  const onClick = () => {
+    const ok = window.confirm(
+      "Открыть свой контакт?\n\nСобеседник увидит твой @username и сможет написать тебе в личку напрямую.",
+    );
+    if (!ok) return;
+    void onRequestReveal();
+  };
+
   return (
-    <div className="mx-4 my-2 rounded-button bg-card border border-app-border px-3 py-2 flex items-start gap-2">
-      <Lock size={14} className="text-tg-hint mt-0.5 shrink-0" />
-      <p className="text-xs text-tg-hint">
-        Анонимный чат. Контакты скрыты до взаимного согласия — ссылки и юзернеймы автоматически вырезаются.
-      </p>
+    <BannerShell tone="muted" icon={<Lock size={14} className="text-tg-hint" />}>
+      <div className="flex-1 flex items-center justify-between gap-2">
+        <p className="text-xs text-tg-hint">{text}</p>
+        <Button
+          variant="primary"
+          size="md"
+          onClick={onClick}
+          className="shrink-0 whitespace-nowrap"
+        >
+          Открыть контакт
+        </Button>
+      </div>
+    </BannerShell>
+  );
+}
+
+function BannerShell({
+  tone,
+  icon,
+  children,
+}: {
+  tone: "muted" | "success";
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "mx-4 my-2 rounded-button border px-3 py-2 flex items-start gap-2 bg-card",
+        tone === "success" ? "border-app-border-strong" : "border-app-border",
+      )}
+    >
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <div className="flex-1">{children}</div>
     </div>
   );
 }

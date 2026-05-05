@@ -7,6 +7,7 @@ import { MatchesModule } from "./matches/matches.module";
 import { OnboardingModule } from "./onboarding/onboarding.module";
 import { PrismaModule } from "./prisma.module";
 import { ProfilesModule } from "./profiles/profiles.module";
+import { RevealModule } from "./reveal/reveal.module";
 import { SwipesModule } from "./swipes/swipes.module";
 import { UsersModule } from "./users/users.module";
 
@@ -21,6 +22,7 @@ import { UsersModule } from "./users/users.module";
     SwipesModule,
     MatchesModule,
     ChatModule,
+    RevealModule,
   ],
   controllers: [HealthController],
 })

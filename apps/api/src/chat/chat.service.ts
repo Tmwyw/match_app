@@ -28,6 +28,22 @@ export class ChatService {
     return chat.match.userAId === userId || chat.match.userBId === userId;
   }
 
+  /**
+   * Throws ForbiddenException if user is not in the chat. Use in
+   * controllers/services that need access control without the boolean dance.
+   * Distinguishes 404 (chat doesn't exist) from 403 (chat exists, not yours).
+   */
+  async assertParticipant(userId: string, chatId: string): Promise<void> {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { match: true },
+    });
+    if (!chat) throw new NotFoundException("CHAT_NOT_FOUND");
+    if (chat.match.userAId !== userId && chat.match.userBId !== userId) {
+      throw new ForbiddenException("FORBIDDEN");
+    }
+  }
+
   async sendMessage(
     senderId: string,
     input: SendMessageInput,
