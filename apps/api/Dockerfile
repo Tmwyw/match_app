@@ -58,5 +58,6 @@ COPY apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3001
+# Entrypoint cd's into apps/api so paths below are workspace-local.
 ENTRYPOINT ["dumb-init", "--", "docker-entrypoint.sh"]
-CMD ["node", "--require", "@swc-node/register", "apps/api/src/main.ts"]
+CMD ["node", "--require", "@swc-node/register", "src/main.ts"]
