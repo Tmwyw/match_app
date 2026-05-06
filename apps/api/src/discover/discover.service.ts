@@ -56,9 +56,14 @@ export class DiscoverService {
 
   /**
    * Build the where-clause that intersects my profile compatibility with
-   * any user-supplied filters. Filters NARROW the result: a buyer's stored
-   * verticals already gate which owners they can see; the filter further
-   * restricts to a chosen subset.
+   * any user-supplied filters.
+   *
+   * Compat is GEO-first: an owner's geos must overlap mine (and vice
+   * versa). Vertical is NOT a hard filter anymore — early-stage users
+   * write free-form custom tags ("ХУЙНЯ", "ВЕРТИКАЛЬ_ОЙ_БЛЯТЬ") which
+   * almost never string-match across two profiles, so a strict overlap
+   * empties the deck. Vertical filtering is still available via the
+   * FilterSheet (filters.verticals); when set, it narrows further.
    */
   private buildCompatFilter(
     me: UserWithProfiles,
@@ -66,41 +71,34 @@ export class DiscoverService {
   ): Prisma.UserWhereInput | null {
     if (me.role === "BUYER") {
       if (!me.buyerProfile) return null;
-      const verticalPool = intersectOrAll(me.buyerProfile.verticals, filters.verticals);
       const geoPool = intersectOrAll(me.buyerProfile.geos, filters.geos);
-      // Empty intersection = filter excludes everything I'd otherwise see.
-      // Return a where that matches nothing rather than collapsing to no
-      // filter at all (which would surprise the user).
-      if (verticalPool.length === 0 || geoPool.length === 0) {
+      if (geoPool.length === 0) {
         return { id: { equals: "__never__" } };
       }
-      return {
-        ownerProfile: {
-          isActive: true,
-          vertical: { in: verticalPool },
-          geos: { hasSome: geoPool },
-        },
+      const ownerWhere: Prisma.OwnerProfileWhereInput = {
+        isActive: true,
+        geos: { hasSome: geoPool },
       };
+      // Soft vertical filter — only when user explicitly picks in FilterSheet.
+      if (filters.verticals.length > 0) {
+        ownerWhere.vertical = { in: filters.verticals };
+      }
+      return { ownerProfile: ownerWhere };
     }
     if (me.role === "OWNER") {
       if (!me.ownerProfile) return null;
-      // Owner has a single vertical — apply the filter only if it's
-      // actually present in the chosen list (otherwise filter is moot).
-      const myVerticalPool =
-        filters.verticals.length === 0 || filters.verticals.includes(me.ownerProfile.vertical)
-          ? [me.ownerProfile.vertical]
-          : [];
       const geoPool = intersectOrAll(me.ownerProfile.geos, filters.geos);
-      if (myVerticalPool.length === 0 || geoPool.length === 0) {
+      if (geoPool.length === 0) {
         return { id: { equals: "__never__" } };
       }
-      return {
-        buyerProfile: {
-          isActive: true,
-          verticals: { hasSome: myVerticalPool },
-          geos: { hasSome: geoPool },
-        },
+      const buyerWhere: Prisma.BuyerProfileWhereInput = {
+        isActive: true,
+        geos: { hasSome: geoPool },
       };
+      if (filters.verticals.length > 0) {
+        buyerWhere.verticals = { hasSome: filters.verticals };
+      }
+      return { buyerProfile: buyerWhere };
     }
     return null;
   }
