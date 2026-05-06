@@ -49,7 +49,8 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
       <div className="text-center mt-6 mb-2">
         <h1 className="text-3xl font-bold">Кто ты?</h1>
         <p className="text-tg-hint text-sm mt-2 max-w-sm mx-auto">
-          Выбор роли — на всю жизнь аккаунта. Поменять потом нельзя.
+          Можно поменять позже в настройках — профиль и анонимный ID при этом
+          сбросятся.
         </p>
       </div>
 
