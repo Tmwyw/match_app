@@ -12,6 +12,12 @@
 #
 # Boot order: API runs `prisma migrate deploy` in its entrypoint before
 # starting the server, so postgres must be ready first (depends_on healthcheck).
+#
+# DNS gotcha: when api joins the shared `coolify` network, the docker DNS
+# alias `postgres` collides with `coolify-db` (which advertises itself as
+# `postgres` on that network). Docker resolves the IPv6 of coolify-db first
+# and api ends up authenticating against the wrong DB. To avoid: DATABASE_URL
+# uses the unique container name `tgmeet-postgres`, not the service name.
 
 name: tgmeet
 
@@ -47,7 +53,7 @@ services:
     environment:
       NODE_ENV: production
       API_PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-tgmeet}:${POSTGRES_PASSWORD:-tgmeet}@postgres:5432/${POSTGRES_DB:-tgmeet}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tgmeet}:${POSTGRES_PASSWORD:-tgmeet}@tgmeet-postgres:5432/${POSTGRES_DB:-tgmeet}?schema=public
       JWT_SECRET: ${JWT_SECRET}
       WEB_ORIGIN: https://${DOMAIN}
       BOT_TOKEN: ${BOT_TOKEN}
@@ -116,7 +122,7 @@ services:
       NODE_ENV: production
       BOT_TOKEN: ${BOT_TOKEN}
       WEB_APP_URL: https://${DOMAIN}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-tgmeet}:${POSTGRES_PASSWORD:-tgmeet}@postgres:5432/${POSTGRES_DB:-tgmeet}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tgmeet}:${POSTGRES_PASSWORD:-tgmeet}@tgmeet-postgres:5432/${POSTGRES_DB:-tgmeet}?schema=public
       API_URL: http://api:3001
       ADMIN_TOKEN: ${ADMIN_TOKEN}
       ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
