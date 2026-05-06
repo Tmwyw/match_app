@@ -1,4 +1,4 @@
-import { Bell, Trash2, UserMinus } from "lucide-react";
+import { Bell, RefreshCw, Trash2, UserMinus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type {
   BlocksResponse,
@@ -12,6 +12,9 @@ type Props = {
   onClose: () => void;
   /** Called after the user confirms account deletion (DELETE /me succeeded). */
   onDeleted: () => void;
+  /** Called after the user resets their role; App.tsx refreshes /me which now
+   *  has role=null, so the flow falls back to RolePicker. */
+  onRoleReset: () => void;
 };
 
 type State =
@@ -102,9 +105,10 @@ function DeleteAccountFlow({
   );
 }
 
-export function SettingsScreen({ onClose, onDeleted }: Props) {
+export function SettingsScreen({ onClose, onDeleted, onRoleReset }: Props) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [resetRoleOpen, setResetRoleOpen] = useState(false);
 
   const load = useCallback(async () => {
     setState({ status: "loading" });
@@ -184,6 +188,14 @@ export function SettingsScreen({ onClose, onDeleted }: Props) {
               Аккаунт
             </h2>
             <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => setResetRoleOpen(true)}
+            >
+              <RefreshCw size={16} />
+              Сменить роль
+            </Button>
+            <Button
               variant="danger"
               fullWidth
               onClick={() => setDeleteOpen(true)}
@@ -200,7 +212,67 @@ export function SettingsScreen({ onClose, onDeleted }: Props) {
           onDeleted={onDeleted}
         />
       )}
+      {resetRoleOpen && (
+        <ResetRoleFlow
+          onCancel={() => setResetRoleOpen(false)}
+          onDone={() => {
+            setResetRoleOpen(false);
+            onRoleReset();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/** Confirmation flow for clearing role + per-role profile. Less destructive
+ *  than account delete (no tombstone, matches preserved), but the user's
+ *  anonId changes for everyone they've talked to, so we still gate it. */
+function ResetRoleFlow({
+  onCancel,
+  onDone,
+}: {
+  onCancel: () => void;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api("/onboarding/role", { method: "DELETE" });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Сменить роль?"
+      onClose={busy ? () => {} : onCancel}
+      footer={
+        <ModalConfirmFooter
+          confirmLabel="Сменить"
+          onCancel={onCancel}
+          onConfirm={submit}
+          busy={busy}
+        />
+      }
+    >
+      <p>
+        Текущий профиль и анонимный ID удалятся. Тебе нужно будет заново
+        выбрать роль и заполнить данные.
+      </p>
+      <p className="text-tg-hint text-xs">
+        Существующие чаты и матчи останутся, но в них твой анонимный ID
+        поменяется на новый после переонбординга.
+      </p>
+      {error && <p className="text-danger text-xs">{error}</p>}
+    </Modal>
   );
 }
 

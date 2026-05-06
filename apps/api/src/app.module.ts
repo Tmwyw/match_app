@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AdminModule } from "./admin/admin.module";
 import { AuthModule } from "./auth/auth.module";
 import { BlocksModule } from "./blocks/blocks.module";
 import { ChatModule } from "./chat/chat.module";
@@ -29,6 +30,7 @@ import { UsersModule } from "./users/users.module";
     ChatModule,
     RevealModule,
     ReportsModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })

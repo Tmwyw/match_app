@@ -10,3 +10,4 @@ export * from "./reports";
 export * from "./blocks";
 export * from "./notifications";
 export * from "./discover-extra";
+export * from "./admin";

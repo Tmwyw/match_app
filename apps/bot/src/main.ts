@@ -1,8 +1,13 @@
 import { Bot, InlineKeyboard } from "grammy";
+import { registerAdminHandlers } from "./admin";
 import { env } from "./env";
 import { handleStartPayload } from "./start-payload";
 
 const bot = new Bot(env.BOT_TOKEN);
+
+// Mount /admin BEFORE the catch-all message handlers so its text-input flow
+// (search query) gets first dibs on incoming messages from admins.
+registerAdminHandlers(bot);
 
 bot.command("start", async (ctx) => {
   // ctx.match is everything after "/start " (empty string when no payload).
@@ -26,6 +31,43 @@ bot.command("start", async (ctx) => {
 bot.command("help", (ctx) =>
   ctx.reply("Команды:\n/start — открыть приложение")
 );
+
+// Reset menu commands once on boot. /admin is shown only to whitelisted
+// Telegram IDs via Bot API scope.
+async function setupCommands() {
+  try {
+    await bot.api.setMyCommands(
+      [
+        { command: "start", description: "Открыть приложение" },
+        { command: "help", description: "Помощь" },
+      ],
+      { scope: { type: "default" } },
+    );
+    if (env.ADMIN_TELEGRAM_IDS.length > 0) {
+      for (const tgId of env.ADMIN_TELEGRAM_IDS) {
+        try {
+          await bot.api.setMyCommands(
+            [
+              { command: "start", description: "Открыть приложение" },
+              { command: "admin", description: "Админ-консоль" },
+            ],
+            { scope: { type: "chat", chat_id: Number(tgId) } },
+          );
+        } catch (e) {
+          // chat scope only works after the user has interacted with the bot.
+          // Failing here is fine — they'll still see /admin if they type it.
+          console.warn(
+            `[bot] could not set admin scope for ${tgId}: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(
+      `[bot] failed to set commands: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+}
 
 bot.catch((err) => {
   console.error("[bot] error", err);
@@ -60,5 +102,13 @@ bot.start({
   onStart: async (me) => {
     console.log(`[bot] @${me.username} ready (web app → ${env.WEB_APP_URL})`);
     await setupMenuButton();
+    await setupCommands();
+    if (env.ADMIN_TELEGRAM_IDS.length > 0) {
+      console.log(
+        `[bot] admin enabled for ${env.ADMIN_TELEGRAM_IDS.length} telegram id(s)`,
+      );
+    } else {
+      console.log("[bot] admin disabled (ADMIN_TELEGRAM_IDS empty)");
+    }
   },
 });

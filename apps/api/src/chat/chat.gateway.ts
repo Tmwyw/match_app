@@ -125,6 +125,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
     return !!set && set.size > 0;
   }
 
+  /** Number of distinct users currently with at least one live socket. */
+  onlineCount(): number {
+    return this.online.size;
+  }
+
   emitRevealUpdated(userId: string, status: RevealStatus): void {
     this.server.to(userRoom(userId)).emit(WsServerEvents.RevealUpdated, status);
   }

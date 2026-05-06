@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Post, UseGuards } from "@nestjs/common";
 import { PickRoleRequest, type PublicUser } from "@tg-app-meet/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -16,5 +16,10 @@ export class OnboardingController {
     @Body(new ZodValidationPipe(PickRoleRequest)) body: PickRoleRequest,
   ): Promise<PublicUser> {
     return this.onboarding.assignRole(current.id, body.role);
+  }
+
+  @Delete("role")
+  async resetRole(@CurrentUser() current: { id: string }): Promise<PublicUser> {
+    return this.onboarding.resetRole(current.id);
   }
 }

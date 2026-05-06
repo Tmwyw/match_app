@@ -16,9 +16,18 @@ type Props = {
   /** Called after the user soft-deletes their own account from /settings.
    *  App swaps to the "deleted" screen — no further auth round-trip. */
   onAccountDeleted: () => void;
+  /** Called after the user resets their role from /settings — App refreshes
+   *  /me; with role=null they fall back to RolePicker. */
+  onRoleReset: () => void;
 };
 
-export function MyProfile({ user, profile, onUpdated, onAccountDeleted }: Props) {
+export function MyProfile({
+  user,
+  profile,
+  onUpdated,
+  onAccountDeleted,
+  onRoleReset,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -83,6 +92,7 @@ export function MyProfile({ user, profile, onUpdated, onAccountDeleted }: Props)
         <SettingsScreen
           onClose={() => setSettingsOpen(false)}
           onDeleted={onAccountDeleted}
+          onRoleReset={onRoleReset}
         />
       )}
     </Screen>
