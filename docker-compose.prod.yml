@@ -87,11 +87,20 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=coolify"
+      # HTTPS router — actual app
       - "traefik.http.routers.tgmeet-web.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
       - "traefik.http.routers.tgmeet-web.entrypoints=https"
       - "traefik.http.routers.tgmeet-web.tls=true"
       - "traefik.http.routers.tgmeet-web.tls.certresolver=letsencrypt"
       - "traefik.http.services.tgmeet-web.loadbalancer.server.port=80"
+      # HTTP→HTTPS redirect for our hosts. Single router covers both web
+      # and /api paths; traefik handles /.well-known/acme-challenge/* before
+      # user routers, so cert issuance still works.
+      - "traefik.http.routers.tgmeet-redirect.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
+      - "traefik.http.routers.tgmeet-redirect.entrypoints=http"
+      - "traefik.http.routers.tgmeet-redirect.middlewares=tgmeet-https-only"
+      - "traefik.http.middlewares.tgmeet-https-only.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.tgmeet-https-only.redirectscheme.permanent=true"
 
   bot:
     build:
