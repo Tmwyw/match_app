@@ -10,7 +10,7 @@ import type {
 } from "@tg-app-meet/shared";
 import type { Bot, Context } from "grammy";
 import { InlineKeyboard } from "grammy";
-import { env, isAdminTelegramId } from "./env";
+import { env, isAdminTelegramId } from "./env.js";
 
 /**
  * Admin console inside Telegram. The bot is the front-end; the API is the

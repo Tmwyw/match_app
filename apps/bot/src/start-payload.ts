@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "./prisma.js";
 
 /**
  * Telegram /start arrives as `/start <payload>` (the part after the bot

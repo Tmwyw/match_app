@@ -1,7 +1,10 @@
 import { Bot, InlineKeyboard } from "grammy";
-import { registerAdminHandlers } from "./admin";
-import { env } from "./env";
-import { handleStartPayload } from "./start-payload";
+// Explicit .js extensions: bot is `"type": "module"` and tsc preserves
+// the import paths verbatim, so Node ESM at runtime needs the real file
+// extension. Dev (tsx) is fine without — only prod (`node dist/main.js`) breaks.
+import { registerAdminHandlers } from "./admin.js";
+import { env } from "./env.js";
+import { handleStartPayload } from "./start-payload.js";
 
 const bot = new Bot(env.BOT_TOKEN);
 
