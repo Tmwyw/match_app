@@ -24,19 +24,27 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @tg-app-meet/api... --filter @tg-app-meet/shared
 
 # ---- build ---------------------------------------------------------------
+# We don't tsc-compile the API: NestJS DI relies on `emitDecoratorMetadata`
+# which only @swc/core honours via .swcrc (tsx/esbuild silently drop it,
+# breaking constructor injection). Same reason dev uses @swc-node/register.
+# In prod we run TS source through the same loader — startup cost is ~1s,
+# memory delta is negligible, and we sidestep the shared-package
+# build pipeline (shared is "main": "./src/index.ts", so any compiled
+# downstream needs `.js` extensions in shared's exports — not worth the churn).
 FROM deps AS build
 COPY packages/shared packages/shared
 COPY apps/api apps/api
-RUN pnpm --filter @tg-app-meet/api exec prisma generate \
- && pnpm --filter @tg-app-meet/api build
+RUN pnpm --filter @tg-app-meet/api exec prisma generate
 
 # ---- runtime -------------------------------------------------------------
 FROM base AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Pull only what we need to run (compiled JS + node_modules with prisma client + the prisma schema for migrate deploy).
-COPY --from=build /repo/apps/api/dist ./apps/api/dist
+# Source — we run TS directly via @swc-node/register
+COPY --from=build /repo/apps/api/src ./apps/api/src
+COPY --from=build /repo/apps/api/.swcrc ./apps/api/.swcrc
+COPY --from=build /repo/apps/api/tsconfig.json ./apps/api/tsconfig.json
 COPY --from=build /repo/apps/api/prisma ./apps/api/prisma
 COPY --from=build /repo/apps/api/package.json ./apps/api/package.json
 COPY --from=build /repo/packages/shared ./packages/shared
@@ -51,4 +59,4 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3001
 ENTRYPOINT ["dumb-init", "--", "docker-entrypoint.sh"]
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "--require", "@swc-node/register", "apps/api/src/main.ts"]
