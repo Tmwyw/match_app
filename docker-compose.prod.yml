@@ -1,0 +1,125 @@
+# docker-compose.prod.yml — production stack for tg-app-meet.
+#
+# Layout:
+#   postgres  → internal-only, volume on the host, no port published
+#   api       → joined to both internal+coolify nets, traefik routes /api/*
+#   web       → joined to both internal+coolify nets, traefik routes /
+#   bot       → internal-only (long-polls Telegram outbound)
+#
+# Traefik (provided by coolify-proxy on this host) handles HTTPS termination,
+# Let's Encrypt certs, and routes by Host header. Both apex and www point at
+# the same services. Update DOMAIN in .env to swap.
+#
+# Boot order: API runs `prisma migrate deploy` in its entrypoint before
+# starting the server, so postgres must be ready first (depends_on healthcheck).
+
+name: tgmeet
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tgmeet-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tgmeet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tgmeet}
+      POSTGRES_DB: ${POSTGRES_DB:-tgmeet}
+    volumes:
+      - tgmeet_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tgmeet} -d ${POSTGRES_DB:-tgmeet}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - tgmeet
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: tgmeet-api:latest
+    container_name: tgmeet-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tgmeet}:${POSTGRES_PASSWORD:-tgmeet}@postgres:5432/${POSTGRES_DB:-tgmeet}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      WEB_ORIGIN: https://${DOMAIN}
+      BOT_TOKEN: ${BOT_TOKEN}
+      WEB_APP_URL: https://${DOMAIN}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+    networks:
+      - tgmeet
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      # /api router: higher priority than the catch-all web router so it wins
+      # when both rules match.
+      - "traefik.http.routers.tgmeet-api.rule=(Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)) && PathPrefix(`/api`)"
+      - "traefik.http.routers.tgmeet-api.entrypoints=https"
+      - "traefik.http.routers.tgmeet-api.tls=true"
+      - "traefik.http.routers.tgmeet-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tgmeet-api.priority=100"
+      - "traefik.http.routers.tgmeet-api.middlewares=tgmeet-api-strip"
+      # The frontend calls /api/* but our backend mounts at root (e.g. GET /me).
+      # Strip the prefix so /api/me → /me on the API. Also strips on
+      # /api/socket.io for the WS upgrade.
+      - "traefik.http.middlewares.tgmeet-api-strip.stripprefix.prefixes=/api"
+      - "traefik.http.services.tgmeet-api.loadbalancer.server.port=3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: tgmeet-web:latest
+    container_name: tgmeet-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.tgmeet-web.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
+      - "traefik.http.routers.tgmeet-web.entrypoints=https"
+      - "traefik.http.routers.tgmeet-web.tls=true"
+      - "traefik.http.routers.tgmeet-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tgmeet-web.loadbalancer.server.port=80"
+
+  bot:
+    build:
+      context: .
+      dockerfile: apps/bot/Dockerfile
+    image: tgmeet-bot:latest
+    container_name: tgmeet-bot
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      BOT_TOKEN: ${BOT_TOKEN}
+      WEB_APP_URL: https://${DOMAIN}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tgmeet}:${POSTGRES_PASSWORD:-tgmeet}@postgres:5432/${POSTGRES_DB:-tgmeet}?schema=public
+      API_URL: http://api:3001
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
+    networks:
+      - tgmeet
+
+volumes:
+  tgmeet_pgdata:
+
+networks:
+  tgmeet:
+    name: tgmeet-internal
+  coolify:
+    external: true
+    name: coolify

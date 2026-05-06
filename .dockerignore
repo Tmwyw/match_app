@@ -1,0 +1,30 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.cache
+**/coverage
+**/.vite
+**/tsconfig.tsbuildinfo
+**/.DS_Store
+
+# git
+.git
+.github
+
+# local env (we read prod env from --env-file, host .env doesn't belong in image)
+.env
+.env.*
+!.env.production.example
+!.env.example
+
+# editor / IDE
+.vscode
+.idea
+
+# claude / agent state
+.claude
+
+# docs that aren't needed in the image
+*.md
+!apps/api/prisma/migrations/*/migration.sql
