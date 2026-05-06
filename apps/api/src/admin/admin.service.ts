@@ -234,7 +234,7 @@ export class AdminService {
             offerName: u.ownerProfile.offerName,
             vertical: u.ownerProfile.vertical,
             geos: u.ownerProfile.geos,
-            payoutType: u.ownerProfile.payoutType,
+            payoutTypes: u.ownerProfile.payoutTypes,
             payoutAmount: u.ownerProfile.payoutAmount,
             requirements: u.ownerProfile.requirements,
             bio: u.ownerProfile.bio,

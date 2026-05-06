@@ -284,11 +284,15 @@ function OwnerBody({
         <Tags items={profile.geos} />
       </Block>
       <Divider />
+      <Block icon={<Banknote size={16} />} label="Схемы выплат">
+        <Tags items={profile.payoutTypes} />
+      </Block>
+      <Divider />
       <Stats
         items={[
           {
             icon: <Banknote size={16} />,
-            label: profile.payoutType,
+            label: "сумма",
             value: `$${profile.payoutAmount.toLocaleString()}`,
           },
         ]}

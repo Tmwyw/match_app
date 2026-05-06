@@ -198,7 +198,11 @@ function summarize(card: PublicCard): string {
   if (card.role === "BUYER") {
     return `${card.verticals.join("/")} · ${card.geos.join(",")} · $${card.budgetMin}–${card.budgetMax}`;
   }
-  return `${card.offerName} · ${card.vertical} · ${card.payoutType} $${card.payoutAmount}`;
+  const payouts =
+    card.payoutTypes.length > 0
+      ? `${card.payoutTypes.join("/")} $${card.payoutAmount}`
+      : `$${card.payoutAmount}`;
+  return `${card.offerName} · ${card.vertical} · ${payouts}`;
 }
 
 function plural(n: number, one: string, few: string, many: string): string {

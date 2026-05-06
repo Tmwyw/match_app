@@ -4,14 +4,13 @@ import {
   type MyOwnerProfile,
   type MyProfileResponse,
   OwnerProfileInput,
-  PayoutType,
+  PayoutTypePresets,
   VerticalPresets,
 } from "@tg-app-meet/shared";
 import { api } from "../api";
 import {
   AppHeader,
   Button,
-  ChipGroup,
   Field,
   Screen,
   Section,
@@ -33,8 +32,8 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
     initial ? [initial.vertical] : [],
   );
   const [geos, setGeos] = useState<string[]>(initial?.geos ?? []);
-  const [payoutType, setPayoutType] = useState<PayoutType[]>(
-    initial ? [initial.payoutType as PayoutType] : [],
+  const [payoutTypes, setPayoutTypes] = useState<string[]>(
+    initial?.payoutTypes ?? [],
   );
   const [payoutAmount, setPayoutAmount] = useState(
     initial ? String(initial.payoutAmount) : "",
@@ -56,7 +55,7 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
       offerName: offerName.trim(),
       vertical: vertical[0],
       geos,
-      payoutType: payoutType[0],
+      payoutTypes,
       payoutAmount: Number(payoutAmount),
       requirements: requirements.trim() || undefined,
       bio: bio.trim() || undefined,
@@ -151,15 +150,19 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
           )}
         </Section>
 
-        <Section title="Выплаты">
-          <ChipGroup
-            mode="single"
-            options={PayoutType.options}
-            value={payoutType}
-            onChange={setPayoutType}
+        <Section
+          title="Выплаты"
+          description="Можно выбрать несколько схем или добавить свою."
+        >
+          <TagInput
+            presets={PayoutTypePresets}
+            value={payoutTypes}
+            onChange={setPayoutTypes}
+            max={5}
+            placeholder="Своя схема (напр. RevShare-with-Spend)"
           />
-          {errors.payoutType && (
-            <span className="text-xs text-danger px-1">{errors.payoutType}</span>
+          {errors.payoutTypes && (
+            <span className="text-xs text-danger px-1">{errors.payoutTypes}</span>
           )}
           <Field
             label="сумма, $"

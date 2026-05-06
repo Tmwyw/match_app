@@ -81,7 +81,7 @@ export const AdminUserDetail = AdminUserSummary.extend({
       offerName: z.string(),
       vertical: z.string(),
       geos: z.array(z.string()),
-      payoutType: z.string(),
+      payoutTypes: z.array(z.string()),
       payoutAmount: z.number().int(),
       requirements: z.string().nullable(),
       bio: z.string().nullable(),

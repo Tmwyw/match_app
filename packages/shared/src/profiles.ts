@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { Geo, PayoutType, Vertical } from "./roles";
+// PayoutType is re-exported from ./roles via index.ts; we still reference
+// the enum here only to source the chip presets for the FE TagInput.
 
 // `Vertical` and `Geo` enums (in roles.ts) are kept as **suggestions** for
 // the UI — but storage / input now accepts any short tag so users can write
@@ -45,7 +47,10 @@ const OwnerShape = z.object({
   offerName: z.string().min(2).max(100),
   vertical: Tag,
   geos: TagList(15),
-  payoutType: PayoutType,
+  // Owner can advertise multiple payout schemes. Presets in PayoutType
+  // (CPA/REVSHARE/HYBRID) are suggestions; users can also enter custom
+  // tags ("RevShare-with-Spend", "MGR", etc).
+  payoutTypes: TagList(5),
   payoutAmount: z.number().int().positive(),
   requirements: z.string().max(500).nullish(),
   bio: z.string().max(500).nullish(),
@@ -75,7 +80,7 @@ export const MyOwnerProfile = z.object({
   offerName: z.string(),
   vertical: z.string(),
   geos: z.array(z.string()),
-  payoutType: PayoutType,
+  payoutTypes: z.array(z.string()),
   payoutAmount: z.number().int(),
   requirements: z.string().nullable(),
   bio: z.string().nullable(),
@@ -111,7 +116,7 @@ export const PublicOwnerCard = z.object({
   offerName: z.string(),
   vertical: z.string(),
   geos: z.array(z.string()),
-  payoutType: PayoutType,
+  payoutTypes: z.array(z.string()),
   payoutAmount: z.number().int(),
   requirements: z.string().nullable(),
   bio: z.string().nullable(),
@@ -133,3 +138,4 @@ export type DiscoverResponse = z.infer<typeof DiscoverResponse>;
 // Re-export presets so the UI can suggest them as quick-pick chips.
 export const VerticalPresets = Vertical.options;
 export const GeoPresets = Geo.options;
+export const PayoutTypePresets = PayoutType.options;

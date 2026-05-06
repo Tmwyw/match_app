@@ -41,7 +41,14 @@ function OwnerBody({ card }: { card: Extract<PublicCard, { role: "OWNER" }> }) {
       <Row label="Оффер" value={card.offerName} />
       <Row label="Вертикаль" value={card.vertical} />
       <Row label="Гео" value={card.geos.join(" · ")} />
-      <Row label="Выплаты" value={`${card.payoutType} · $${card.payoutAmount}`} />
+      <Row
+        label="Выплаты"
+        value={
+          card.payoutTypes.length > 0
+            ? `${card.payoutTypes.join(" / ")} · $${card.payoutAmount}`
+            : `$${card.payoutAmount}`
+        }
+      />
       {card.requirements && <Row label="Требования" value={card.requirements} />}
       {card.bio && <Row label="О себе" value={card.bio} />}
     </div>

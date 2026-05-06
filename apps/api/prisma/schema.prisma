@@ -86,7 +86,10 @@ model OwnerProfile {
   offerName    String
   vertical     String
   geos         String[]
-  payoutType   String
+  // Free-form list — presets in shared/PayoutType (CPA/REVSHARE/HYBRID),
+  // but custom values allowed (RevShare-with-Spend, special partner deals,
+  // etc). Single payoutAmount applies to all listed schemes for now.
+  payoutTypes  String[]
   payoutAmount Int
   requirements String?
   bio          String?

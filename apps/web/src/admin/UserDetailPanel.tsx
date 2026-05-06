@@ -227,7 +227,7 @@ function UserBody({
             {user.ownerProfile.geos.join(", ") || "—"}
           </Field>
           <Field label="payout">
-            {user.ownerProfile.payoutType} · {user.ownerProfile.payoutAmount}
+            {user.ownerProfile.payoutTypes.join(", ") || "—"} · ${user.ownerProfile.payoutAmount}
           </Field>
           <Field label="active">{String(user.ownerProfile.isActive)}</Field>
           {user.ownerProfile.requirements && (

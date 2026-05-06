@@ -266,7 +266,7 @@ function userDetailText(u: AdminUserDetail): string {
       `offer: ${escapeHtml(u.ownerProfile.offerName)}`,
       `vertical: ${escapeHtml(u.ownerProfile.vertical)}`,
       `geos: ${u.ownerProfile.geos.join(", ") || "—"}`,
-      `payout: ${u.ownerProfile.payoutType} $${u.ownerProfile.payoutAmount}`,
+      `payout: ${u.ownerProfile.payoutTypes.join(", ") || "—"} $${u.ownerProfile.payoutAmount}`,
     );
     if (u.ownerProfile.bio) lines.push(`bio: ${escapeHtml(u.ownerProfile.bio)}`);
   }
