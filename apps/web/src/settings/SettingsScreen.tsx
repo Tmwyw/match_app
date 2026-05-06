@@ -5,7 +5,7 @@ import type {
   NotificationPrefsResponse,
 } from "@tg-app-meet/shared";
 import { api } from "../api";
-import { AppHeader, Button, Card, RoleAvatar, Screen, cn } from "../ui";
+import { AppHeader, Background, Button, Card, RoleAvatar, Screen, cn } from "../ui";
 import { Modal, ModalConfirmFooter } from "../ui/Modal";
 
 type Props = {
@@ -138,8 +138,11 @@ export function SettingsScreen({ onClose, onDeleted, onRoleReset }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-30 bg-tg-bg overflow-y-auto">
-      <Screen className="pb-safe min-h-screen">
+    <div className="fixed inset-0 z-30 overflow-y-auto">
+      {/* Render the brand gradient inside the overlay — without it the
+          Telegram webview paints flat black under the fixed container. */}
+      <Background />
+      <Screen className="relative z-10 pb-safe min-h-screen">
         <div className="max-w-md mx-auto flex flex-col gap-5">
           <AppHeader title="Настройки" onBack={onClose} />
 

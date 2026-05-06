@@ -12,7 +12,7 @@ import {
 import type { PublicUser, Role, RevealStatus } from "@tg-app-meet/shared";
 import { api, ApiError } from "../api";
 import { openTelegramUsername } from "../telegram";
-import { AppHeader, Button, CenteredMessage, RoleAvatar, cn } from "../ui";
+import { AppHeader, Background, Button, CenteredMessage, RoleAvatar, cn } from "../ui";
 import { ChatMenu } from "./ChatMenu";
 import { relativeRu } from "./relativeTime";
 import { ReportDialog } from "./ReportDialog";
@@ -219,7 +219,9 @@ function ChatScreenInner({
   }, [typingActive, presence]);
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-tg-bg-deep/40 backdrop-blur-md">
+    <div className="fixed inset-0 z-30 flex flex-col">
+      <Background />
+      <div className="relative z-10 flex flex-col flex-1 min-h-0 bg-tg-bg-deep/30 backdrop-blur-md">
       <AppHeader
         title={otherAnonId}
         subtitle={headerSubtitle}
@@ -346,6 +348,7 @@ function ChatScreenInner({
           {chat.editing ? <Check size={18} /> : <Send size={18} />}
         </Button>
       </form>
+      </div>
     </div>
   );
 }

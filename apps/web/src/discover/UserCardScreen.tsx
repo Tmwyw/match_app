@@ -4,6 +4,7 @@ import type { PublicCard, SwipeResponse } from "@tg-app-meet/shared";
 import { api, ApiError } from "../api";
 import {
   AppHeader,
+  Background,
   Button,
   CenteredMessage,
   MatchOverlay,
@@ -95,8 +96,9 @@ export function UserCardScreen({ userId, myRole, onClose, onMatched }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-30 bg-tg-bg overflow-y-auto">
-      <Screen className="pb-safe min-h-screen">
+    <div className="fixed inset-0 z-30 overflow-y-auto">
+      <Background />
+      <Screen className="relative z-10 pb-safe min-h-screen">
         <div className="max-w-md mx-auto flex flex-col gap-4">
           <AppHeader title="Профиль" onBack={onClose} />
 
