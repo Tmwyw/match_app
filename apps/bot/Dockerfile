@@ -17,7 +17,10 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm fetch
 COPY apps/api/prisma apps/api/prisma
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter @tg-app-meet/bot... --filter @tg-app-meet/shared
+    pnpm install --frozen-lockfile \
+      --filter @tg-app-meet/bot... \
+      --filter @tg-app-meet/api \
+      --filter @tg-app-meet/shared
 
 FROM deps AS build
 COPY packages/shared packages/shared
