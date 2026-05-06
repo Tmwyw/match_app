@@ -21,6 +21,7 @@ export type OpenChat = {
   chatId: string;
   otherUserId: string;
   otherAnonId: string;
+  otherDisplayName: string | null;
   otherRole: Role;
 };
 
@@ -278,6 +279,7 @@ function Home({
           currentUser={user}
           otherUserId={openChat.otherUserId}
           otherAnonId={openChat.otherAnonId}
+          otherDisplayName={openChat.otherDisplayName}
           otherRole={openChat.otherRole}
           onBack={() => setOpenChat(null)}
           onBlocked={() => setOpenChat(null)}

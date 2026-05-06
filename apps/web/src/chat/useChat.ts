@@ -230,6 +230,9 @@ export function useChat(
         chatId,
         senderId: currentUserId,
         senderAnonId: currentAnonId,
+        // Sender label is only rendered for non-mine bubbles; own optimistic
+        // message never displays it, so null is fine.
+        senderDisplayName: null,
         content: trimmed,
         createdAt: now,
         editedAt: null,

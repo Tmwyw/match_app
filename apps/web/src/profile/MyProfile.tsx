@@ -204,8 +204,13 @@ function ProfileHero({
         <RoleAvatar role={role} size="xl" />
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            {user.anonId}
+            {user.displayName ?? user.anonId}
           </h1>
+          {user.displayName && user.anonId && (
+            <p className="text-tg-hint text-[10px] uppercase tracking-wider mt-1">
+              {user.anonId}
+            </p>
+          )}
           <p className="text-tg-hint text-xs mt-1.5">
             {user.username ? `@${user.username} · ` : ""}виден только тебе
           </p>

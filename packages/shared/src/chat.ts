@@ -5,6 +5,9 @@ export const ChatMessage = z.object({
   chatId: z.string(),
   senderId: z.string(),
   senderAnonId: z.string(),
+  /** Sender's chosen displayName, or null if not set. UI prefers this over
+   *  senderAnonId. Joined fresh from User per fetch (same as anonId). */
+  senderDisplayName: z.string().nullable(),
   content: z.string(),
   createdAt: z.string(),
   editedAt: z.string().nullable(),

@@ -52,7 +52,7 @@ export class OnboardingService {
       await tx.ownerProfile.deleteMany({ where: { userId } });
       return tx.user.update({
         where: { id: userId },
-        data: { role: null, anonId: null },
+        data: { role: null, anonId: null, displayName: null },
       });
     });
     return toPublicUser(updated);

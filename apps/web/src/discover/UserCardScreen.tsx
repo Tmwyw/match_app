@@ -27,6 +27,7 @@ type Props = {
     chatId: string;
     otherUserId: string;
     otherAnonId: string;
+    otherDisplayName: string | null;
     otherRole: "BUYER" | "OWNER";
   }) => void;
 };
@@ -155,7 +156,7 @@ export function UserCardScreen({ userId, myRole, onClose, onMatched }: Props) {
         <MatchOverlay
           myRole={myRole}
           otherRole={matchOverlay.other.role}
-          otherAnonId={matchOverlay.other.anonId}
+          otherAnonId={matchOverlay.other.displayName ?? matchOverlay.other.anonId}
           onChat={() => {
             const chatId = matchOverlay.response.chatId!;
             const other = matchOverlay.other;
@@ -164,6 +165,7 @@ export function UserCardScreen({ userId, myRole, onClose, onMatched }: Props) {
               chatId,
               otherUserId: other.userId,
               otherAnonId: other.anonId,
+              otherDisplayName: other.displayName,
               otherRole: other.role,
             });
           }}

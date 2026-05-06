@@ -243,7 +243,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
         void this.notifications
           .notifyMessage(
             recipientId,
-            ack.message.senderAnonId,
+            ack.message.senderDisplayName ?? ack.message.senderAnonId,
             parsed.data.chatId,
             ack.message.content,
           )

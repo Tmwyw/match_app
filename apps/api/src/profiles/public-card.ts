@@ -17,6 +17,7 @@ export function toPublicCard(user: UserWithProfiles): PublicCard {
     return PublicBuyerCard.parse({
       userId: user.id,
       anonId: user.anonId,
+      displayName: user.displayName,
       role: "BUYER",
       verticals: user.buyerProfile.verticals,
       geos: user.buyerProfile.geos,
@@ -30,6 +31,7 @@ export function toPublicCard(user: UserWithProfiles): PublicCard {
   return PublicOwnerCard.parse({
     userId: user.id,
     anonId: user.anonId,
+    displayName: user.displayName,
     role: "OWNER",
     offerName: user.ownerProfile.offerName,
     vertical: user.ownerProfile.vertical,
@@ -55,6 +57,7 @@ export function deletedPlugCard(
     return PublicBuyerCard.parse({
       userId,
       anonId: PLUG_ANON,
+      displayName: null,
       role: "BUYER",
       verticals: [],
       geos: [],
@@ -67,6 +70,7 @@ export function deletedPlugCard(
   return PublicOwnerCard.parse({
     userId,
     anonId: PLUG_ANON,
+    displayName: null,
     role: "OWNER",
     offerName: "—",
     vertical: "—",

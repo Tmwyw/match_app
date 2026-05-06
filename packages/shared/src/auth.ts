@@ -12,6 +12,9 @@ export const PublicUser = z.object({
   username: z.string().nullable(),
   role: Role.nullable(),
   anonId: z.string().nullable(),
+  // User-chosen nickname; if set, replaces anonId in user-facing displays
+  // (cards, chat headers, messages). anonId stays in DB for forensics.
+  displayName: z.string().nullable(),
   createdAt: z.string(),
 });
 export type PublicUser = z.infer<typeof PublicUser>;

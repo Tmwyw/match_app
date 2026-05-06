@@ -29,6 +29,10 @@ model User {
   // role + anonId are assigned during onboarding (Phase 2), not at first auth
   role       Role?
   anonId     String?  @unique
+  // Optional user-chosen nickname shown in cards, chat headers and messages
+  // when set; falls back to anonId. Anti-deanon scrub runs on save (no @,
+  // no t.me, no urls/phones/emails). Cleared on role-reset.
+  displayName String?
   createdAt  DateTime @default(now())
   // Soft-delete: account never physically removed (would orphan reveals/chats
   // for the partner). Auth rejects re-login of a deleted telegramId.

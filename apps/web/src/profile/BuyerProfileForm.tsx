@@ -25,6 +25,7 @@ type Props = {
 
 export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
   const isEdit = Boolean(initial);
+  const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
   const [verticals, setVerticals] = useState<string[]>(initial?.verticals ?? []);
   const [geos, setGeos] = useState<string[]>(initial?.geos ?? []);
   const [budgetMin, setBudgetMin] = useState(
@@ -48,6 +49,7 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
     setServerError(null);
 
     const payload = {
+      displayName: displayName.trim() || null,
       verticals,
       geos,
       budgetMin: Number(budgetMin),
@@ -97,6 +99,19 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
         onBack={onCancel}
       />
       <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto px-4 pt-4">
+        <Section
+          title="Никнейм"
+          description="Под каким именем тебя увидят. Без @, без ссылок. Если оставить пусто — будет анонимный Buyer #N."
+        >
+          <Field
+            placeholder="например, ArbiPro"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            maxLength={32}
+            error={errors.displayName}
+          />
+        </Section>
+
         <Section
           title="Источники"
           description="Где закупаешь. Выбери из подсказок или добавь свои."

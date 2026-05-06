@@ -15,7 +15,7 @@ export function CardView({ card }: { card: PublicCard }) {
           <div className="text-[11px] font-semibold uppercase tracking-wider text-tg-hint">
             {card.role === "BUYER" ? "БАЕР" : "ОВНЕР"}
           </div>
-          <h2 className="text-2xl font-bold">{card.anonId}</h2>
+          <h2 className="text-2xl font-bold">{card.displayName ?? card.anonId}</h2>
         </div>
       </header>
       {card.role === "BUYER" ? <BuyerBody card={card} /> : <OwnerBody card={card} />}

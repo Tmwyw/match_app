@@ -4,6 +4,7 @@ import { Role } from "./roles";
 export const BlockedUser = z.object({
   userId: z.string(),
   anonId: z.string().nullable(),
+  displayName: z.string().nullable(),
   role: Role.nullable(),
   blockedAt: z.string(),
 });

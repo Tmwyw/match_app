@@ -27,6 +27,7 @@ type Props = {
 
 export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
   const isEdit = Boolean(initial);
+  const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
   const [offerName, setOfferName] = useState(initial?.offerName ?? "");
   const [vertical, setVertical] = useState<string[]>(
     initial ? [initial.vertical] : [],
@@ -51,6 +52,7 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
     setServerError(null);
 
     const payload = {
+      displayName: displayName.trim() || null,
       offerName: offerName.trim(),
       vertical: vertical[0],
       geos,
@@ -96,6 +98,19 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
         onBack={onCancel}
       />
       <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto px-4 pt-4">
+        <Section
+          title="Никнейм"
+          description="Под каким именем тебя увидят. Без @, без ссылок. Если оставить пусто — будет анонимный Owner #N."
+        >
+          <Field
+            placeholder="например, OfferKing"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            maxLength={32}
+            error={errors.displayName}
+          />
+        </Section>
+
         <Section title="Оффер">
           <Field
             label="название"

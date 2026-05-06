@@ -46,6 +46,7 @@ export function Deck({
     otherUserId: string;
     otherRole: Role;
     otherAnonId: string;
+    otherDisplayName: string | null;
   } | null>(null);
   const [filters, setFilters] = useLocalStorageState<DiscoverFilters>(
     "discover_filters",
@@ -121,6 +122,7 @@ export function Deck({
           otherUserId: card.userId,
           otherRole: card.role,
           otherAnonId: card.anonId,
+          otherDisplayName: card.displayName,
         });
       } else {
         // Only offer undo for non-match outcomes — undoing a match is the
@@ -265,7 +267,7 @@ export function Deck({
         <MatchOverlay
           myRole={myRole}
           otherRole={overlay.otherRole}
-          otherAnonId={overlay.otherAnonId}
+          otherAnonId={overlay.otherDisplayName ?? overlay.otherAnonId}
           onChat={() => {
             const { chatId } = overlay.response;
             const payload = chatId
@@ -273,6 +275,7 @@ export function Deck({
                   chatId,
                   otherUserId: overlay.otherUserId,
                   otherAnonId: overlay.otherAnonId,
+                  otherDisplayName: overlay.otherDisplayName,
                   otherRole: overlay.otherRole,
                 }
               : null;

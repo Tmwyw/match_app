@@ -118,6 +118,7 @@ export function MatchesList({
                       chatId: m.chatId,
                       otherUserId: m.other.userId,
                       otherAnonId: m.other.anonId,
+                      otherDisplayName: m.other.displayName,
                       otherRole: m.other.role,
                     })
                   }
@@ -125,7 +126,7 @@ export function MatchesList({
                 >
                   <RoleAvatar role={m.other.role} size="md" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{m.other.anonId}</div>
+                    <div className="font-semibold truncate">{m.other.displayName ?? m.other.anonId}</div>
                     <div className="text-xs text-tg-hint truncate">
                       {summarize(m.other)}
                     </div>

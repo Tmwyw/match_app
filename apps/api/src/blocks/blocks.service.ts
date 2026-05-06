@@ -35,12 +35,15 @@ export class BlocksService {
       where: { blockerId },
       orderBy: { createdAt: "desc" },
       include: {
-        blocked: { select: { id: true, anonId: true, role: true } },
+        blocked: {
+          select: { id: true, anonId: true, displayName: true, role: true },
+        },
       },
     });
     return rows.map((b) => ({
       userId: b.blocked.id,
       anonId: b.blocked.anonId,
+      displayName: b.blocked.displayName,
       role: b.blocked.role,
       blockedAt: b.createdAt.toISOString(),
     }));

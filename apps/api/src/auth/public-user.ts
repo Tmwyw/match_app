@@ -8,6 +8,7 @@ export function toPublicUser(user: User): PublicUser {
     username: user.username,
     role: user.role,
     anonId: user.anonId,
+    displayName: user.displayName,
     createdAt: user.createdAt.toISOString(),
   };
 }

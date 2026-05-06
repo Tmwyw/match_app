@@ -13,7 +13,16 @@ const Tag = z
 
 const TagList = (max: number) => z.array(Tag).min(1).max(max);
 
+/** Optional user-chosen display name. Empty string / null falls back to the
+ *  auto-assigned anonId. Anti-deanon scrub runs server-side regardless. */
+const DisplayName = z
+  .string()
+  .min(1)
+  .max(32)
+  .regex(/^[^\n\r]+$/u, "no line breaks");
+
 const BuyerShape = z.object({
+  displayName: DisplayName.nullish(),
   verticals: TagList(8),
   geos: TagList(15),
   budgetMin: z.number().int().positive(),
@@ -32,6 +41,7 @@ export const BuyerProfilePatch = BuyerShape.partial();
 export type BuyerProfilePatch = z.infer<typeof BuyerProfilePatch>;
 
 const OwnerShape = z.object({
+  displayName: DisplayName.nullish(),
   offerName: z.string().min(2).max(100),
   vertical: Tag,
   geos: TagList(15),
@@ -49,6 +59,7 @@ export type OwnerProfilePatch = z.infer<typeof OwnerProfilePatch>;
 
 export const MyBuyerProfile = z.object({
   role: z.literal("BUYER"),
+  displayName: z.string().nullable(),
   verticals: z.array(z.string()),
   geos: z.array(z.string()),
   budgetMin: z.number().int(),
@@ -60,6 +71,7 @@ export type MyBuyerProfile = z.infer<typeof MyBuyerProfile>;
 
 export const MyOwnerProfile = z.object({
   role: z.literal("OWNER"),
+  displayName: z.string().nullable(),
   offerName: z.string(),
   vertical: z.string(),
   geos: z.array(z.string()),
@@ -79,6 +91,8 @@ export type MyProfileResponse = z.infer<typeof MyProfileResponse>;
 export const PublicBuyerCard = z.object({
   userId: z.string(),
   anonId: z.string(),
+  // Optional user-chosen nickname; if present, UIs prefer this over anonId.
+  displayName: z.string().nullable(),
   role: z.literal("BUYER"),
   verticals: z.array(z.string()),
   geos: z.array(z.string()),
@@ -92,6 +106,7 @@ export type PublicBuyerCard = z.infer<typeof PublicBuyerCard>;
 export const PublicOwnerCard = z.object({
   userId: z.string(),
   anonId: z.string(),
+  displayName: z.string().nullable(),
   role: z.literal("OWNER"),
   offerName: z.string(),
   vertical: z.string(),

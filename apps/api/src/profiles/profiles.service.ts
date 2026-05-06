@@ -15,6 +15,7 @@ import {
   OwnerProfilePatch,
 } from "@tg-app-meet/shared";
 import type { ZodSchema } from "zod";
+import { antiDeanon } from "../chat/anti-deanon";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
@@ -29,11 +30,11 @@ export class ProfilesService {
     if (user.role === "BUYER") {
       const p = await this.prisma.buyerProfile.findUnique({ where: { userId } });
       if (!p) throw new NotFoundException("NO_PROFILE");
-      return toMyBuyer(p);
+      return toMyBuyer(p, user.displayName);
     }
     const p = await this.prisma.ownerProfile.findUnique({ where: { userId } });
     if (!p) throw new NotFoundException("NO_PROFILE");
-    return toMyOwner(p);
+    return toMyOwner(p, user.displayName);
   }
 
   async createMine(userId: string, body: unknown): Promise<MyProfileResponse> {
@@ -45,36 +46,50 @@ export class ProfilesService {
       const data = parseOrThrow(BuyerProfileInput, body);
       const existing = await this.prisma.buyerProfile.findUnique({ where: { userId } });
       if (existing) throw new ConflictException("PROFILE_ALREADY_EXISTS");
-      const created = await this.prisma.buyerProfile.create({
-        data: {
-          userId,
-          verticals: data.verticals,
-          geos: data.geos,
-          budgetMin: data.budgetMin,
-          budgetMax: data.budgetMax,
-          experience: data.experience,
-          bio: data.bio ?? null,
-        },
-      });
-      return toMyBuyer(created);
+      const cleanName = scrubDisplayName(data.displayName);
+      const [, created] = await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { displayName: cleanName },
+        }),
+        this.prisma.buyerProfile.create({
+          data: {
+            userId,
+            verticals: data.verticals,
+            geos: data.geos,
+            budgetMin: data.budgetMin,
+            budgetMax: data.budgetMax,
+            experience: data.experience,
+            bio: data.bio ?? null,
+          },
+        }),
+      ]);
+      return toMyBuyer(created, cleanName);
     }
 
     const data = parseOrThrow(OwnerProfileInput, body);
     const existing = await this.prisma.ownerProfile.findUnique({ where: { userId } });
     if (existing) throw new ConflictException("PROFILE_ALREADY_EXISTS");
-    const created = await this.prisma.ownerProfile.create({
-      data: {
-        userId,
-        offerName: data.offerName,
-        vertical: data.vertical,
-        geos: data.geos,
-        payoutType: data.payoutType,
-        payoutAmount: data.payoutAmount,
-        requirements: data.requirements ?? null,
-        bio: data.bio ?? null,
-      },
-    });
-    return toMyOwner(created);
+    const cleanName = scrubDisplayName(data.displayName);
+    const [, created] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { displayName: cleanName },
+      }),
+      this.prisma.ownerProfile.create({
+        data: {
+          userId,
+          offerName: data.offerName,
+          vertical: data.vertical,
+          geos: data.geos,
+          payoutType: data.payoutType,
+          payoutAmount: data.payoutAmount,
+          requirements: data.requirements ?? null,
+          bio: data.bio ?? null,
+        },
+      }),
+    ]);
+    return toMyOwner(created, cleanName);
   }
 
   async patchMine(userId: string, body: unknown): Promise<MyProfileResponse> {
@@ -86,22 +101,58 @@ export class ProfilesService {
       const data = parseOrThrow(BuyerProfilePatch, body);
       const existing = await this.prisma.buyerProfile.findUnique({ where: { userId } });
       if (!existing) throw new NotFoundException("NO_PROFILE");
-      const updated = await this.prisma.buyerProfile.update({
-        where: { userId },
-        data: stripUndefined(data),
-      });
-      return toMyBuyer(updated);
+
+      const { displayName: nameRaw, ...profileFields } = data;
+      const nextName =
+        nameRaw === undefined ? user.displayName : scrubDisplayName(nameRaw);
+      const [, updated] = await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { displayName: nextName },
+        }),
+        this.prisma.buyerProfile.update({
+          where: { userId },
+          data: stripUndefined(profileFields),
+        }),
+      ]);
+      return toMyBuyer(updated, nextName);
     }
 
     const data = parseOrThrow(OwnerProfilePatch, body);
     const existing = await this.prisma.ownerProfile.findUnique({ where: { userId } });
     if (!existing) throw new NotFoundException("NO_PROFILE");
-    const updated = await this.prisma.ownerProfile.update({
-      where: { userId },
-      data: stripUndefined(data),
-    });
-    return toMyOwner(updated);
+
+    const { displayName: nameRaw, ...profileFields } = data;
+    const nextName =
+      nameRaw === undefined ? user.displayName : scrubDisplayName(nameRaw);
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { displayName: nextName },
+      }),
+      this.prisma.ownerProfile.update({
+        where: { userId },
+        data: stripUndefined(profileFields),
+      }),
+    ]);
+    return toMyOwner(updated, nextName);
   }
+}
+
+/**
+ * Run the chat anti-deanon scrub on the user-chosen nickname so users can't
+ * leak `@tg_handle` / `t.me/...` / phones / emails through their display
+ * name. Returns null for empty/whitespace-only input so `displayName ??
+ * anonId` falls back cleanly. If the entire string was scrubbed we also
+ * return null (don't store "[скрыто]" as a name).
+ */
+function scrubDisplayName(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (trimmed.length === 0) return null;
+  const { content } = antiDeanon(trimmed);
+  const cleaned = content.replace(/\[скрыто\]/g, "").trim();
+  return cleaned.length > 0 ? cleaned.slice(0, 32) : null;
 }
 
 function parseOrThrow<T>(schema: ZodSchema<T>, body: unknown): T {
@@ -123,9 +174,10 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return out;
 }
 
-function toMyBuyer(p: BuyerProfile) {
+function toMyBuyer(p: BuyerProfile, displayName: string | null) {
   return MyBuyerProfile.parse({
     role: "BUYER",
+    displayName,
     verticals: p.verticals,
     geos: p.geos,
     budgetMin: p.budgetMin,
@@ -135,9 +187,10 @@ function toMyBuyer(p: BuyerProfile) {
   });
 }
 
-function toMyOwner(p: OwnerProfile) {
+function toMyOwner(p: OwnerProfile, displayName: string | null) {
   return MyOwnerProfile.parse({
     role: "OWNER",
+    displayName,
     offerName: p.offerName,
     vertical: p.vertical,
     geos: p.geos,

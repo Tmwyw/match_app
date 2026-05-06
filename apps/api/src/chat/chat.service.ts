@@ -151,7 +151,7 @@ export class ChatService {
 
     const row = await this.prisma.message.create({
       data: { chatId: input.chatId, senderId, content: finalContent },
-      include: { sender: { select: { anonId: true } } },
+      include: { sender: { select: { anonId: true, displayName: true } } },
     });
 
     return {
@@ -186,7 +186,7 @@ export class ChatService {
     const row = await this.prisma.message.update({
       where: { id: input.messageId },
       data: { content: finalContent, editedAt: new Date() },
-      include: { sender: { select: { anonId: true } } },
+      include: { sender: { select: { anonId: true, displayName: true } } },
     });
 
     return { message: rowToChatMessage(row), filtered };
@@ -255,7 +255,7 @@ export class ChatService {
       const rows = await this.prisma.message.findMany({
         where: { chatId, createdAt: { gt: opts.after } },
         orderBy: { createdAt: "asc" },
-        include: { sender: { select: { anonId: true } } },
+        include: { sender: { select: { anonId: true, displayName: true } } },
       });
       return { messages: rows.map(rowToChatMessage), hasMore: false };
     }
@@ -272,7 +272,7 @@ export class ChatService {
       },
       orderBy: { createdAt: "desc" },
       take: take + 1,
-      include: { sender: { select: { anonId: true } } },
+      include: { sender: { select: { anonId: true, displayName: true } } },
     });
 
     const hasMore = rows.length > take;
@@ -283,7 +283,9 @@ export class ChatService {
   }
 }
 
-type RowWithSender = Message & { sender: { anonId: string | null } };
+type RowWithSender = Message & {
+  sender: { anonId: string | null; displayName: string | null };
+};
 
 function rowToChatMessage(m: RowWithSender): ChatMessage {
   return {
@@ -291,6 +293,7 @@ function rowToChatMessage(m: RowWithSender): ChatMessage {
     chatId: m.chatId,
     senderId: m.senderId,
     senderAnonId: m.sender.anonId ?? "?",
+    senderDisplayName: m.sender.displayName,
     content: m.content,
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt?.toISOString() ?? null,

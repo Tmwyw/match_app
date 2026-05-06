@@ -153,14 +153,14 @@ export class SwipesService {
     try {
       const users = await this.prisma.user.findMany({
         where: { id: { in: [meId, otherId] } },
-        select: { id: true, anonId: true },
+        select: { id: true, anonId: true, displayName: true },
       });
       const me = users.find((u) => u.id === meId);
       const other = users.find((u) => u.id === otherId);
       if (!me?.anonId || !other?.anonId) return;
       await Promise.all([
-        this.notifications.notifyMatch(meId, other.anonId),
-        this.notifications.notifyMatch(otherId, me.anonId),
+        this.notifications.notifyMatch(meId, other.displayName ?? other.anonId),
+        this.notifications.notifyMatch(otherId, me.displayName ?? me.anonId),
       ]);
     } catch {
       // Notifications service already logs; swallow here so Phase-6 plumbing

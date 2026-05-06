@@ -24,6 +24,7 @@ type Props = {
   currentUser: PublicUser;
   otherUserId: string;
   otherAnonId: string;
+  otherDisplayName: string | null;
   otherRole: Role;
   onBack: () => void;
   /** Called after the user blocks the partner from the chat menu. */
@@ -35,6 +36,7 @@ export function ChatScreen({
   currentUser,
   otherUserId,
   otherAnonId,
+  otherDisplayName,
   otherRole,
   onBack,
   onBlocked,
@@ -54,6 +56,7 @@ export function ChatScreen({
       currentAnonId={currentUser.anonId}
       otherUserId={otherUserId}
       otherAnonId={otherAnonId}
+      otherDisplayName={otherDisplayName}
       otherRole={otherRole}
       onBack={onBack}
       onBlocked={onBlocked}
@@ -67,6 +70,7 @@ function ChatScreenInner({
   currentAnonId,
   otherUserId,
   otherAnonId,
+  otherDisplayName,
   otherRole,
   onBack,
   onBlocked,
@@ -76,10 +80,14 @@ function ChatScreenInner({
   currentAnonId: string;
   otherUserId: string;
   otherAnonId: string;
+  otherDisplayName: string | null;
   otherRole: Role;
   onBack: () => void;
   onBlocked: () => void;
 }) {
+  // Single source of truth for what to call the other user across the chat —
+  // their picked nickname if any, otherwise their auto anonId.
+  const otherDisplay = otherDisplayName ?? otherAnonId;
   const chat = useChat(chatId, currentUserId, currentAnonId);
   const presence = usePresence(otherUserId);
 
@@ -108,7 +116,7 @@ function ChatScreenInner({
 
   const handleBlock = async () => {
     const ok = window.confirm(
-      `Заблокировать ${otherAnonId}?\n\nВы перестанете видеть друг друга в поиске и не сможете писать.`,
+      `Заблокировать ${otherDisplay}?\n\nВы перестанете видеть друг друга в поиске и не сможете писать.`,
     );
     if (!ok) return;
     try {
@@ -223,7 +231,7 @@ function ChatScreenInner({
       <Background />
       <div className="relative z-10 flex flex-col flex-1 min-h-0 bg-tg-bg-deep/30 backdrop-blur-md">
       <AppHeader
-        title={otherAnonId}
+        title={otherDisplay}
         subtitle={headerSubtitle}
         subtitleAccent={typingActive || presence?.online}
         onBack={onBack}
@@ -524,7 +532,7 @@ function Bubble({
     >
       {!mine && !grouped && (
         <span className="text-[10px] font-semibold uppercase tracking-wider text-tg-hint mb-0.5 px-3">
-          {msg.senderAnonId}
+          {msg.senderDisplayName ?? msg.senderAnonId}
         </span>
       )}
       <div

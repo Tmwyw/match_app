@@ -165,7 +165,7 @@ export function SettingsScreen({ onClose, onDeleted, onRoleReset }: Props) {
                   <RoleAvatar role={b.role ?? "BUYER"} size="md" />
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold truncate">
-                      {b.anonId ?? "—"}
+                      {b.displayName ?? b.anonId ?? "—"}
                     </div>
                     <div className="text-xs text-tg-hint">
                       {new Date(b.blockedAt).toLocaleDateString()}
