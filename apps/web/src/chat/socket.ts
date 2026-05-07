@@ -16,7 +16,15 @@ export function getChatSocket(): Socket {
     transports: ["websocket"],
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 5,
+    // Infinite retries with a low ceiling on backoff: Telegram webviews
+    // (especially iOS) sometimes pause JS during native prompts / haptics
+    // / OS multitasking, which kills our heartbeat. We saw a clean ~30s
+    // gap with the previous default (5 attempts × 1,2,4,8,16s backoff).
+    // With these values the same hiccup heals in 1-2s tops.
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 500,
+    reconnectionDelayMax: 3000,
+    timeout: 10_000,
     auth: (cb) => cb({ token: getToken() ?? "" }),
   });
 

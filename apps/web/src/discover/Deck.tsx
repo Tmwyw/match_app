@@ -1,4 +1,4 @@
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { Filter, Heart, Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -334,10 +334,14 @@ function Header({
 }
 
 /**
- * Wraps CardView with a horizontal drag gesture. Past the threshold,
- * fires onLike/onSkip and animates the card off-screen. Inside the
- * threshold it springs back to centre. `touch-action: pan-y` keeps
- * vertical scroll alive even while the card is being dragged sideways.
+ * Wraps CardView with a horizontal drag gesture (Tinder-style):
+ *  - Drag past the threshold OR fling fast enough → fly off in that direction
+ *    over ~250ms, then commit the swipe action.
+ *  - Drag inside the threshold → spring back to centre.
+ *  - LIKE/SKIP from the bottom buttons also trigger the same fly-off so
+ *    button taps look identical to gestures.
+ *  - card.userId in the key forces a fresh DraggableCard tree per candidate,
+ *    which resets the motion value to 0 cleanly between swipes.
  */
 function DraggableCard({
   card,
@@ -351,24 +355,43 @@ function DraggableCard({
   onSkip: () => void;
 }) {
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 0, 200], [-15, 0, 15]);
+  const rotate = useTransform(x, [-300, 0, 300], [-18, 0, 18]);
   const likeOpacity = useTransform(x, [0, 100], [0, 0.7]);
   const skipOpacity = useTransform(x, [-100, 0], [0.7, 0]);
+  const opacity = useTransform(x, [-400, -200, 0, 200, 400], [0, 1, 1, 1, 0]);
+  const flying = useRef(false);
+
+  const flyOff = (direction: 1 | -1, after: () => void) => {
+    if (flying.current) return;
+    flying.current = true;
+    animate(x, direction * window.innerWidth * 1.2, {
+      type: "tween",
+      duration: 0.28,
+      ease: "easeOut",
+    }).then(() => {
+      after();
+      flying.current = false;
+    });
+  };
 
   return (
     <motion.div
-      style={{ x, rotate, touchAction: "pan-y" }}
+      key={card.userId}
+      style={{ x, rotate, opacity, touchAction: "pan-y" }}
       drag={disabled ? false : "x"}
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.7}
+      dragElastic={0.9}
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
-        if (dx > SWIPE_THRESHOLD) onLike();
-        else if (dx < -SWIPE_THRESHOLD) onSkip();
+        const vx = info.velocity.x;
+        const fastFling = Math.abs(vx) > 600;
+        if (dx > SWIPE_THRESHOLD || (fastFling && vx > 0)) {
+          flyOff(1, onLike);
+        } else if (dx < -SWIPE_THRESHOLD || (fastFling && vx < 0)) {
+          flyOff(-1, onSkip);
+        }
       }}
-      className="relative"
-      // Motion's drag prevents text-selection naturally, but force
-      // it to be safe on touch devices that long-press to highlight.
+      className="relative cursor-grab active:cursor-grabbing"
     >
       <motion.div
         style={{ opacity: likeOpacity }}
