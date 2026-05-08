@@ -252,8 +252,14 @@ function Home({
   );
 
   return (
-    <div className="min-h-full flex flex-col">
-      <div className="flex-1 pb-24">
+    <div className="h-[100dvh] flex flex-col">
+      {/* `h-[100dvh]` (vs min-h-full) gives the column a definite height —
+          required so children with `h-full` resolve correctly (Discover
+          locks itself to the viewport and would collapse to 0 otherwise).
+          `flex flex-col` + `flex-1` on this wrapper makes the active tab
+          content fill exactly (viewport - tabbar - safe-area). pb-24 keeps
+          MatchesList/MyProfile scroll content above the tabbar visually. */}
+      <div className="flex-1 min-h-0 pb-24 flex flex-col">
         {tab === "discover" && (
           <Deck
             myRole={profile.role}
