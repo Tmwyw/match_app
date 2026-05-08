@@ -232,10 +232,11 @@ export class AdminService {
       ownerProfile: u.ownerProfile
         ? {
             offerName: u.ownerProfile.offerName,
-            vertical: u.ownerProfile.vertical,
+            trafficSources: u.ownerProfile.trafficSources,
+            verticals: u.ownerProfile.verticals,
             geos: u.ownerProfile.geos,
-            payoutTypes: u.ownerProfile.payoutTypes,
-            payoutAmount: u.ownerProfile.payoutAmount,
+            payoutMin: u.ownerProfile.payoutMin,
+            payoutMax: u.ownerProfile.payoutMax,
             requirements: u.ownerProfile.requirements,
             bio: u.ownerProfile.bio,
             isActive: u.ownerProfile.isActive,

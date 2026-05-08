@@ -270,49 +270,53 @@ function OwnerBody({
 }) {
   return (
     <Card className="flex flex-col gap-5 p-5">
-      <Block icon={<Building2 size={16} />} label="Оффер">
+      <Block icon={<Building2 size={16} />} label="Кто нужен в команду">
         <p className="text-base font-semibold text-tg-text">
           {profile.offerName}
         </p>
       </Block>
-      <Divider />
-      <Block icon={<Briefcase size={16} />} label="Вертикаль">
-        <Tags items={[profile.vertical]} />
-      </Block>
-      <Divider />
-      <Block icon={<Globe2 size={16} />} label="Гео">
-        <Tags items={profile.geos} />
-      </Block>
-      <Divider />
-      <Block icon={<Banknote size={16} />} label="Схемы выплат">
-        <Tags items={profile.payoutTypes} />
-      </Block>
-      <Divider />
-      <Stats
-        items={[
-          {
-            icon: <Banknote size={16} />,
-            label: "сумма",
-            value: `$${profile.payoutAmount.toLocaleString()}`,
-          },
-        ]}
-      />
-      {profile.requirements && (
-        <>
-          <Divider />
-          <Block label="Требования">
-            <p className="text-sm text-tg-text-secondary leading-relaxed">
-              {profile.requirements}
-            </p>
-          </Block>
-        </>
-      )}
       {profile.bio && (
         <>
           <Divider />
           <Block label="О себе">
             <p className="text-sm text-tg-text-secondary leading-relaxed">
               {profile.bio}
+            </p>
+          </Block>
+        </>
+      )}
+      <Divider />
+      <Block icon={<Target size={16} />} label="Источник трафика">
+        <Tags items={profile.trafficSources} />
+      </Block>
+      {profile.verticals.length > 0 && (
+        <>
+          <Divider />
+          <Block icon={<Briefcase size={16} />} label="Вертикаль">
+            <Tags items={profile.verticals} />
+          </Block>
+        </>
+      )}
+      <Divider />
+      <Block icon={<Globe2 size={16} />} label="Гео">
+        <Tags items={profile.geos} />
+      </Block>
+      <Divider />
+      <Stats
+        items={[
+          {
+            icon: <Banknote size={16} />,
+            label: "оплата",
+            value: `$${profile.payoutMin.toLocaleString()}–${profile.payoutMax.toLocaleString()}`,
+          },
+        ]}
+      />
+      {profile.requirements && (
+        <>
+          <Divider />
+          <Block label="Дополнительно">
+            <p className="text-sm text-tg-text-secondary leading-relaxed">
+              {profile.requirements}
             </p>
           </Block>
         </>

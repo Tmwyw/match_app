@@ -38,19 +38,18 @@ function BuyerBody({ card }: { card: Extract<PublicCard, { role: "BUYER" }> }) {
 function OwnerBody({ card }: { card: Extract<PublicCard, { role: "OWNER" }> }) {
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <Row label="Оффер" value={card.offerName} />
-      <Row label="Вертикаль" value={card.vertical} />
+      <Row label="Кто нужен в команду" value={card.offerName} />
+      {card.bio && <Row label="О себе" value={card.bio} />}
+      <Row label="Источник трафика" value={card.trafficSources.join(" · ") || "—"} />
+      {card.verticals.length > 0 && (
+        <Row label="Вертикаль" value={card.verticals.join(" · ")} />
+      )}
       <Row label="Гео" value={card.geos.join(" · ")} />
       <Row
-        label="Выплаты"
-        value={
-          card.payoutTypes.length > 0
-            ? `${card.payoutTypes.join(" / ")} · $${card.payoutAmount}`
-            : `$${card.payoutAmount}`
-        }
+        label="Оплата"
+        value={`$${card.payoutMin}–${card.payoutMax}`}
       />
-      {card.requirements && <Row label="Требования" value={card.requirements} />}
-      {card.bio && <Row label="О себе" value={card.bio} />}
+      {card.requirements && <Row label="Дополнительно" value={card.requirements} />}
     </div>
   );
 }

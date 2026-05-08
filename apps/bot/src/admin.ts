@@ -263,10 +263,11 @@ function userDetailText(u: AdminUserDetail): string {
     lines.push(
       "",
       "<b>Owner profile</b>",
-      `offer: ${escapeHtml(u.ownerProfile.offerName)}`,
-      `vertical: ${escapeHtml(u.ownerProfile.vertical)}`,
+      `offer (нужен): ${escapeHtml(u.ownerProfile.offerName)}`,
+      `traffic: ${u.ownerProfile.trafficSources.join(", ") || "—"}`,
+      `verticals: ${u.ownerProfile.verticals.join(", ") || "—"}`,
       `geos: ${u.ownerProfile.geos.join(", ") || "—"}`,
-      `payout: ${u.ownerProfile.payoutTypes.join(", ") || "—"} $${u.ownerProfile.payoutAmount}`,
+      `payout: $${u.ownerProfile.payoutMin}–${u.ownerProfile.payoutMax}`,
     );
     if (u.ownerProfile.bio) lines.push(`bio: ${escapeHtml(u.ownerProfile.bio)}`);
   }

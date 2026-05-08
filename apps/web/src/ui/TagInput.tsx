@@ -13,6 +13,9 @@ type Props = {
   max?: number;
   /** Placeholder for the custom-input textbox. */
   placeholder?: string;
+  /** Hide the free-form custom-tag input row entirely; users can only pick
+   *  from presets. Use when the preset list already covers the universe. */
+  hideCustom?: boolean;
 };
 
 export function TagInput({
@@ -22,6 +25,7 @@ export function TagInput({
   mode = "multi",
   max,
   placeholder = "Своё значение…",
+  hideCustom = false,
 }: Props) {
   const [draft, setDraft] = useState("");
 
@@ -45,6 +49,9 @@ export function TagInput({
     onChange(value.filter((v) => v !== tag));
   };
 
+  // Presets are added VERBATIM (no uppercase normalization) so a "Gambling"
+  // chip stays "Gambling" in storage and the preset+chip rendering match.
+  // Only free-form input goes through `normalize`.
   const togglePreset = (preset: string) => {
     if (mode === "single") {
       onChange(value[0] === preset ? [] : [preset]);
@@ -52,9 +59,10 @@ export function TagInput({
     }
     if (value.includes(preset)) {
       removeTag(preset);
-    } else {
-      addTag(preset);
+      return;
     }
+    if (max && value.length >= max) return;
+    onChange([...value, preset]);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -109,7 +117,7 @@ export function TagInput({
       </div>
 
       {/* Custom add */}
-      {!reachedLimit && (
+      {!hideCustom && !reachedLimit && (
         <div className="flex items-center gap-2 mt-1">
           <input
             type="text"

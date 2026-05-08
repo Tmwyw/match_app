@@ -198,11 +198,11 @@ function summarize(card: PublicCard): string {
   if (card.role === "BUYER") {
     return `${card.verticals.join("/")} · ${card.geos.join(",")} · $${card.budgetMin}–${card.budgetMax}`;
   }
-  const payouts =
-    card.payoutTypes.length > 0
-      ? `${card.payoutTypes.join("/")} $${card.payoutAmount}`
-      : `$${card.payoutAmount}`;
-  return `${card.offerName} · ${card.vertical} · ${payouts}`;
+  const verticalish =
+    card.verticals.length > 0
+      ? card.verticals.join("/")
+      : card.trafficSources.join("/");
+  return `${card.offerName} · ${verticalish} · $${card.payoutMin}–${card.payoutMax}`;
 }
 
 function plural(n: number, one: string, few: string, many: string): string {

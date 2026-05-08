@@ -221,13 +221,18 @@ function UserBody({
 
       {user.ownerProfile && (
         <Card title="Owner profile">
-          <Field label="offer">{user.ownerProfile.offerName}</Field>
-          <Field label="vertical">{user.ownerProfile.vertical}</Field>
+          <Field label="offer (нужен)">{user.ownerProfile.offerName}</Field>
+          <Field label="traffic">
+            {user.ownerProfile.trafficSources.join(", ") || "—"}
+          </Field>
+          <Field label="verticals">
+            {user.ownerProfile.verticals.join(", ") || "—"}
+          </Field>
           <Field label="geos">
             {user.ownerProfile.geos.join(", ") || "—"}
           </Field>
           <Field label="payout">
-            {user.ownerProfile.payoutTypes.join(", ") || "—"} · ${user.ownerProfile.payoutAmount}
+            ${user.ownerProfile.payoutMin}–${user.ownerProfile.payoutMax}
           </Field>
           <Field label="active">{String(user.ownerProfile.isActive)}</Field>
           {user.ownerProfile.requirements && (

@@ -81,19 +81,24 @@ model BuyerProfile {
 }
 
 model OwnerProfile {
-  userId       String  @id
-  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  offerName    String
-  vertical     String
-  geos         String[]
-  // Free-form list — presets in shared/PayoutType (CPA/REVSHARE/HYBRID),
-  // but custom values allowed (RevShare-with-Spend, special partner deals,
-  // etc). Single payoutAmount applies to all listed schemes for now.
-  payoutTypes  String[]
-  payoutAmount Int
-  requirements String?
-  bio          String?
-  isActive     Boolean @default(true)
+  userId         String   @id
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // "Кто нужен в команду?" — short label for the role/person they want.
+  offerName      String
+  // "Источник трафика" — multi-select with custom tags allowed
+  // (FB, GOOGLE, TIKTOK, SEO, OTHER, …).
+  trafficSources String[]
+  // "Вертикаль" — industry niche (Gambling, Crypto, Dating, …). Multi.
+  verticals      String[]
+  geos           String[]
+  // "Оплата" — salary/payment range, $ per agreed period. Both required.
+  payoutMin      Int
+  payoutMax      Int
+  // "Дополнительно" — anything that didn't fit elsewhere.
+  requirements   String?
+  // Short team description (≤100 chars in UI).
+  bio            String?
+  isActive       Boolean  @default(true)
 }
 
 model Swipe {

@@ -79,10 +79,11 @@ export const AdminUserDetail = AdminUserSummary.extend({
   ownerProfile: z
     .object({
       offerName: z.string(),
-      vertical: z.string(),
+      trafficSources: z.array(z.string()),
+      verticals: z.array(z.string()),
       geos: z.array(z.string()),
-      payoutTypes: z.array(z.string()),
-      payoutAmount: z.number().int(),
+      payoutMin: z.number().int(),
+      payoutMax: z.number().int(),
       requirements: z.string().nullable(),
       bio: z.string().nullable(),
       isActive: z.boolean(),

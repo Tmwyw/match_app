@@ -44,19 +44,25 @@ export type BuyerProfilePatch = z.infer<typeof BuyerProfilePatch>;
 
 const OwnerShape = z.object({
   displayName: DisplayName.nullish(),
+  // "Кто нужен в команду?" — short label for the role they're hiring.
   offerName: z.string().min(2).max(100),
-  vertical: Tag,
+  // "Источник трафика" — multi-select traffic sources (FB, GOOGLE, …).
+  trafficSources: TagList(8),
+  // "Вертикаль" — multi-select industry niches (Gambling, Crypto, …).
+  verticals: TagList(8),
   geos: TagList(15),
-  // Owner can advertise multiple payout schemes. Presets in PayoutType
-  // (CPA/REVSHARE/HYBRID) are suggestions; users can also enter custom
-  // tags ("RevShare-with-Spend", "MGR", etc).
-  payoutTypes: TagList(5),
-  payoutAmount: z.number().int().positive(),
+  // "Оплата" — salary/payment range. Same pattern as buyer's budget.
+  payoutMin: z.number().int().positive(),
+  payoutMax: z.number().int().positive(),
   requirements: z.string().max(500).nullish(),
-  bio: z.string().max(500).nullish(),
+  // Short team description ≤100 chars.
+  bio: z.string().max(100).nullish(),
 });
 
-export const OwnerProfileInput = OwnerShape;
+export const OwnerProfileInput = OwnerShape.refine(
+  (v) => v.payoutMax >= v.payoutMin,
+  { message: "payoutMax must be >= payoutMin", path: ["payoutMax"] },
+);
 export type OwnerProfileInput = z.infer<typeof OwnerProfileInput>;
 
 export const OwnerProfilePatch = OwnerShape.partial();
@@ -78,10 +84,11 @@ export const MyOwnerProfile = z.object({
   role: z.literal("OWNER"),
   displayName: z.string().nullable(),
   offerName: z.string(),
-  vertical: z.string(),
+  trafficSources: z.array(z.string()),
+  verticals: z.array(z.string()),
   geos: z.array(z.string()),
-  payoutTypes: z.array(z.string()),
-  payoutAmount: z.number().int(),
+  payoutMin: z.number().int(),
+  payoutMax: z.number().int(),
   requirements: z.string().nullable(),
   bio: z.string().nullable(),
 });
@@ -114,10 +121,11 @@ export const PublicOwnerCard = z.object({
   displayName: z.string().nullable(),
   role: z.literal("OWNER"),
   offerName: z.string(),
-  vertical: z.string(),
+  trafficSources: z.array(z.string()),
+  verticals: z.array(z.string()),
   geos: z.array(z.string()),
-  payoutTypes: z.array(z.string()),
-  payoutAmount: z.number().int(),
+  payoutMin: z.number().int(),
+  payoutMax: z.number().int(),
   requirements: z.string().nullable(),
   bio: z.string().nullable(),
 });
@@ -136,6 +144,36 @@ export const DiscoverResponse = z.object({
 export type DiscoverResponse = z.infer<typeof DiscoverResponse>;
 
 // Re-export presets so the UI can suggest them as quick-pick chips.
+// Buyer-side presets stay broad (covers historical data).
 export const VerticalPresets = Vertical.options;
 export const GeoPresets = Geo.options;
 export const PayoutTypePresets = PayoutType.options;
+
+// Owner-form presets are intentionally tighter — owners pick the role
+// they're hiring, not the broader landscape, so we curate.
+export const OwnerTrafficSourcePresets = [
+  "FB",
+  "GOOGLE",
+  "TIKTOK",
+  "SEO",
+  "OTHER",
+] as const;
+export const OwnerIndustryVerticalPresets = [
+  "Gambling",
+  "Crypto",
+  "Dating",
+  "Nutra",
+  "Finance",
+  "Forex",
+  "Adult",
+  "Sweepstakes",
+  "eCommerce",
+] as const;
+export const OwnerGeoPresets = [
+  "LATAM",
+  "СНГ",
+  "AFRICA",
+  "EU",
+  "MENA",
+  "OTHER",
+] as const;

@@ -79,9 +79,11 @@ export class DiscoverService {
         isActive: true,
         geos: { hasSome: geoPool },
       };
-      // Soft vertical filter — only when user explicitly picks in FilterSheet.
+      // Soft vertical filter — match against owner's trafficSources first
+      // (closest analogue to buyer's verticals which are also traffic
+      // channels). Industry verticals stay free for now.
       if (filters.verticals.length > 0) {
-        ownerWhere.vertical = { in: filters.verticals };
+        ownerWhere.trafficSources = { hasSome: filters.verticals };
       }
       return { ownerProfile: ownerWhere };
     }

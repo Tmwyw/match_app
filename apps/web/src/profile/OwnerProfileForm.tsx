@@ -1,11 +1,12 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import {
-  GeoPresets,
   type MyOwnerProfile,
   type MyProfileResponse,
+  OwnerGeoPresets,
+  OwnerIndustryVerticalPresets,
   OwnerProfileInput,
-  PayoutTypePresets,
-  VerticalPresets,
+  OwnerTrafficSourcePresets,
 } from "@tg-app-meet/shared";
 import { api } from "../api";
 import {
@@ -24,22 +25,31 @@ type Props = {
   onCancel?: () => void;
 };
 
+/**
+ * Owner-side onboarding / edit form.
+ *
+ * Three centered blocks:
+ *   1. Краткая информация — имя в профиле, кто нужен, о себе
+ *   2. Ваши направления — источник трафика, вертикаль, гео
+ *   3. Условия труда      — оплата, дополнительно
+ */
 export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
   const isEdit = Boolean(initial);
   const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
   const [offerName, setOfferName] = useState(initial?.offerName ?? "");
-  const [vertical, setVertical] = useState<string[]>(
-    initial ? [initial.vertical] : [],
+  const [bio, setBio] = useState(initial?.bio ?? "");
+  const [trafficSources, setTrafficSources] = useState<string[]>(
+    initial?.trafficSources ?? [],
   );
+  const [verticals, setVerticals] = useState<string[]>(initial?.verticals ?? []);
   const [geos, setGeos] = useState<string[]>(initial?.geos ?? []);
-  const [payoutTypes, setPayoutTypes] = useState<string[]>(
-    initial?.payoutTypes ?? [],
+  const [payoutMin, setPayoutMin] = useState(
+    initial ? String(initial.payoutMin) : "",
   );
-  const [payoutAmount, setPayoutAmount] = useState(
-    initial ? String(initial.payoutAmount) : "",
+  const [payoutMax, setPayoutMax] = useState(
+    initial ? String(initial.payoutMax) : "",
   );
   const [requirements, setRequirements] = useState(initial?.requirements ?? "");
-  const [bio, setBio] = useState(initial?.bio ?? "");
 
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,10 +63,11 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
     const payload = {
       displayName: displayName.trim() || null,
       offerName: offerName.trim(),
-      vertical: vertical[0],
+      trafficSources,
+      verticals,
       geos,
-      payoutTypes,
-      payoutAmount: Number(payoutAmount),
+      payoutMin: Number(payoutMin),
+      payoutMax: Number(payoutMax),
       requirements: requirements.trim() || undefined,
       bio: bio.trim() || undefined,
     };
@@ -91,133 +102,183 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
 
   return (
     <div className={wrapperClass}>
-    <Screen noPadding className="pb-safe min-h-screen">
-      <AppHeader
-        title={isEdit ? "Редактирование" : "Профиль овнера"}
-        onBack={onCancel}
-      />
-      <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto px-4 pt-4">
-        <Section
-          title="Никнейм"
-          description="Под каким именем тебя увидят. Без @, без ссылок. Если оставить пусто — будет анонимный Owner #N."
+      <Screen noPadding className="pb-safe min-h-screen">
+        <AppHeader
+          title={isEdit ? "Редактирование" : "Заполните анкету профиля"}
+          onBack={onCancel}
+        />
+        <form
+          onSubmit={submit}
+          className="flex flex-col gap-8 max-w-md mx-auto px-4 pt-4"
         >
-          <Field
-            placeholder="например, OfferKing"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            maxLength={32}
-            error={errors.displayName}
-          />
-        </Section>
-
-        <Section title="Оффер">
-          <Field
-            label="название"
-            placeholder="Кратко, чтобы баер опознал"
-            value={offerName}
-            onChange={(e) => setOfferName(e.target.value)}
-            maxLength={100}
-            error={errors.offerName}
-          />
-        </Section>
-
-        <Section
-          title="Вертикаль"
-          description="Выбери из подсказок или укажи свою."
-        >
-          <TagInput
-            presets={VerticalPresets}
-            value={vertical}
-            onChange={setVertical}
-            mode="single"
-            placeholder="Своя вертикаль"
-          />
-          {errors.vertical && (
-            <span className="text-xs text-danger px-1">{errors.vertical}</span>
-          )}
-        </Section>
-
-        <Section title="Гео" description="Регионы, на которые льёшь.">
-          <TagInput
-            presets={GeoPresets}
-            value={geos}
-            onChange={setGeos}
-            max={15}
-            placeholder="Своё гео"
-          />
-          {errors.geos && (
-            <span className="text-xs text-danger px-1">{errors.geos}</span>
-          )}
-        </Section>
-
-        <Section
-          title="Выплаты"
-          description="Можно выбрать несколько схем или добавить свою."
-        >
-          <TagInput
-            presets={PayoutTypePresets}
-            value={payoutTypes}
-            onChange={setPayoutTypes}
-            max={5}
-            placeholder="Своя схема (напр. RevShare-with-Spend)"
-          />
-          {errors.payoutTypes && (
-            <span className="text-xs text-danger px-1">{errors.payoutTypes}</span>
-          )}
-          <Field
-            label="сумма, $"
-            type="number"
-            inputMode="numeric"
-            value={payoutAmount}
-            onChange={(e) => setPayoutAmount(e.target.value)}
-            error={errors.payoutAmount}
-          />
-        </Section>
-
-        <Section title="Требования">
-          <Textarea
-            placeholder="Источники, гео, антифрод — опционально."
-            value={requirements}
-            onChange={(e) => setRequirements(e.target.value)}
-            maxLength={500}
-            error={errors.requirements}
-            hint={`${requirements.length}/500`}
-          />
-        </Section>
-
-        <Section title="О себе">
-          <Textarea
-            placeholder="Что за команда / опыт / условия — опционально."
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            maxLength={500}
-            error={errors.bio}
-            hint={`${bio.length}/500`}
-          />
-        </Section>
-
-        {serverError && (
-          <p className="text-danger text-sm text-center">{serverError}</p>
-        )}
-
-        <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg-deep/85 backdrop-blur-md flex flex-col gap-2">
-          <Button type="submit" variant="primary" fullWidth disabled={submitting}>
-            {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
-          </Button>
-          {onCancel && (
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={onCancel}
-              disabled={submitting}
+          {/* ── Block 1: Краткая информация ───────────────────────── */}
+          <Block title="Краткая информация">
+            <Section
+              title="Имя в профиле"
+              description="Так вас будут видеть другие пользователи. Укажите имя или название без @, ссылок и контактов."
             >
-              Отмена
-            </Button>
+              <Field
+                placeholder="Например, CreoMetrics"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                maxLength={32}
+                error={errors.displayName}
+              />
+            </Section>
+            <Section
+              title="Кто нужен в команду?"
+              description="Коротко напишите, кого хотите найти."
+            >
+              <Field
+                placeholder="Кратко, CEO / Buyer / Контенщик"
+                value={offerName}
+                onChange={(e) => setOfferName(e.target.value)}
+                maxLength={100}
+                error={errors.offerName}
+              />
+            </Section>
+            <Section
+              title="О себе"
+              description="Кратко опишите свою команду."
+            >
+              <Textarea
+                placeholder="Команда из 5 человек, льём с 2021…"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                maxLength={100}
+                error={errors.bio}
+                hint={`${bio.length}/100`}
+              />
+            </Section>
+          </Block>
+
+          {/* ── Block 2: Ваши направления ─────────────────────────── */}
+          <Block title="Ваши направления">
+            <Section
+              title="Источник трафика"
+              description="Выберите под какие источники трафика вам нужен сотрудник. Если вашего варианта нет, нажмите Other."
+            >
+              <TagInput
+                presets={[...OwnerTrafficSourcePresets]}
+                value={trafficSources}
+                onChange={setTrafficSources}
+                max={8}
+                /* No custom-value placeholder: spec says "Other" handles that. */
+                placeholder=""
+                hideCustom
+              />
+              {errors.trafficSources && (
+                <span className="text-xs text-danger px-1">
+                  {errors.trafficSources}
+                </span>
+              )}
+            </Section>
+            <Section
+              title="Вертикаль"
+              description="Выберите вертикаль(и), под которые ищете специалиста."
+            >
+              <TagInput
+                presets={[...OwnerIndustryVerticalPresets]}
+                value={verticals}
+                onChange={setVerticals}
+                max={8}
+                placeholder="Своя вертикаль"
+              />
+              {errors.verticals && (
+                <span className="text-xs text-danger px-1">
+                  {errors.verticals}
+                </span>
+              )}
+            </Section>
+            <Section
+              title="ГЕО"
+              description="Выберите под какие ГЕО вы ищете специалиста."
+            >
+              <TagInput
+                presets={[...OwnerGeoPresets]}
+                value={geos}
+                onChange={setGeos}
+                max={15}
+                placeholder=""
+                hideCustom
+              />
+              {errors.geos && (
+                <span className="text-xs text-danger px-1">{errors.geos}</span>
+              )}
+            </Section>
+          </Block>
+
+          {/* ── Block 3: Условия труда ────────────────────────────── */}
+          <Block title="Условия труда">
+            <Section
+              title="Оплата"
+              description="Укажите зарплатный диапазон, который рассматриваете."
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="от, $"
+                  type="number"
+                  inputMode="numeric"
+                  value={payoutMin}
+                  onChange={(e) => setPayoutMin(e.target.value)}
+                  error={errors.payoutMin}
+                />
+                <Field
+                  label="до, $"
+                  type="number"
+                  inputMode="numeric"
+                  value={payoutMax}
+                  onChange={(e) => setPayoutMax(e.target.value)}
+                  error={errors.payoutMax}
+                />
+              </div>
+            </Section>
+            <Section title="Дополнительно">
+              <Textarea
+                placeholder="Укажите всё, что важно знать специалисту и не вошло в анкету."
+                value={requirements}
+                onChange={(e) => setRequirements(e.target.value)}
+                maxLength={500}
+                error={errors.requirements}
+                hint={`${requirements.length}/500`}
+              />
+            </Section>
+          </Block>
+
+          {serverError && (
+            <p className="text-danger text-sm text-center">{serverError}</p>
           )}
-        </div>
-      </form>
-    </Screen>
+
+          <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg-deep/85 backdrop-blur-md flex flex-col gap-2">
+            <Button type="submit" variant="primary" fullWidth disabled={submitting}>
+              {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
+            </Button>
+            {onCancel && (
+              <Button
+                type="button"
+                variant="secondary"
+                fullWidth
+                onClick={onCancel}
+                disabled={submitting}
+              >
+                Отмена
+              </Button>
+            )}
+          </div>
+        </form>
+      </Screen>
+    </div>
+  );
+}
+
+/** Centered block header used to group Sections in the owner form. */
+function Block({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <h2 className="text-base font-bold tracking-wide text-tg-text text-center">
+        {title}
+      </h2>
+      <div className="flex flex-col gap-5">{children}</div>
     </div>
   );
 }
