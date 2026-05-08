@@ -238,12 +238,14 @@ export function Deck({
   if (state.queue.length === 0) {
     return (
       <Screen className="flex flex-col gap-4 min-h-screen">
+        <div className="flex justify-center pt-2">
+          <Logo size={64} />
+        </div>
         <Header
           onOpenFilters={() => setFilterOpen(true)}
           activeFilterCount={filters.verticals.length + filters.geos.length}
         />
         <CenteredMessage>
-          <Logo glow size={72} className="mb-3 opacity-80" />
           <p className="text-tg-hint text-sm">
             {filters.verticals.length + filters.geos.length > 0
               ? "С такими фильтрами никого. Попробуй ослабить."
@@ -274,6 +276,9 @@ export function Deck({
 
   return (
     <Screen className="flex flex-col gap-4 min-h-screen">
+      <div className="flex justify-center pt-2">
+        <Logo size={64} />
+      </div>
       <Header
         onOpenFilters={() => setFilterOpen(true)}
         activeFilterCount={filters.verticals.length + filters.geos.length}
