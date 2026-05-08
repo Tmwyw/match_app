@@ -503,8 +503,10 @@ function DraggableCard({
 }) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-300, 0, 300], [-18, 0, 18]);
-  const likeOpacity = useTransform(x, [0, 100], [0, 0.7]);
-  const skipOpacity = useTransform(x, [-100, 0], [0.7, 0]);
+  // Stamps and tint reach full opacity at ~80px of drag — keeps the
+  // feedback snappy without flashing on tiny finger jitter.
+  const likeOpacity = useTransform(x, [10, 80], [0, 1]);
+  const skipOpacity = useTransform(x, [-80, -10], [1, 0]);
   const opacity = useTransform(x, [-400, -200, 0, 200, 400], [0, 1, 1, 1, 0]);
   const flying = useRef(false);
 
@@ -540,14 +542,43 @@ function DraggableCard({
       }}
       className="relative cursor-grab active:cursor-grabbing"
     >
+      {/* Ambient color wash so the whole card tints in the swipe direction */}
       <motion.div
         style={{ opacity: likeOpacity }}
-        className="pointer-events-none absolute inset-0 rounded-card bg-success/30 z-10"
+        className="pointer-events-none absolute inset-0 rounded-card bg-success/25 z-10"
       />
       <motion.div
         style={{ opacity: skipOpacity }}
-        className="pointer-events-none absolute inset-0 rounded-card bg-danger/30 z-10"
+        className="pointer-events-none absolute inset-0 rounded-card bg-danger/25 z-10"
       />
+
+      {/* "Like" stamp — appears top-left when dragging right, slightly rotated
+          counter-clockwise like a Tinder approval stamp. */}
+      <motion.div
+        style={{ opacity: likeOpacity }}
+        className="pointer-events-none absolute top-5 left-5 z-20"
+      >
+        <div className="flex items-center gap-2 rounded-full bg-success/95 px-4 py-2 border-2 border-white/40 shadow-glow-success -rotate-[18deg]">
+          <Heart size={22} fill="currentColor" className="text-white" />
+          <span className="text-white font-extrabold tracking-wider text-base">
+            ЛАЙК
+          </span>
+        </div>
+      </motion.div>
+
+      {/* "Skip" stamp — top-right, rotated clockwise. */}
+      <motion.div
+        style={{ opacity: skipOpacity }}
+        className="pointer-events-none absolute top-5 right-5 z-20"
+      >
+        <div className="flex items-center gap-2 rounded-full bg-danger/95 px-4 py-2 border-2 border-white/40 shadow-glow-danger rotate-[18deg]">
+          <X size={22} strokeWidth={3} className="text-white" />
+          <span className="text-white font-extrabold tracking-wider text-base">
+            ПРОПУСК
+          </span>
+        </div>
+      </motion.div>
+
       <CardView card={card} />
     </motion.div>
   );

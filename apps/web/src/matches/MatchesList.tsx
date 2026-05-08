@@ -1,11 +1,10 @@
-import { Archive, ArchiveRestore, ChevronRight, Eye, Heart } from "lucide-react";
-import { type MouseEvent, useCallback, useEffect, useState } from "react";
+import { ChevronRight, Eye, Heart } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import type { MatchesListResponse, PublicCard } from "@tg-app-meet/shared";
 import { api } from "../api";
 import type { OpenChat } from "../App";
-import { Button, Card, CenteredMessage, Logo, RoleAvatar, Screen, cn } from "../ui";
+import { Button, Card, CenteredMessage, Logo, RoleAvatar, Screen } from "../ui";
 
-type Tab = "active" | "archived";
 type State =
   | { status: "loading" }
   | { status: "ready"; data: MatchesListResponse }
@@ -25,15 +24,15 @@ export function MatchesList({
    *  with the tab badge. 0 → banner hidden. */
   inboundLikesCount: number;
 }) {
-  const [tab, setTab] = useState<Tab>("active");
   const [state, setState] = useState<State>({ status: "loading" });
 
   const load = useCallback(async () => {
     setState({ status: "loading" });
     try {
-      const data = await api<MatchesListResponse>(
-        `/matches?archived=${tab === "archived"}`,
-      );
+      // Archive tab was removed in the simplification pass — list always
+      // shows active matches. Backend still has the archived flag on the
+      // table, just no UI to flip it.
+      const data = await api<MatchesListResponse>(`/matches?archived=false`);
       setState({ status: "ready", data });
     } catch (e) {
       setState({
@@ -41,29 +40,11 @@ export function MatchesList({
         error: e instanceof Error ? e.message : String(e),
       });
     }
-  }, [tab]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
-
-  // Toggle a single row's archived state without refetching first — the
-  // optimistic remove is enough; load() reconciles with server truth.
-  const toggleArchive = async (matchId: string, archived: boolean) => {
-    setState((s) =>
-      s.status === "ready"
-        ? { ...s, data: s.data.filter((m) => m.matchId !== matchId) }
-        : s,
-    );
-    try {
-      await api(`/matches/${matchId}/archive`, {
-        method: archived ? "POST" : "DELETE",
-      });
-    } finally {
-      // Re-fetch in the background so we recover from any optimistic miss.
-      void load();
-    }
-  };
 
   return (
     <Screen className="min-h-screen">
@@ -84,15 +65,6 @@ export function MatchesList({
           </div>
         )}
 
-        <div className="flex gap-1 p-1 rounded-button bg-card border border-app-border self-start">
-          <TabBtn active={tab === "active"} onClick={() => setTab("active")}>
-            Активные
-          </TabBtn>
-          <TabBtn active={tab === "archived"} onClick={() => setTab("archived")}>
-            Архив
-          </TabBtn>
-        </div>
-
         {state.status === "loading" && (
           <p className="text-tg-hint text-sm mt-4">загружаем…</p>
         )}
@@ -111,9 +83,7 @@ export function MatchesList({
         )}
         {state.status === "ready" && state.data.length === 0 && (
           <p className="text-tg-hint text-sm mt-6 text-center">
-            {tab === "active"
-              ? "Пока матчей нет. Лайкай кандидатов во вкладке «Найти»."
-              : "Архив пуст."}
+            Пока матчей нет. Лайкай кандидатов во вкладке «Найти».
           </p>
         )}
         {state.status === "ready" && state.data.length > 0 && (
@@ -134,7 +104,9 @@ export function MatchesList({
                 >
                   <RoleAvatar role={m.other.role} size="md" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{m.other.displayName ?? m.other.anonId}</div>
+                    <div className="font-semibold truncate">
+                      {m.other.displayName ?? m.other.anonId}
+                    </div>
                     <div className="text-xs text-tg-hint truncate">
                       {summarize(m.other)}
                     </div>
@@ -150,14 +122,6 @@ export function MatchesList({
                   >
                     <Eye size={18} />
                   </button>
-                  <ArchiveBtn
-                    archived={tab === "archived"}
-                    onClick={(e) => {
-                      // stopPropagation so tapping the icon doesn't open the chat.
-                      e.stopPropagation();
-                      void toggleArchive(m.matchId, tab !== "archived");
-                    }}
-                  />
                   <ChevronRight size={20} className="text-tg-hint shrink-0" />
                 </Card>
               </li>
@@ -166,50 +130,6 @@ export function MatchesList({
         )}
       </div>
     </Screen>
-  );
-}
-
-function TabBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "px-3 py-1.5 text-sm font-medium rounded-button transition",
-        active
-          ? "bg-accent text-accent-text"
-          : "text-tg-hint active:text-tg-text",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ArchiveBtn({
-  archived,
-  onClick,
-}: {
-  archived: boolean;
-  onClick: (e: MouseEvent<HTMLButtonElement>) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={archived ? "разархивировать" : "архивировать"}
-      className="p-2 -mx-1 text-tg-hint active:text-tg-text rounded-full"
-    >
-      {archived ? <ArchiveRestore size={18} /> : <Archive size={18} />}
-    </button>
   );
 }
 
