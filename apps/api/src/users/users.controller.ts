@@ -95,6 +95,20 @@ export class UsersController {
     });
   }
 
+  /**
+   * Reset deck — clears every swipe the current user made that did NOT
+   * produce a match, so they can re-discover those candidates. Matches
+   * stay intact (deleting them would orphan an active chat). Returns
+   * the number of swipes removed for client-side feedback.
+   */
+  @Delete("me/swipes")
+  @UseGuards(JwtAuthGuard)
+  async resetSwipes(
+    @CurrentUser() current: { id: string },
+  ): Promise<{ removed: number }> {
+    return this.swipes.resetSwipes(current.id);
+  }
+
   @Get("me/likes/count")
   @UseGuards(JwtAuthGuard)
   async likesCount(@CurrentUser() current: { id: string }): Promise<LikesCountResponse> {

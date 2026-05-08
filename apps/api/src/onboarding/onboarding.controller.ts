@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import { PickRoleRequest, type PublicUser } from "@tg-app-meet/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -18,8 +18,8 @@ export class OnboardingController {
     return this.onboarding.assignRole(current.id, body.role);
   }
 
-  @Delete("role")
-  async resetRole(@CurrentUser() current: { id: string }): Promise<PublicUser> {
-    return this.onboarding.resetRole(current.id);
-  }
+  // NOTE: there used to be DELETE /onboarding/role here for user-initiated
+  // role reset. Removed by product decision — role is now permanent for
+  // end users. Admins can still reset via POST /admin/users/:id/reset-role
+  // (AdminService.resetUserRole, gated by AdminGuard).
 }

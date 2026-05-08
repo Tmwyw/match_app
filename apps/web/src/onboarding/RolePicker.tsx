@@ -53,6 +53,9 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
           Выберите, ради чего вы здесь: заполните анкету и находите
           подходящие вакансии.
         </p>
+        <p className="text-danger text-xs max-w-sm font-semibold">
+          ⚠ Роль выбирается один раз и поменять её потом нельзя.
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 max-w-md w-full mx-auto">

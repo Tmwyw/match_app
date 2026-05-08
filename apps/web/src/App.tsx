@@ -183,12 +183,6 @@ function ProfileFlow({
       profile={profile.data}
       onProfileUpdated={profile.refresh}
       onAccountDeleted={onAccountDeleted}
-      onRoleReset={() => {
-        // Refresh both — server now has role=null, profile is gone.
-        // AuthedFlow will swap us to RolePicker on the next render.
-        profile.refresh();
-        onUserChanged();
-      }}
     />
   );
 }
@@ -198,13 +192,11 @@ function Home({
   profile,
   onProfileUpdated,
   onAccountDeleted,
-  onRoleReset,
 }: {
   user: MeResponse;
   profile: MyProfileResponse;
   onProfileUpdated: () => void;
   onAccountDeleted: () => void;
-  onRoleReset: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("discover");
   const [openChat, setOpenChat] = useState<OpenChat | null>(null);
@@ -261,6 +253,7 @@ function Home({
         {tab === "matches" && (
           <MatchesList
             onOpenChat={(payload) => setOpenChat(payload)}
+            onOpenProfile={(userId) => setViewingProfileId(userId)}
             inboundLikesCount={likes.count}
           />
         )}
@@ -270,7 +263,6 @@ function Home({
             profile={profile}
             onUpdated={onProfileUpdated}
             onAccountDeleted={onAccountDeleted}
-            onRoleReset={onRoleReset}
           />
         )}
       </div>

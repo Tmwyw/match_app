@@ -1,10 +1,10 @@
-import { Bell, RefreshCw, Trash2, UserMinus } from "lucide-react";
+import { Bell, RotateCcw, Trash2, UserMinus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type {
   BlocksResponse,
   NotificationPrefsResponse,
 } from "@tg-app-meet/shared";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { AppHeader, Background, Button, Card, RoleAvatar, Screen, cn } from "../ui";
 import { Modal, ModalConfirmFooter } from "../ui/Modal";
 
@@ -12,9 +12,6 @@ type Props = {
   onClose: () => void;
   /** Called after the user confirms account deletion (DELETE /me succeeded). */
   onDeleted: () => void;
-  /** Called after the user resets their role; App.tsx refreshes /me which now
-   *  has role=null, so the flow falls back to RolePicker. */
-  onRoleReset: () => void;
 };
 
 type State =
@@ -105,10 +102,10 @@ function DeleteAccountFlow({
   );
 }
 
-export function SettingsScreen({ onClose, onDeleted, onRoleReset }: Props) {
+export function SettingsScreen({ onClose, onDeleted }: Props) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [resetRoleOpen, setResetRoleOpen] = useState(false);
+  const [resetSwipesOpen, setResetSwipesOpen] = useState(false);
 
   const load = useCallback(async () => {
     setState({ status: "loading" });
@@ -193,10 +190,10 @@ export function SettingsScreen({ onClose, onDeleted, onRoleReset }: Props) {
             <Button
               variant="secondary"
               fullWidth
-              onClick={() => setResetRoleOpen(true)}
+              onClick={() => setResetSwipesOpen(true)}
             >
-              <RefreshCw size={16} />
-              Сменить роль
+              <RotateCcw size={16} />
+              Сбросить просмотренные анкеты
             </Button>
             <Button
               variant="danger"
@@ -215,51 +212,70 @@ export function SettingsScreen({ onClose, onDeleted, onRoleReset }: Props) {
           onDeleted={onDeleted}
         />
       )}
-      {resetRoleOpen && (
-        <ResetRoleFlow
-          onCancel={() => setResetRoleOpen(false)}
-          onDone={() => {
-            setResetRoleOpen(false);
-            onRoleReset();
-          }}
-        />
+      {resetSwipesOpen && (
+        <ResetSwipesFlow onCancel={() => setResetSwipesOpen(false)} />
       )}
     </div>
   );
 }
 
-/** Confirmation flow for clearing role + per-role profile. Less destructive
- *  than account delete (no tombstone, matches preserved), but the user's
- *  anonId changes for everyone they've talked to, so we still gate it. */
-function ResetRoleFlow({
-  onCancel,
-  onDone,
-}: {
-  onCancel: () => void;
-  onDone: () => void;
-}) {
+/** Confirmation modal for resetting the user's swipe history so they can
+ *  re-discover everyone again. Existing matches are preserved — only
+ *  swipes that didn't produce a match get cleared on the server side. */
+function ResetSwipesFlow({ onCancel }: { onCancel: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<{ removed: number } | null>(null);
 
   const submit = async () => {
     setBusy(true);
     setError(null);
     try {
-      await api("/onboarding/role", { method: "DELETE" });
-      onDone();
+      const res = await api<{ removed: number }>("/me/swipes", {
+        method: "DELETE",
+      });
+      setDone(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg =
+        e instanceof ApiError
+          ? `${e.status} ${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      setError(msg);
       setBusy(false);
     }
   };
 
+  if (done) {
+    return (
+      <Modal
+        title="Готово"
+        onClose={onCancel}
+        footer={
+          <ModalConfirmFooter
+            confirmLabel="Закрыть"
+            onCancel={onCancel}
+            onConfirm={onCancel}
+          />
+        }
+      >
+        <p>
+          Сброшено {done.removed}{" "}
+          {plural(done.removed, "анкета", "анкеты", "анкет")}. Можешь
+          возвращаться в «Найти» и смотреть заново.
+        </p>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
-      title="Сменить роль?"
+      title="Сбросить просмотренные?"
       onClose={busy ? () => {} : onCancel}
       footer={
         <ModalConfirmFooter
-          confirmLabel="Сменить"
+          confirmLabel="Сбросить"
           onCancel={onCancel}
           onConfirm={submit}
           busy={busy}
@@ -267,16 +283,20 @@ function ResetRoleFlow({
       }
     >
       <p>
-        Текущий профиль и анонимный ID удалятся. Тебе нужно будет заново
-        выбрать роль и заполнить данные.
-      </p>
-      <p className="text-tg-hint text-xs">
-        Существующие чаты и матчи останутся, но в них твой анонимный ID
-        поменяется на новый после переонбординга.
+        Уже свайпнутые анкеты вернутся в очередь. Существующие матчи
+        останутся — их анкеты в очередь не вернутся.
       </p>
       {error && <p className="text-danger text-xs">{error}</p>}
     </Modal>
   );
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
 }
 
 function NotificationsSection() {

@@ -149,6 +149,33 @@ export class SwipesService {
     await this.prisma.swipe.delete({ where: { id: last.id } });
   }
 
+  /**
+   * Wipe all of the current user's swipes that didn't produce a match.
+   * The matched ones stay (deleting them would orphan an active chat
+   * and let the same pair re-discover each other endlessly). Everyone
+   * the user previously skipped or solo-liked-without-match returns to
+   * the discover deck on the next /discover call.
+   */
+  async resetSwipes(meId: string): Promise<{ removed: number }> {
+    const matches = await this.prisma.match.findMany({
+      where: { OR: [{ userAId: meId }, { userBId: meId }] },
+      select: { userAId: true, userBId: true },
+    });
+    const matchedPartnerIds = matches
+      .flatMap((m) => [m.userAId, m.userBId])
+      .filter((id) => id !== meId);
+
+    const result = await this.prisma.swipe.deleteMany({
+      where: {
+        fromId: meId,
+        ...(matchedPartnerIds.length > 0
+          ? { toId: { notIn: matchedPartnerIds } }
+          : {}),
+      },
+    });
+    return { removed: result.count };
+  }
+
   private async fireMatchNotifications(meId: string, otherId: string): Promise<void> {
     try {
       const users = await this.prisma.user.findMany({

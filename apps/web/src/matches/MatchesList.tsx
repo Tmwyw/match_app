@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, ChevronRight, Heart } from "lucide-react";
+import { Archive, ArchiveRestore, ChevronRight, Eye, Heart } from "lucide-react";
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
 import type { MatchesListResponse, PublicCard } from "@tg-app-meet/shared";
 import { api } from "../api";
@@ -13,9 +13,14 @@ type State =
 
 export function MatchesList({
   onOpenChat,
+  onOpenProfile,
   inboundLikesCount,
 }: {
   onOpenChat: (payload: OpenChat) => void;
+  /** Tap on the eye icon next to a match → opens UserCardScreen for that
+   *  user's full profile (read-only, no swipe actions since there's
+   *  already a match). */
+  onOpenProfile: (userId: string) => void;
   /** Comes from the parent's polling hook so the banner stays in sync
    *  with the tab badge. 0 → banner hidden. */
   inboundLikesCount: number;
@@ -134,6 +139,17 @@ export function MatchesList({
                       {summarize(m.other)}
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenProfile(m.other.userId);
+                    }}
+                    className="p-2 -m-2 text-tg-hint active:text-tg-text"
+                    aria-label="посмотреть профиль"
+                  >
+                    <Eye size={18} />
+                  </button>
                   <ArchiveBtn
                     archived={tab === "archived"}
                     onClick={(e) => {

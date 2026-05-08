@@ -300,9 +300,9 @@ export class AdminService {
     return this.getUserDetail(id);
   }
 
-  /** Operator-side: clear role + anonId + delete profile so the user lands on
-   *  RolePicker on next launch. Existing matches/messages/swipes stay intact —
-   *  we just want to force re-onboarding. */
+  /** Operator-side: clear role + anonId + displayName + delete profile so
+   *  the user lands on RolePicker on next launch. Existing matches/messages/
+   *  swipes stay intact — we just want to force re-onboarding. */
   async resetUserRole(id: string): Promise<AdminUserDetail> {
     const u = await this.prisma.user.findUnique({
       where: { id },
@@ -314,7 +314,7 @@ export class AdminService {
       this.prisma.ownerProfile.deleteMany({ where: { userId: id } }),
       this.prisma.user.update({
         where: { id },
-        data: { role: null, anonId: null },
+        data: { role: null, anonId: null, displayName: null },
       }),
     ]);
     return this.getUserDetail(id);
