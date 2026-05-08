@@ -7,6 +7,7 @@ import {
   OwnerIndustryVerticalPresets,
   OwnerProfileInput,
   OwnerTrafficSourcePresets,
+  PositionPresets,
 } from "@tg-app-meet/shared";
 import { api } from "../api";
 import {
@@ -15,6 +16,7 @@ import {
   Field,
   Screen,
   Section,
+  Select,
   TagInput,
   Textarea,
 } from "../ui";
@@ -111,7 +113,9 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
         />
         <form
           onSubmit={submit}
-          className="flex flex-col gap-8 max-w-md mx-auto px-4 pt-4"
+          // pb-24 leaves room for the sticky bottom panel so iOS auto-
+          // scrolls focused inputs ABOVE it, not under it.
+          className="flex flex-col gap-8 max-w-md mx-auto px-4 pt-4 pb-24"
         >
           {/* ── Block 1: Краткая информация ───────────────────────── */}
           <Block title="Краткая информация">
@@ -129,13 +133,13 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
             </Section>
             <Section
               title="Кто нужен в команду?"
-              description="Коротко напишите, кого хотите найти."
+              description="Выберите роль, под которую ищете человека."
             >
-              <Field
-                placeholder="Кратко, CEO / Buyer / Контенщик"
+              <Select
                 value={offerName}
-                onChange={(e) => setOfferName(e.target.value)}
-                maxLength={100}
+                onChange={setOfferName}
+                options={PositionPresets}
+                placeholder="Роль"
                 error={errors.offerName}
               />
             </Section>
@@ -184,7 +188,8 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                 value={verticals}
                 onChange={setVerticals}
                 max={8}
-                placeholder="Своя вертикаль"
+                placeholder=""
+                hideCustom
               />
               {errors.verticals && (
                 <span className="text-xs text-danger px-1">

@@ -192,10 +192,14 @@ export const BuyerTrafficSourcePresets = OwnerTrafficSourcePresets;
 export const BuyerIndustryVerticalPresets = OwnerIndustryVerticalPresets;
 export const BuyerGeoPresets = OwnerGeoPresets;
 
-/** Common arbitrage-team positions for the buyer's "интересующая вакансия"
- *  dropdown. Free-text was replaced with this curated list to discourage
- *  bypass (`@username` typed in there). */
-export const BuyerPositionPresets = [
+/** Common arbitrage-team positions. Used for both:
+ *  — Buyer profile's "интересующая вакансия" (the role they're applying for)
+ *  — Owner profile's "Кто нужен в команду?" (the role they're hiring)
+ *
+ *  Free-text was replaced with this curated list to discourage bypass
+ *  (`@username` typed in there). The "Other" escape hatch keeps the door
+ *  open for niche roles. */
+export const PositionPresets = [
   "Buyer / Медиабайер",
   "Team Lead",
   "Designer / Креативщик",
@@ -207,3 +211,6 @@ export const BuyerPositionPresets = [
   "Менторство / Обучение",
   "Other",
 ] as const;
+
+/** Buyer-side alias kept for back-compat — frontend imports work either way. */
+export const BuyerPositionPresets = PositionPresets;

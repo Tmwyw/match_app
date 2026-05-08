@@ -120,7 +120,9 @@ export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
         />
         <form
           onSubmit={submit}
-          className="flex flex-col gap-8 max-w-md mx-auto px-4 pt-4"
+          // pb-24 leaves room for the sticky bottom panel so iOS auto-
+          // scrolls focused inputs ABOVE it, not under it.
+          className="flex flex-col gap-8 max-w-md mx-auto px-4 pt-4 pb-24"
         >
           {/* ── Block 1: Краткая информация ───────────────────────── */}
           <Block title="Краткая информация">
