@@ -1,5 +1,5 @@
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
-import { Filter, Heart, Undo2, X } from "lucide-react";
+import { Filter, Heart, RotateCcw, Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   DiscoverFilters,
@@ -251,14 +251,28 @@ export function Deck({
               ? "С такими фильтрами никого. Попробуй ослабить."
               : "Пока больше никого. Загляни позже."}
           </p>
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={loadInitial}
-            className="mt-2"
-          >
-            обновить
-          </Button>
+          <div className="flex flex-col gap-2 mt-3 w-full max-w-xs">
+            <Button variant="secondary" size="md" onClick={loadInitial}>
+              обновить
+            </Button>
+            <Button
+              variant="ghost"
+              size="md"
+              onClick={async () => {
+                try {
+                  await api<{ removed: number }>("/me/swipes", {
+                    method: "DELETE",
+                  });
+                  await loadInitial();
+                } catch {
+                  /* swallow — user can hit обновить */
+                }
+              }}
+            >
+              <RotateCcw size={16} />
+              Смотреть заново
+            </Button>
+          </div>
         </CenteredMessage>
         {filterOpen && (
           <FilterSheet
