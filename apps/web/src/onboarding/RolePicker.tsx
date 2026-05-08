@@ -13,13 +13,13 @@ type RoleOption = {
 const OPTIONS: RoleOption[] = [
   {
     role: "BUYER",
-    title: "Я баер",
-    desc: "Закупаю трафик на офферы. Ищу прямых рекламодателей.",
+    title: "Хочу найти оффер / проект",
+    desc: "Хочу найти подходящие вакансии и проекты в арбитраже трафика.",
   },
   {
     role: "OWNER",
-    title: "Я овнер",
-    desc: "У меня свой оффер. Ищу баеров под закупку.",
+    title: "Я Owner, ищу специалистов",
+    desc: "Хочу найти людей в команду или под свой проект.",
   },
 ];
 
@@ -48,10 +48,10 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
     <Screen className="flex flex-col gap-6 pb-safe min-h-screen">
       <div className="flex flex-col items-center text-center mt-6 mb-2 gap-3">
         <Logo glow size={88} />
-        <h1 className="text-3xl font-bold">Кто ты?</h1>
+        <h1 className="text-3xl font-bold">Давайте начнём</h1>
         <p className="text-tg-hint text-sm max-w-sm">
-          Можно поменять позже в настройках — профиль и анонимный ID при этом
-          сбросятся.
+          Выберите, ради чего вы здесь: заполните анкету и находите
+          подходящие вакансии.
         </p>
       </div>
 
