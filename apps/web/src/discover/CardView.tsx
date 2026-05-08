@@ -8,8 +8,8 @@ import { Card, RoleAvatar } from "../ui";
  */
 export function CardView({ card }: { card: PublicCard }) {
   return (
-    <Card className="flex flex-col gap-4 p-5">
-      <header className="flex items-center gap-3">
+    <Card className="flex flex-col gap-4 p-5 h-full overflow-hidden">
+      <header className="flex items-center gap-3 shrink-0">
         <RoleAvatar role={card.role} size="lg" />
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-tg-hint">
@@ -18,7 +18,9 @@ export function CardView({ card }: { card: PublicCard }) {
           <h2 className="text-2xl font-bold">{card.displayName ?? card.anonId}</h2>
         </div>
       </header>
-      {card.role === "BUYER" ? <BuyerBody card={card} /> : <OwnerBody card={card} />}
+      <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+        {card.role === "BUYER" ? <BuyerBody card={card} /> : <OwnerBody card={card} />}
+      </div>
     </Card>
   );
 }

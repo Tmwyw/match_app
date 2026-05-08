@@ -289,23 +289,25 @@ export function Deck({
   }
 
   return (
-    <Screen className="flex flex-col gap-4 min-h-screen">
-      <div className="flex justify-center pt-2">
-        <Logo size={64} />
+    <Screen className="flex flex-col gap-3 h-full overflow-hidden">
+      <div className="flex justify-center pt-2 shrink-0">
+        <Logo size={56} />
       </div>
       <Header
         onOpenFilters={() => setFilterOpen(true)}
         activeFilterCount={filters.verticals.length + filters.geos.length}
         remaining={state.remaining}
       />
-      <div className="max-w-md w-full mx-auto flex-1 flex flex-col gap-5">
-        <DeckStack
-          queue={state.queue}
-          disabled={submitting}
-          onLike={() => swipe("LIKE")}
-          onSkip={() => swipe("SKIP")}
-        />
-        <div className="flex items-center justify-center gap-8 pt-2">
+      <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
+        <div className="flex-1 min-h-0 relative">
+          <DeckStack
+            queue={state.queue}
+            disabled={submitting}
+            onLike={() => swipe("LIKE")}
+            onSkip={() => swipe("SKIP")}
+          />
+        </div>
+        <div className="flex items-center justify-center gap-8 pt-1 pb-2 shrink-0">
           <BigActionButton
             variant="danger"
             ariaLabel="Skip"
@@ -430,7 +432,7 @@ function DeckStack({
   onSkip: () => void;
 }) {
   return (
-    <div className="relative">
+    <div className="absolute inset-0">
       {queue.map((card, i) => {
         const isTop = i === 0;
         return (
@@ -441,10 +443,9 @@ function DeckStack({
             // card up to {scale:1, y:0, opacity:1, blur:0} — that reveal
             // is the "card lifting up" Tinder feel.
             //
-            // overflow-hidden on the backdrop wrapper clips its CardView
-            // to the top card's height (parent's flow height = top card),
-            // so a longer backdrop card can't bleed into the action-button
-            // gap below the deck.
+            // Both top and backdrop fill the parent box (absolute inset-0)
+            // so neither's natural height pushes the layout. Card content
+            // that overflows is clipped to the deck box.
             initial={false}
             animate={{
               scale: isTop ? 1 : 0.95,
@@ -453,11 +454,7 @@ function DeckStack({
               filter: isTop ? "blur(0px)" : "blur(10px)",
             }}
             transition={{ type: "tween", duration: 0.28, ease: "easeOut" }}
-            className={
-              isTop
-                ? "relative"
-                : "absolute inset-0 overflow-hidden rounded-card"
-            }
+            className="absolute inset-0 overflow-hidden rounded-card"
             style={{
               zIndex: queue.length - i,
               pointerEvents: isTop ? "auto" : "none",
