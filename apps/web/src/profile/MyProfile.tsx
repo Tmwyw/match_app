@@ -5,7 +5,7 @@ import type { MeResponse, MyProfileResponse, ReferralLinkResponse } from "@tg-ap
 import { api } from "../api";
 import { SettingsScreen } from "../settings/SettingsScreen";
 import { shareLink } from "../telegram";
-import { Button, Card, RoleAvatar, Screen } from "../ui";
+import { Button, Card, Logo, RoleAvatar, Screen } from "../ui";
 import { BuyerProfileForm } from "./BuyerProfileForm";
 import { OwnerProfileForm } from "./OwnerProfileForm";
 
@@ -59,6 +59,9 @@ export function MyProfile({
   return (
     <Screen className="pb-safe min-h-screen">
       <div className="max-w-md mx-auto flex flex-col gap-4">
+        <div className="flex justify-center pt-2 pb-1">
+          <Logo size={48} />
+        </div>
         <ProfileHero user={user} role={profile.role} />
 
         {profile.role === "BUYER" ? (

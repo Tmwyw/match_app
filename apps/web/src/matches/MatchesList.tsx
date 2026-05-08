@@ -3,7 +3,7 @@ import { type MouseEvent, useCallback, useEffect, useState } from "react";
 import type { MatchesListResponse, PublicCard } from "@tg-app-meet/shared";
 import { api } from "../api";
 import type { OpenChat } from "../App";
-import { Button, Card, CenteredMessage, RoleAvatar, Screen, cn } from "../ui";
+import { Button, Card, CenteredMessage, Logo, RoleAvatar, Screen, cn } from "../ui";
 
 type Tab = "active" | "archived";
 type State =
@@ -63,7 +63,10 @@ export function MatchesList({
   return (
     <Screen className="min-h-screen">
       <div className="max-w-md mx-auto flex flex-col gap-3">
-        <h1 className="text-2xl font-bold mt-2 mb-1">Мои матчи</h1>
+        <div className="flex justify-center pt-2">
+          <Logo size={42} />
+        </div>
+        <h1 className="text-2xl font-bold mt-1 mb-1">Мои матчи</h1>
 
         {inboundLikesCount > 0 && (
           <div className="rounded-card bg-accent-muted border border-app-border px-3 py-2.5 flex items-center gap-2.5">

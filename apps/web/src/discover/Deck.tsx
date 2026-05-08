@@ -16,6 +16,7 @@ import {
   BigActionButton,
   Button,
   CenteredMessage,
+  Logo,
   MatchOverlay,
   Screen,
 } from "../ui";
@@ -242,6 +243,7 @@ export function Deck({
           activeFilterCount={filters.verticals.length + filters.geos.length}
         />
         <CenteredMessage>
+          <Logo glow size={72} className="mb-3 opacity-80" />
           <p className="text-tg-hint text-sm">
             {filters.verticals.length + filters.geos.length > 0
               ? "С такими фильтрами никого. Попробуй ослабить."
