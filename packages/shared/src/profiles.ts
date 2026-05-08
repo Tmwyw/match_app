@@ -191,3 +191,19 @@ export const OwnerGeoPresets = [
 export const BuyerTrafficSourcePresets = OwnerTrafficSourcePresets;
 export const BuyerIndustryVerticalPresets = OwnerIndustryVerticalPresets;
 export const BuyerGeoPresets = OwnerGeoPresets;
+
+/** Common arbitrage-team positions for the buyer's "интересующая вакансия"
+ *  dropdown. Free-text was replaced with this curated list to discourage
+ *  bypass (`@username` typed in there). */
+export const BuyerPositionPresets = [
+  "Buyer / Медиабайер",
+  "Team Lead",
+  "Designer / Креативщик",
+  "Content Manager",
+  "Affiliate Manager",
+  "Sales / Продажник",
+  "Account Manager",
+  "Tech / Антифрод",
+  "Менторство / Обучение",
+  "Other",
+] as const;

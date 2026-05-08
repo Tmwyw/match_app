@@ -157,6 +157,17 @@ function ProfileFlow({
     );
   }
   if (profile.status === "missing") {
+    const abortToRolePicker = async () => {
+      // DELETE /onboarding/role only succeeds while no profile row exists,
+      // which is exactly the state we're in here. After it returns, /me
+      // has role=null and AuthedFlow re-renders into RolePicker.
+      try {
+        await api("/onboarding/role", { method: "DELETE" });
+      } catch {
+        /* swallow — onUserChanged will refetch and surface any real issue */
+      }
+      onUserChanged();
+    };
     if (role === "BUYER") {
       return (
         <BuyerProfileForm
@@ -164,6 +175,7 @@ function ProfileFlow({
             profile.refresh();
             onUserChanged();
           }}
+          onAbort={abortToRolePicker}
         />
       );
     }
@@ -173,6 +185,7 @@ function ProfileFlow({
           profile.refresh();
           onUserChanged();
         }}
+        onAbort={abortToRolePicker}
       />
     );
   }

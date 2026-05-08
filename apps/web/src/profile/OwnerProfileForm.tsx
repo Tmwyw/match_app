@@ -23,6 +23,8 @@ type Props = {
   initial?: MyOwnerProfile;
   onSaved: () => void;
   onCancel?: () => void;
+  /** Mid-onboarding back-out to RolePicker. Only present on first-time fill. */
+  onAbort?: () => void | Promise<void>;
 };
 
 /**
@@ -33,7 +35,7 @@ type Props = {
  *   2. Ваши направления — источник трафика, вертикаль, гео
  *   3. Условия труда      — оплата, дополнительно
  */
-export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
+export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props) {
   const isEdit = Boolean(initial);
   const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
   const [offerName, setOfferName] = useState(initial?.offerName ?? "");
@@ -262,6 +264,17 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
                 disabled={submitting}
               >
                 Отмена
+              </Button>
+            )}
+            {!isEdit && onAbort && (
+              <Button
+                type="button"
+                variant="ghost"
+                fullWidth
+                onClick={() => void onAbort()}
+                disabled={submitting}
+              >
+                ← Назад к выбору роли
               </Button>
             )}
           </div>

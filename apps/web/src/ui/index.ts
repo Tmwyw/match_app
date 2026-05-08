@@ -10,6 +10,7 @@ export { MatchOverlay } from "./MatchOverlay";
 export { RoleAvatar } from "./RoleAvatar";
 export { Screen, CenteredMessage } from "./Screen";
 export { Section } from "./Section";
+export { Select } from "./Select";
 export { TabBar } from "./TabBar";
 export type { TabItem } from "./TabBar";
 export { TagInput } from "./TagInput";

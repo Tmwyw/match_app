@@ -36,22 +36,25 @@ export class OnboardingService {
   }
 
   /**
-   * Clear the user's role + anonId and delete their per-role profile so they
-   * land back in onboarding (RolePicker → profile form). Existing matches /
-   * swipes / messages remain intact — chat partners will see the user's
-   * anonId change once a new role is picked (anonId is joined fresh from
-   * User on every message read; no schema-level snapshot to update).
+   * Clear the user's role + anonId IF they haven't completed onboarding yet
+   * (no buyer/owner profile row). The user-facing button on the first-time
+   * profile form uses this to "go back" to RolePicker. Once a profile row
+   * exists, role is locked for end users — admin still has
+   * `AdminService.resetUserRole` for the operator-side reset.
    */
-  async resetRole(userId: string): Promise<PublicUser> {
+  async abortOnboarding(userId: string): Promise<PublicUser> {
     const updated = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: userId } });
-      if (!user) throw new NotFoundException("user gone");
-      if (!user.role) return user; // already cleared — idempotent
-
-      await tx.buyerProfile.deleteMany({ where: { userId } });
-      await tx.ownerProfile.deleteMany({ where: { userId } });
-      return tx.user.update({
+      const user = await tx.user.findUnique({
         where: { id: userId },
+        include: { buyerProfile: true, ownerProfile: true },
+      });
+      if (!user) throw new NotFoundException("user gone");
+      if (user.buyerProfile || user.ownerProfile) {
+        throw new ConflictException("PROFILE_ALREADY_EXISTS");
+      }
+      if (!user.role) return user; // idempotent — nothing to abort
+      return tx.user.update({
+        where: { id: user.id },
         data: { role: null, anonId: null, displayName: null },
       });
     });

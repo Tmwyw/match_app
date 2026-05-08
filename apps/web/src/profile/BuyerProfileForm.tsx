@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   BuyerGeoPresets,
   BuyerIndustryVerticalPresets,
+  BuyerPositionPresets,
   BuyerProfileInput,
   BuyerTrafficSourcePresets,
   type MyBuyerProfile,
@@ -15,6 +16,7 @@ import {
   Field,
   Screen,
   Section,
+  Select,
   TagInput,
   Textarea,
 } from "../ui";
@@ -22,7 +24,13 @@ import {
 type Props = {
   initial?: MyBuyerProfile;
   onSaved: () => void;
+  /** Called when the user taps the back-arrow on the EDIT version (full-
+   *  screen overlay over MyProfile). Distinct from `onAbort`. */
   onCancel?: () => void;
+  /** Called when the user, mid-first-time onboarding, wants to back out of
+   *  this role and return to RolePicker. We POST DELETE /onboarding/role
+   *  before invoking this. Only present on first-time fill (no `initial`). */
+  onAbort?: () => void | Promise<void>;
 };
 
 /**
@@ -32,7 +40,7 @@ type Props = {
  *   2. Профиль работы     — источник трафика, вертикаль, гео
  *   3. Детали сотрудничества — желаемая зарплата, опыт, дополнительно
  */
-export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
+export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props) {
   const isEdit = Boolean(initial);
   const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
   const [desiredPosition, setDesiredPosition] = useState(
@@ -128,11 +136,11 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
                   maxLength={32}
                   error={errors.displayName}
                 />
-                <Field
-                  placeholder="CEO / Buyer / Контенщик"
+                <Select
                   value={desiredPosition}
-                  onChange={(e) => setDesiredPosition(e.target.value)}
-                  maxLength={100}
+                  onChange={setDesiredPosition}
+                  options={BuyerPositionPresets}
+                  placeholder="Вакансия"
                   error={errors.desiredPosition}
                 />
               </div>
@@ -259,6 +267,17 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
                 disabled={submitting}
               >
                 Отмена
+              </Button>
+            )}
+            {!isEdit && onAbort && (
+              <Button
+                type="button"
+                variant="ghost"
+                fullWidth
+                onClick={() => void onAbort()}
+                disabled={submitting}
+              >
+                ← Назад к выбору роли
               </Button>
             )}
           </div>
