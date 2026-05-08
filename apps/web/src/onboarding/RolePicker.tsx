@@ -2,7 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import type { PublicUser, Role } from "@tg-app-meet/shared";
 import { api } from "../api";
-import { Button, Card, RoleAvatar, Screen } from "../ui";
+import { Button, Card, Logo, RoleAvatar, Screen } from "../ui";
 
 type RoleOption = {
   role: Role;
@@ -46,9 +46,10 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
 
   return (
     <Screen className="flex flex-col gap-6 pb-safe min-h-screen">
-      <div className="text-center mt-6 mb-2">
+      <div className="flex flex-col items-center text-center mt-6 mb-2 gap-3">
+        <Logo glow className="h-24" />
         <h1 className="text-3xl font-bold">Кто ты?</h1>
-        <p className="text-tg-hint text-sm mt-2 max-w-sm mx-auto">
+        <p className="text-tg-hint text-sm max-w-sm">
           Можно поменять позже в настройках — профиль и анонимный ID при этом
           сбросятся.
         </p>

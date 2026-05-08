@@ -5,6 +5,7 @@ export { Button } from "./Button";
 export { Card } from "./Card";
 export { ChipGroup } from "./ChipGroup";
 export { Field } from "./Field";
+export { Logo } from "./Logo";
 export { MatchOverlay } from "./MatchOverlay";
 export { RoleAvatar } from "./RoleAvatar";
 export { Screen, CenteredMessage } from "./Screen";

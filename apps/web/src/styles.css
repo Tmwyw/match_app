@@ -11,31 +11,34 @@
  * via backdrop-filter — full Metal-shader refraction isn't doable in CSS).
  */
 :root {
-  --app-bg: #06080d;
-  --app-bg-deep: #03050a;
+  /* "CREO Metrics" palette — deep navy bg, cyan/sky accent matching the
+     logo's 3D blue lettering. Pivoted away from the earlier purple set
+     so the brand mark and UI feel like one piece. */
+  --app-bg: #050a12;
+  --app-bg-deep: #02050b;
 
   /* Translucent glass surfaces — backdrop-blur picks up colour from the
      animated gradient mesh underneath, giving every card subtle tinting. */
-  --app-glass: rgba(22, 28, 38, 0.55);
-  --app-glass-strong: rgba(28, 36, 50, 0.72);
-  --app-glass-elevated: rgba(36, 46, 64, 0.78);
-  --app-glass-border: rgba(255, 255, 255, 0.09);
+  --app-glass: rgba(16, 26, 40, 0.55);
+  --app-glass-strong: rgba(20, 32, 48, 0.72);
+  --app-glass-elevated: rgba(28, 42, 60, 0.78);
+  --app-glass-border: rgba(255, 255, 255, 0.08);
   --app-glass-border-strong: rgba(255, 255, 255, 0.16);
-  --app-glass-highlight: rgba(255, 255, 255, 0.22);
+  --app-glass-highlight: rgba(120, 200, 255, 0.30);
 
   --app-text: #ffffff;
-  --app-text-secondary: #d4dae6;
-  --app-hint: #8590a3;
+  --app-text-secondary: #cfd8e6;
+  --app-hint: #7d8ba1;
 
-  --accent: #7b61ff;
-  --accent-2: #a78bff;
-  --accent-text: #ffffff;
-  --accent-muted: rgba(123, 97, 255, 0.22);
-  --accent-ring: rgba(123, 97, 255, 0.5);
-  --accent-glow: 0 8px 32px -8px rgba(123, 97, 255, 0.55),
-                 0 2px 0 rgba(255, 255, 255, 0.18) inset;
+  --accent: #2fb6ff;
+  --accent-2: #5ed0ff;
+  --accent-text: #04121e;
+  --accent-muted: rgba(47, 182, 255, 0.20);
+  --accent-ring: rgba(47, 182, 255, 0.5);
+  --accent-glow: 0 8px 32px -8px rgba(47, 182, 255, 0.55),
+                 0 2px 0 rgba(255, 255, 255, 0.22) inset;
 
-  --role-buyer: #7b61ff;
+  --role-buyer: #2fb6ff;
   --role-owner: #14b8a6;
 
   --danger: #ef4444;

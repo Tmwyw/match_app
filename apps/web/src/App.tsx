@@ -14,7 +14,7 @@ import { MyProfile } from "./profile/MyProfile";
 import { OwnerProfileForm } from "./profile/OwnerProfileForm";
 import { useProfile } from "./profile/useProfile";
 import { getStartParam, getTelegramWebApp } from "./telegram";
-import { Background, Button, CenteredMessage, TabBar, type TabItem } from "./ui";
+import { Background, Button, CenteredMessage, Logo, TabBar, type TabItem } from "./ui";
 import { useLikesCount } from "./useLikesCount";
 
 export type OpenChat = {
@@ -53,10 +53,12 @@ export function App() {
   const content =
     auth.status === "loading" ? (
       <CenteredMessage>
+        <Logo glow className="h-32 mb-4" />
         <p className="text-tg-hint text-sm">authenticating…</p>
       </CenteredMessage>
     ) : auth.status === "needs-telegram" ? (
       <CenteredMessage>
+        <Logo glow className="h-32 mb-4" />
         <p className="text-tg-hint text-sm">
           Open this page from inside Telegram to sign in.
         </p>
