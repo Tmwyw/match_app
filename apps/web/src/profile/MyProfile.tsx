@@ -60,7 +60,7 @@ export function MyProfile({
     <Screen className="pb-safe min-h-screen">
       <div className="max-w-md mx-auto flex flex-col gap-4">
         <div className="flex justify-center pt-2 pb-1">
-          <Logo size={84} />
+          <Logo size={64} />
         </div>
         <ProfileHero user={user} role={profile.role} />
 
