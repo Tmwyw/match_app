@@ -238,9 +238,9 @@ export function OwnerProfileForm({ initial, onSaved, onCancel }: Props) {
                 placeholder="Укажите всё, что важно знать специалисту и не вошло в анкету."
                 value={requirements}
                 onChange={(e) => setRequirements(e.target.value)}
-                maxLength={500}
+                maxLength={100}
                 error={errors.requirements}
-                hint={`${requirements.length}/500`}
+                hint={`${requirements.length}/100`}
               />
             </Section>
           </Block>

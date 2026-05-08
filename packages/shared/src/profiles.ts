@@ -34,7 +34,8 @@ const BuyerShape = z.object({
   budgetMin: z.number().int().positive(),
   budgetMax: z.number().int().positive(),
   experience: z.number().int().min(0).max(50),
-  notes: z.string().max(500).nullish(),
+  // "Дополнительно" — короткая заметка, ≤100 chars (matches OwnerShape).
+  notes: z.string().max(100).nullish(),
 });
 
 export const BuyerProfileInput = BuyerShape.refine(
@@ -58,7 +59,8 @@ const OwnerShape = z.object({
   // "Оплата" — salary/payment range. Same pattern as buyer's budget.
   payoutMin: z.number().int().positive(),
   payoutMax: z.number().int().positive(),
-  requirements: z.string().max(500).nullish(),
+  // "Дополнительно" — short note, ≤100 chars.
+  requirements: z.string().max(100).nullish(),
   // Short team description ≤100 chars.
   bio: z.string().max(100).nullish(),
 });
@@ -182,7 +184,6 @@ export const OwnerGeoPresets = [
   "СНГ",
   "AFRICA",
   "EU",
-  "MENA",
   "OTHER",
 ] as const;
 

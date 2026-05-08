@@ -168,7 +168,8 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
                 value={verticals}
                 onChange={setVerticals}
                 max={8}
-                placeholder="Своя вертикаль"
+                placeholder=""
+                hideCustom
               />
               {errors.verticals && (
                 <span className="text-xs text-danger px-1">
@@ -234,9 +235,9 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
                 placeholder="Укажите всё, что важно знать работодателю и не вошло в анкету."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                maxLength={500}
+                maxLength={100}
                 error={errors.notes}
-                hint={`${notes.length}/500`}
+                hint={`${notes.length}/100`}
               />
             </Section>
           </Block>
