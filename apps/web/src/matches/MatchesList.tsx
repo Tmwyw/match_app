@@ -64,7 +64,7 @@ export function MatchesList({
     <Screen className="min-h-screen">
       <div className="max-w-md mx-auto flex flex-col gap-3">
         <div className="flex justify-center pt-2">
-          <Logo size={64} />
+          <Logo size={84} />
         </div>
         <h1 className="text-2xl font-bold mt-1 mb-1">Мои матчи</h1>
 
