@@ -227,9 +227,27 @@ function BuyerBody({
 }) {
   return (
     <Card className="flex flex-col gap-5 p-5">
-      <Block icon={<Target size={16} />} label="Источники">
-        <Tags items={profile.verticals} />
+      {profile.desiredPosition && (
+        <>
+          <Block icon={<Briefcase size={16} />} label="Интересующая вакансия">
+            <p className="text-base font-semibold text-tg-text">
+              {profile.desiredPosition}
+            </p>
+          </Block>
+          <Divider />
+        </>
+      )}
+      <Block icon={<Target size={16} />} label="Источник трафика">
+        <Tags items={profile.trafficSources} />
       </Block>
+      {profile.verticals.length > 0 && (
+        <>
+          <Divider />
+          <Block icon={<Briefcase size={16} />} label="Вертикаль">
+            <Tags items={profile.verticals} />
+          </Block>
+        </>
+      )}
       <Divider />
       <Block icon={<Globe2 size={16} />} label="Гео">
         <Tags items={profile.geos} />
@@ -239,7 +257,7 @@ function BuyerBody({
         items={[
           {
             icon: <Banknote size={16} />,
-            label: "бюджет",
+            label: "желаемая зп",
             value: `$${profile.budgetMin.toLocaleString()}–${profile.budgetMax.toLocaleString()}`,
           },
           {
@@ -249,12 +267,12 @@ function BuyerBody({
           },
         ]}
       />
-      {profile.bio && (
+      {profile.notes && (
         <>
           <Divider />
-          <Block label="О себе">
+          <Block label="Дополнительно">
             <p className="text-sm text-tg-text-secondary leading-relaxed">
-              {profile.bio}
+              {profile.notes}
             </p>
           </Block>
         </>

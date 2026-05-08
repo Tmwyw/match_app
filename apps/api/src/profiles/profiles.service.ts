@@ -55,12 +55,14 @@ export class ProfilesService {
         this.prisma.buyerProfile.create({
           data: {
             userId,
+            desiredPosition: data.desiredPosition,
+            trafficSources: data.trafficSources,
             verticals: data.verticals,
             geos: data.geos,
             budgetMin: data.budgetMin,
             budgetMax: data.budgetMax,
             experience: data.experience,
-            bio: data.bio ?? null,
+            notes: data.notes ?? null,
           },
         }),
       ]);
@@ -179,12 +181,14 @@ function toMyBuyer(p: BuyerProfile, displayName: string | null) {
   return MyBuyerProfile.parse({
     role: "BUYER",
     displayName,
+    desiredPosition: p.desiredPosition,
+    trafficSources: p.trafficSources,
     verticals: p.verticals,
     geos: p.geos,
     budgetMin: p.budgetMin,
     budgetMax: p.budgetMax,
     experience: p.experience,
-    bio: p.bio,
+    notes: p.notes,
   });
 }
 

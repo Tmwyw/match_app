@@ -19,12 +19,14 @@ export function toPublicCard(user: UserWithProfiles): PublicCard {
       anonId: user.anonId,
       displayName: user.displayName,
       role: "BUYER",
+      desiredPosition: user.buyerProfile.desiredPosition,
+      trafficSources: user.buyerProfile.trafficSources,
       verticals: user.buyerProfile.verticals,
       geos: user.buyerProfile.geos,
       budgetMin: user.buyerProfile.budgetMin,
       budgetMax: user.buyerProfile.budgetMax,
       experience: user.buyerProfile.experience,
-      bio: user.buyerProfile.bio,
+      notes: user.buyerProfile.notes,
     });
   }
   if (!user.ownerProfile) throw new Error(`owner ${user.id} missing profile`);
@@ -60,12 +62,14 @@ export function deletedPlugCard(
       anonId: PLUG_ANON,
       displayName: null,
       role: "BUYER",
+      desiredPosition: "",
+      trafficSources: [],
       verticals: [],
       geos: [],
       budgetMin: 0,
       budgetMax: 0,
       experience: 0,
-      bio: null,
+      notes: null,
     });
   }
   return PublicOwnerCard.parse({

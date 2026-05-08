@@ -202,19 +202,25 @@ function UserBody({
 
       {user.buyerProfile && (
         <Card title="Buyer profile">
+          <Field label="position">
+            {user.buyerProfile.desiredPosition || "—"}
+          </Field>
+          <Field label="traffic">
+            {user.buyerProfile.trafficSources.join(", ") || "—"}
+          </Field>
           <Field label="verticals">
             {user.buyerProfile.verticals.join(", ") || "—"}
           </Field>
           <Field label="geos">
             {user.buyerProfile.geos.join(", ") || "—"}
           </Field>
-          <Field label="budget">
-            {user.buyerProfile.budgetMin}–{user.buyerProfile.budgetMax}
+          <Field label="salary">
+            ${user.buyerProfile.budgetMin}–${user.buyerProfile.budgetMax}
           </Field>
           <Field label="experience">{user.buyerProfile.experience}</Field>
           <Field label="active">{String(user.buyerProfile.isActive)}</Field>
-          {user.buyerProfile.bio && (
-            <pre style={styles.details}>{user.buyerProfile.bio}</pre>
+          {user.buyerProfile.notes && (
+            <pre style={styles.details}>{user.buyerProfile.notes}</pre>
           )}
         </Card>
       )}

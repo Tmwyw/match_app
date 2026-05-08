@@ -97,8 +97,10 @@ export class DiscoverService {
         isActive: true,
         geos: { hasSome: geoPool },
       };
+      // Filter buyer's traffic sources (renamed from `verticals` in
+      // Phase 7d.2) when the owner explicitly narrows by source.
       if (filters.verticals.length > 0) {
-        buyerWhere.verticals = { hasSome: filters.verticals };
+        buyerWhere.trafficSources = { hasSome: filters.verticals };
       }
       return { buyerProfile: buyerWhere };
     }

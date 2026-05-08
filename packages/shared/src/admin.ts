@@ -67,12 +67,14 @@ export type AdminUsersResponse = z.infer<typeof AdminUsersResponse>;
 export const AdminUserDetail = AdminUserSummary.extend({
   buyerProfile: z
     .object({
+      desiredPosition: z.string(),
+      trafficSources: z.array(z.string()),
       verticals: z.array(z.string()),
       geos: z.array(z.string()),
       budgetMin: z.number().int(),
       budgetMax: z.number().int(),
       experience: z.number().int(),
-      bio: z.string().nullable(),
+      notes: z.string().nullable(),
       isActive: z.boolean(),
     })
     .nullable(),

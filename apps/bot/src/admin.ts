@@ -252,12 +252,16 @@ function userDetailText(u: AdminUserDetail): string {
     lines.push(
       "",
       "<b>Buyer profile</b>",
+      `position: ${escapeHtml(u.buyerProfile.desiredPosition) || "—"}`,
+      `traffic: ${u.buyerProfile.trafficSources.join(", ") || "—"}`,
       `verticals: ${u.buyerProfile.verticals.join(", ") || "—"}`,
       `geos: ${u.buyerProfile.geos.join(", ") || "—"}`,
-      `budget: $${u.buyerProfile.budgetMin}–${u.buyerProfile.budgetMax}`,
+      `salary: $${u.buyerProfile.budgetMin}–${u.buyerProfile.budgetMax}`,
       `experience: ${u.buyerProfile.experience}`,
     );
-    if (u.buyerProfile.bio) lines.push(`bio: ${escapeHtml(u.buyerProfile.bio)}`);
+    if (u.buyerProfile.notes) {
+      lines.push(`notes: ${escapeHtml(u.buyerProfile.notes)}`);
+    }
   }
   if (u.ownerProfile) {
     lines.push(

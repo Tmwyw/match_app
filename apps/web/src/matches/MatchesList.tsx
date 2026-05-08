@@ -196,7 +196,8 @@ function ArchiveBtn({
 
 function summarize(card: PublicCard): string {
   if (card.role === "BUYER") {
-    return `${card.verticals.join("/")} · ${card.geos.join(",")} · $${card.budgetMin}–${card.budgetMax}`;
+    const role = card.desiredPosition || card.trafficSources.join("/");
+    return `${role} · ${card.geos.join(",")} · $${card.budgetMin}–${card.budgetMax}`;
   }
   const verticalish =
     card.verticals.length > 0

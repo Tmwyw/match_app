@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import {
+  BuyerGeoPresets,
+  BuyerIndustryVerticalPresets,
   BuyerProfileInput,
-  GeoPresets,
+  BuyerTrafficSourcePresets,
   type MyBuyerProfile,
   type MyProfileResponse,
-  VerticalPresets,
 } from "@tg-app-meet/shared";
 import { api } from "../api";
 import {
@@ -23,9 +25,22 @@ type Props = {
   onCancel?: () => void;
 };
 
+/**
+ * Buyer-side onboarding / edit form. Mirrors OwnerProfileForm structure:
+ *
+ *   1. Краткая информация — имя в профиле + интересующая вакансия
+ *   2. Профиль работы     — источник трафика, вертикаль, гео
+ *   3. Детали сотрудничества — желаемая зарплата, опыт, дополнительно
+ */
 export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
   const isEdit = Boolean(initial);
   const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
+  const [desiredPosition, setDesiredPosition] = useState(
+    initial?.desiredPosition ?? "",
+  );
+  const [trafficSources, setTrafficSources] = useState<string[]>(
+    initial?.trafficSources ?? [],
+  );
   const [verticals, setVerticals] = useState<string[]>(initial?.verticals ?? []);
   const [geos, setGeos] = useState<string[]>(initial?.geos ?? []);
   const [budgetMin, setBudgetMin] = useState(
@@ -37,7 +52,7 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
   const [experience, setExperience] = useState(
     initial ? String(initial.experience) : "",
   );
-  const [bio, setBio] = useState(initial?.bio ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
 
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -50,12 +65,14 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
 
     const payload = {
       displayName: displayName.trim() || null,
+      desiredPosition: desiredPosition.trim(),
+      trafficSources,
       verticals,
       geos,
       budgetMin: Number(budgetMin),
       budgetMax: Number(budgetMax),
       experience: Number(experience),
-      bio: bio.trim() || undefined,
+      notes: notes.trim() || undefined,
     };
 
     const parsed = BuyerProfileInput.safeParse(payload);
@@ -82,130 +99,182 @@ export function BuyerProfileForm({ initial, onSaved, onCancel }: Props) {
     }
   };
 
-  // When `onCancel` is set we're in EDIT mode, opened from MyProfile inside
-  // the tabbed Home layout. Render as a full-screen overlay so the bottom
-  // TabBar doesn't peek through under the sticky submit button.
-  // No bg on the overlay — the html gradient should show through. Cards
-  // and inputs use translucent glass so the colour underneath bleeds in.
   const wrapperClass = isEdit
     ? "fixed inset-0 z-40 overflow-y-auto"
     : "min-h-screen";
 
   return (
     <div className={wrapperClass}>
-    <Screen noPadding className="pb-safe min-h-screen">
-      <AppHeader
-        title={isEdit ? "Редактирование" : "Профиль баера"}
-        onBack={onCancel}
-      />
-      <form onSubmit={submit} className="flex flex-col gap-6 max-w-md mx-auto px-4 pt-4">
-        <Section
-          title="Никнейм"
-          description="Под каким именем тебя увидят. Без @, без ссылок. Если оставить пусто — будет анонимный Buyer #N."
+      <Screen noPadding className="pb-safe min-h-screen">
+        <AppHeader
+          title={isEdit ? "Редактирование" : "Заполните анкету профиля"}
+          onBack={onCancel}
+        />
+        <form
+          onSubmit={submit}
+          className="flex flex-col gap-8 max-w-md mx-auto px-4 pt-4"
         >
-          <Field
-            placeholder="например, ArbiPro"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            maxLength={32}
-            error={errors.displayName}
-          />
-        </Section>
-
-        <Section
-          title="Источники"
-          description="Где закупаешь. Выбери из подсказок или добавь свои."
-        >
-          <TagInput
-            presets={VerticalPresets}
-            value={verticals}
-            onChange={setVerticals}
-            max={8}
-            placeholder="Своя вертикаль (напр. CRYPTO)"
-          />
-          {errors.verticals && (
-            <span className="text-xs text-danger px-1">{errors.verticals}</span>
-          )}
-        </Section>
-
-        <Section title="Гео" description="Регионы, по которым работаешь.">
-          <TagInput
-            presets={GeoPresets}
-            value={geos}
-            onChange={setGeos}
-            max={15}
-            placeholder="Своё гео (напр. BR, IN)"
-          />
-          {errors.geos && (
-            <span className="text-xs text-danger px-1">{errors.geos}</span>
-          )}
-        </Section>
-
-        <Section title="Бюджет">
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="от, $"
-              type="number"
-              inputMode="numeric"
-              value={budgetMin}
-              onChange={(e) => setBudgetMin(e.target.value)}
-              error={errors.budgetMin}
-            />
-            <Field
-              label="до, $"
-              type="number"
-              inputMode="numeric"
-              value={budgetMax}
-              onChange={(e) => setBudgetMax(e.target.value)}
-              error={errors.budgetMax}
-            />
-          </div>
-        </Section>
-
-        <Section title="Опыт">
-          <Field
-            label="лет в арбитраже"
-            type="number"
-            inputMode="numeric"
-            value={experience}
-            onChange={(e) => setExperience(e.target.value)}
-            error={errors.experience}
-          />
-        </Section>
-
-        <Section title="О себе">
-          <Textarea
-            placeholder="Кратко: связки, кейсы, чем интересен — опционально."
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            maxLength={500}
-            error={errors.bio}
-            hint={`${bio.length}/500`}
-          />
-        </Section>
-
-        {serverError && (
-          <p className="text-danger text-sm text-center">{serverError}</p>
-        )}
-
-        <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg-deep/85 backdrop-blur-md flex flex-col gap-2">
-          <Button type="submit" variant="primary" fullWidth disabled={submitting}>
-            {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
-          </Button>
-          {onCancel && (
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={onCancel}
-              disabled={submitting}
+          {/* ── Block 1: Краткая информация ───────────────────────── */}
+          <Block title="Краткая информация">
+            <Section
+              title="Имя в профиле"
+              description="Так вас будут видеть другие пользователи. Укажите имя или название без @, ссылок и контактов. Справа — интересующая вакансия."
             >
-              Отмена
-            </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  placeholder="например, ArbiPro"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  maxLength={32}
+                  error={errors.displayName}
+                />
+                <Field
+                  placeholder="CEO / Buyer / Контенщик"
+                  value={desiredPosition}
+                  onChange={(e) => setDesiredPosition(e.target.value)}
+                  maxLength={100}
+                  error={errors.desiredPosition}
+                />
+              </div>
+            </Section>
+          </Block>
+
+          {/* ── Block 2: Профиль работы ───────────────────────────── */}
+          <Block title="Профиль работы">
+            <Section
+              title="Источник трафика"
+              description="Выберите под какие источники трафика ищете работу. Если вашего варианта нет, нажмите Other."
+            >
+              <TagInput
+                presets={[...BuyerTrafficSourcePresets]}
+                value={trafficSources}
+                onChange={setTrafficSources}
+                max={8}
+                placeholder=""
+                hideCustom
+              />
+              {errors.trafficSources && (
+                <span className="text-xs text-danger px-1">
+                  {errors.trafficSources}
+                </span>
+              )}
+            </Section>
+            <Section
+              title="Вертикаль"
+              description="Выберите вертикаль(и), в которой ищете работу."
+            >
+              <TagInput
+                presets={[...BuyerIndustryVerticalPresets]}
+                value={verticals}
+                onChange={setVerticals}
+                max={8}
+                placeholder="Своя вертикаль"
+              />
+              {errors.verticals && (
+                <span className="text-xs text-danger px-1">
+                  {errors.verticals}
+                </span>
+              )}
+            </Section>
+            <Section
+              title="ГЕО"
+              description="Выберите под какие ГЕО вы ищете работу."
+            >
+              <TagInput
+                presets={[...BuyerGeoPresets]}
+                value={geos}
+                onChange={setGeos}
+                max={15}
+                placeholder=""
+                hideCustom
+              />
+              {errors.geos && (
+                <span className="text-xs text-danger px-1">{errors.geos}</span>
+              )}
+            </Section>
+          </Block>
+
+          {/* ── Block 3: Детали сотрудничества ────────────────────── */}
+          <Block title="Детали сотрудничества">
+            <Section title="Желаемая зарплата">
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="от, $"
+                  type="number"
+                  inputMode="numeric"
+                  value={budgetMin}
+                  onChange={(e) => setBudgetMin(e.target.value)}
+                  error={errors.budgetMin}
+                />
+                <Field
+                  label="до, $"
+                  type="number"
+                  inputMode="numeric"
+                  value={budgetMax}
+                  onChange={(e) => setBudgetMax(e.target.value)}
+                  error={errors.budgetMax}
+                />
+              </div>
+            </Section>
+            <Section
+              title="Опыт"
+              description="Укажите свой опыт в сфере, где ищете работу."
+            >
+              <Field
+                label="лет"
+                type="number"
+                inputMode="numeric"
+                value={experience}
+                onChange={(e) => setExperience(e.target.value)}
+                error={errors.experience}
+              />
+            </Section>
+            <Section title="Дополнительно">
+              <Textarea
+                placeholder="Укажите всё, что важно знать работодателю и не вошло в анкету."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={500}
+                error={errors.notes}
+                hint={`${notes.length}/500`}
+              />
+            </Section>
+          </Block>
+
+          {serverError && (
+            <p className="text-danger text-sm text-center">{serverError}</p>
           )}
-        </div>
-      </form>
-    </Screen>
+
+          <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg-deep/85 backdrop-blur-md flex flex-col gap-2">
+            <Button type="submit" variant="primary" fullWidth disabled={submitting}>
+              {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
+            </Button>
+            {onCancel && (
+              <Button
+                type="button"
+                variant="secondary"
+                fullWidth
+                onClick={onCancel}
+                disabled={submitting}
+              >
+                Отмена
+              </Button>
+            )}
+          </div>
+        </form>
+      </Screen>
+    </div>
+  );
+}
+
+/** Centered block header used to group Sections in the buyer form. */
+function Block({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <h2 className="text-base font-bold tracking-wide text-tg-text text-center">
+        {title}
+      </h2>
+      <div className="flex flex-col gap-5">{children}</div>
     </div>
   );
 }

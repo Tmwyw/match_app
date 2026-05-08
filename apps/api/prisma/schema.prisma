@@ -69,15 +69,26 @@ model User {
 }
 
 model BuyerProfile {
-  userId     String  @id
-  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  verticals  String[]
-  geos       String[]
-  budgetMin  Int
-  budgetMax  Int
-  experience Int
-  bio        String?
-  isActive   Boolean @default(true)
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // "Интересующая вакансия" — short label they're applying for
+  // (CEO / Buyer / Контенщик …). May be empty for legacy rows.
+  desiredPosition String   @default("")
+  // "Источник трафика" — what traffic channels they want to work with.
+  // Renamed from `verticals` to keep field names symmetric with OwnerProfile.
+  trafficSources  String[]
+  // "Вертикаль" — industry niche (Gambling, Crypto, …). Multi.
+  verticals       String[]
+  geos            String[]
+  // "Желаемая зарплата" — salary range (was buyer's media-buying budget).
+  // Field names stay budgetMin/Max for now to avoid an unnecessary migration.
+  budgetMin       Int
+  budgetMax       Int
+  experience      Int
+  // "Дополнительно" — anything not covered. Was `bio` ("О себе") — renamed
+  // because the redesign drops the bio block from the buyer form entirely.
+  notes           String?
+  isActive        Boolean  @default(true)
 }
 
 model OwnerProfile {

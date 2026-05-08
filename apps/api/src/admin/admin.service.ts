@@ -220,12 +220,14 @@ export class AdminService {
       ...this.toSummary(u),
       buyerProfile: u.buyerProfile
         ? {
+            desiredPosition: u.buyerProfile.desiredPosition,
+            trafficSources: u.buyerProfile.trafficSources,
             verticals: u.buyerProfile.verticals,
             geos: u.buyerProfile.geos,
             budgetMin: u.buyerProfile.budgetMin,
             budgetMax: u.buyerProfile.budgetMax,
             experience: u.buyerProfile.experience,
-            bio: u.buyerProfile.bio,
+            notes: u.buyerProfile.notes,
             isActive: u.buyerProfile.isActive,
           }
         : null,

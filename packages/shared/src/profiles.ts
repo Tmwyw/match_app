@@ -25,12 +25,16 @@ const DisplayName = z
 
 const BuyerShape = z.object({
   displayName: DisplayName.nullish(),
+  // "Интересующая вакансия" — what role they're applying for. Optional
+  // (legacy rows have ''), but new submissions will typically fill it.
+  desiredPosition: z.string().max(100).default(""),
+  trafficSources: TagList(8),
   verticals: TagList(8),
   geos: TagList(15),
   budgetMin: z.number().int().positive(),
   budgetMax: z.number().int().positive(),
   experience: z.number().int().min(0).max(50),
-  bio: z.string().max(500).nullish(),
+  notes: z.string().max(500).nullish(),
 });
 
 export const BuyerProfileInput = BuyerShape.refine(
@@ -71,12 +75,14 @@ export type OwnerProfilePatch = z.infer<typeof OwnerProfilePatch>;
 export const MyBuyerProfile = z.object({
   role: z.literal("BUYER"),
   displayName: z.string().nullable(),
+  desiredPosition: z.string(),
+  trafficSources: z.array(z.string()),
   verticals: z.array(z.string()),
   geos: z.array(z.string()),
   budgetMin: z.number().int(),
   budgetMax: z.number().int(),
   experience: z.number().int(),
-  bio: z.string().nullable(),
+  notes: z.string().nullable(),
 });
 export type MyBuyerProfile = z.infer<typeof MyBuyerProfile>;
 
@@ -106,12 +112,14 @@ export const PublicBuyerCard = z.object({
   // Optional user-chosen nickname; if present, UIs prefer this over anonId.
   displayName: z.string().nullable(),
   role: z.literal("BUYER"),
+  desiredPosition: z.string(),
+  trafficSources: z.array(z.string()),
   verticals: z.array(z.string()),
   geos: z.array(z.string()),
   budgetMin: z.number().int(),
   budgetMax: z.number().int(),
   experience: z.number().int(),
-  bio: z.string().nullable(),
+  notes: z.string().nullable(),
 });
 export type PublicBuyerCard = z.infer<typeof PublicBuyerCard>;
 
@@ -177,3 +185,8 @@ export const OwnerGeoPresets = [
   "MENA",
   "OTHER",
 ] as const;
+
+// Buyer-form presets mirror Owner so both sides see consistent chips.
+export const BuyerTrafficSourcePresets = OwnerTrafficSourcePresets;
+export const BuyerIndustryVerticalPresets = OwnerIndustryVerticalPresets;
+export const BuyerGeoPresets = OwnerGeoPresets;

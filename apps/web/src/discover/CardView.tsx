@@ -26,11 +26,17 @@ export function CardView({ card }: { card: PublicCard }) {
 function BuyerBody({ card }: { card: Extract<PublicCard, { role: "BUYER" }> }) {
   return (
     <div className="flex flex-col gap-3 text-sm">
-      <Row label="Источники" value={card.verticals.join(" · ")} />
+      {card.desiredPosition && (
+        <Row label="Интересующая вакансия" value={card.desiredPosition} />
+      )}
+      <Row label="Источник трафика" value={card.trafficSources.join(" · ") || "—"} />
+      {card.verticals.length > 0 && (
+        <Row label="Вертикаль" value={card.verticals.join(" · ")} />
+      )}
       <Row label="Гео" value={card.geos.join(" · ")} />
-      <Row label="Бюджет" value={`$${card.budgetMin}–${card.budgetMax}`} />
+      <Row label="Желаемая зп" value={`$${card.budgetMin}–${card.budgetMax}`} />
       <Row label="Опыт" value={`${card.experience} лет`} />
-      {card.bio && <Row label="О себе" value={card.bio} />}
+      {card.notes && <Row label="Дополнительно" value={card.notes} />}
     </div>
   );
 }
