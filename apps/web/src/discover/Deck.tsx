@@ -417,20 +417,32 @@ function DeckStack({
         return (
           <motion.div
             key={card.userId}
-            // Backdrop card's hint of depth: subtle scale-down + downward
-            // shift + lower opacity. When this card later becomes the top
-            // (because the previous top was swiped off), framer animates
-            // it up to {scale:1, y:0, opacity:1} — which is what reads as
-            // the "card lifting up" Tinder feel.
+            // Backdrop card: scale-down + downward shift + blur out the
+            // contents. When the top is swiped off, framer animates this
+            // card up to {scale:1, y:0, opacity:1, blur:0} — that reveal
+            // is the "card lifting up" Tinder feel.
+            //
+            // overflow-hidden on the backdrop wrapper clips its CardView
+            // to the top card's height (parent's flow height = top card),
+            // so a longer backdrop card can't bleed into the action-button
+            // gap below the deck.
             initial={false}
             animate={{
               scale: isTop ? 1 : 0.95,
               y: isTop ? 0 : 14,
-              opacity: isTop ? 1 : 0.55,
+              opacity: isTop ? 1 : 0.5,
+              filter: isTop ? "blur(0px)" : "blur(10px)",
             }}
             transition={{ type: "tween", duration: 0.28, ease: "easeOut" }}
-            className={isTop ? "relative" : "absolute inset-0"}
-            style={{ zIndex: queue.length - i, pointerEvents: isTop ? "auto" : "none" }}
+            className={
+              isTop
+                ? "relative"
+                : "absolute inset-0 overflow-hidden rounded-card"
+            }
+            style={{
+              zIndex: queue.length - i,
+              pointerEvents: isTop ? "auto" : "none",
+            }}
           >
             {isTop ? (
               <DraggableCard
