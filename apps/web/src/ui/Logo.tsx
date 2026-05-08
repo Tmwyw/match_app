@@ -47,7 +47,7 @@ export function Logo({ size = 96, glow = false, className }: Props) {
           // rotation gives wrapper.height visible.
           height: w,
           width: "auto",
-          transform: "translate(-50%, -50%) rotate(-90deg)",
+          transform: "translate(-50%, -50%) rotate(90deg)",
           transformOrigin: "center",
         }}
       />
