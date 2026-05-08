@@ -126,15 +126,14 @@ body {
   border-radius: inherit;
 }
 
-/* Subtle scrollbar in webview */
+/* Hide scrollbars entirely — Telegram desktop clients render a fat default
+   bar that fights the brand gradient. Scroll still works via touch / wheel. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none;
 }
-::-webkit-scrollbar-thumb {
-  background: var(--app-hint);
-  opacity: 0.3;
-  border-radius: 3px;
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 /* Disable autofill yellow background in webkit-based webviews */

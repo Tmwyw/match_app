@@ -545,35 +545,36 @@ function DraggableCard({
       {/* Ambient color wash so the whole card tints in the swipe direction */}
       <motion.div
         style={{ opacity: likeOpacity }}
-        className="pointer-events-none absolute inset-0 rounded-card bg-success/25 z-10"
+        className="pointer-events-none absolute inset-0 rounded-card bg-success/20 z-10"
       />
       <motion.div
         style={{ opacity: skipOpacity }}
-        className="pointer-events-none absolute inset-0 rounded-card bg-danger/25 z-10"
+        className="pointer-events-none absolute inset-0 rounded-card bg-danger/20 z-10"
       />
 
-      {/* "Like" stamp — appears top-left when dragging right, slightly rotated
-          counter-clockwise like a Tinder approval stamp. */}
+      {/* Tinder-style outlined stamps — big bold text, thick coloured border,
+          empty fill, rotated like a rubber stamp. Convention: stamp appears
+          on the side OPPOSITE to the drag direction (drag right → LIKE
+          stamp anchors to the left), like a stamp left behind as the card
+          flies away. They sit at top so they read above the card content
+          regardless of card length. */}
       <motion.div
         style={{ opacity: likeOpacity }}
-        className="pointer-events-none absolute top-5 left-5 z-20"
+        className="pointer-events-none absolute top-10 left-6 z-30 -rotate-[14deg]"
       >
-        <div className="flex items-center gap-2 rounded-full bg-success/95 px-4 py-2 border-2 border-white/40 shadow-glow-success -rotate-[18deg]">
-          <Heart size={22} fill="currentColor" className="text-white" />
-          <span className="text-white font-extrabold tracking-wider text-base">
+        <div className="border-[5px] border-success rounded-2xl px-6 py-3 bg-success/15 backdrop-blur-md shadow-[0_0_30px_rgba(16,185,129,0.45)]">
+          <span className="text-success text-4xl font-black tracking-[0.2em]">
             ЛАЙК
           </span>
         </div>
       </motion.div>
 
-      {/* "Skip" stamp — top-right, rotated clockwise. */}
       <motion.div
         style={{ opacity: skipOpacity }}
-        className="pointer-events-none absolute top-5 right-5 z-20"
+        className="pointer-events-none absolute top-10 right-6 z-30 rotate-[14deg]"
       >
-        <div className="flex items-center gap-2 rounded-full bg-danger/95 px-4 py-2 border-2 border-white/40 shadow-glow-danger rotate-[18deg]">
-          <X size={22} strokeWidth={3} className="text-white" />
-          <span className="text-white font-extrabold tracking-wider text-base">
+        <div className="border-[5px] border-danger rounded-2xl px-6 py-3 bg-danger/15 backdrop-blur-md shadow-[0_0_30px_rgba(239,68,68,0.45)]">
+          <span className="text-danger text-4xl font-black tracking-[0.2em]">
             ПРОПУСК
           </span>
         </div>
