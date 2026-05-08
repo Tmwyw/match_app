@@ -549,7 +549,10 @@ function DraggableCard({
           flyOff(-1, onSkip);
         }
       }}
-      className="relative cursor-grab active:cursor-grabbing"
+      // h-full + w-full so the inner CardView's `h-full` has a definite
+      // box to resolve against — without these the card collapsed to 0
+      // and only the action buttons were visible inside the deck slot.
+      className="relative w-full h-full cursor-grab active:cursor-grabbing"
     >
       {/* Whole-card tint that picks up the swipe colour. Plus an outer
           glow on the card itself (driven by likeGlow / skipGlow motion
