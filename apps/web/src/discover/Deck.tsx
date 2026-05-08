@@ -38,7 +38,7 @@ type DeckState =
   | { status: "error"; error: string }
   | { status: "ok"; queue: PublicCard[]; remaining: number };
 
-const SWIPE_THRESHOLD = 100;
+const SWIPE_THRESHOLD = 150;
 const UNDO_VISIBLE_MS = 5_000;
 
 export function Deck({
@@ -499,12 +499,22 @@ function DraggableCard({
   onSkip: () => void;
 }) {
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-300, 0, 300], [-18, 0, 18]);
-  // Stamps and tint reach full opacity at ~80px of drag — keeps the
-  // feedback snappy without flashing on tiny finger jitter.
-  const likeOpacity = useTransform(x, [10, 80], [0, 1]);
-  const skipOpacity = useTransform(x, [-80, -10], [1, 0]);
+  const rotate = useTransform(x, [-300, 0, 300], [-15, 0, 15]);
+  // Tint and stamp opacity ramp up over the threshold distance so the
+  // visual builds gradually; full opacity at the threshold.
+  const likeOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
+  const skipOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
   const opacity = useTransform(x, [-400, -200, 0, 200, 400], [0, 1, 1, 1, 0]);
+  // Card-edge glow that mirrors the tint — colour gets stronger as the
+  // user commits to the gesture.
+  const likeGlow = useTransform(
+    likeOpacity,
+    (v) => `0 0 ${20 + 40 * v}px ${v * 18}px rgba(16, 185, 129, ${0.35 * v})`,
+  );
+  const skipGlow = useTransform(
+    skipOpacity,
+    (v) => `0 0 ${20 + 40 * v}px ${v * 18}px rgba(239, 68, 68, ${0.35 * v})`,
+  );
   const flying = useRef(false);
 
   const flyOff = (direction: 1 | -1, after: () => void) => {
@@ -530,7 +540,9 @@ function DraggableCard({
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
         const vx = info.velocity.x;
-        const fastFling = Math.abs(vx) > 600;
+        // Only commit on a deliberate flick — small jitter shouldn't
+        // accidentally swipe away the whole card.
+        const fastFling = Math.abs(vx) > 1100;
         if (dx > SWIPE_THRESHOLD || (fastFling && vx > 0)) {
           flyOff(1, onLike);
         } else if (dx < -SWIPE_THRESHOLD || (fastFling && vx < 0)) {
@@ -539,28 +551,37 @@ function DraggableCard({
       }}
       className="relative cursor-grab active:cursor-grabbing"
     >
-      {/* Ambient color wash so the whole card tints in the swipe direction */}
+      {/* Whole-card tint that picks up the swipe colour. Plus an outer
+          glow on the card itself (driven by likeGlow / skipGlow motion
+          values below) so the green/red signal reads even on a passing
+          glance. */}
       <motion.div
         style={{ opacity: likeOpacity }}
-        className="pointer-events-none absolute inset-0 rounded-card bg-success/20 z-10"
+        className="pointer-events-none absolute inset-0 rounded-card bg-success/30 z-10"
       />
       <motion.div
         style={{ opacity: skipOpacity }}
-        className="pointer-events-none absolute inset-0 rounded-card bg-danger/20 z-10"
+        className="pointer-events-none absolute inset-0 rounded-card bg-danger/30 z-10"
+      />
+      <motion.div
+        style={{ opacity: likeOpacity, boxShadow: likeGlow }}
+        className="pointer-events-none absolute inset-0 rounded-card border-[3px] border-success z-10"
+      />
+      <motion.div
+        style={{ opacity: skipOpacity, boxShadow: skipGlow }}
+        className="pointer-events-none absolute inset-0 rounded-card border-[3px] border-danger z-10"
       />
 
-      {/* Tinder-style outlined stamps — big bold text, thick coloured border,
-          empty fill, rotated like a rubber stamp. Convention: stamp appears
-          on the side OPPOSITE to the drag direction (drag right → LIKE
-          stamp anchors to the left), like a stamp left behind as the card
-          flies away. They sit at top so they read above the card content
-          regardless of card length. */}
+      {/* Neutral white/gray stamps — colour signal lives on the card itself.
+          Convention: stamp appears on the side opposite to drag direction
+          (drag right → LIKE stamp on the left, stamp left behind as the
+          card flies away). */}
       <motion.div
         style={{ opacity: likeOpacity }}
         className="pointer-events-none absolute top-10 left-6 z-30 -rotate-[14deg]"
       >
-        <div className="border-[5px] border-success rounded-2xl px-6 py-3 bg-success/15 backdrop-blur-md shadow-[0_0_30px_rgba(16,185,129,0.45)]">
-          <span className="text-success text-4xl font-black tracking-[0.2em]">
+        <div className="border-[3px] border-white/70 rounded-2xl px-6 py-3 bg-black/30 backdrop-blur-md">
+          <span className="text-white text-4xl font-black tracking-[0.2em]">
             ЛАЙК
           </span>
         </div>
@@ -570,8 +591,8 @@ function DraggableCard({
         style={{ opacity: skipOpacity }}
         className="pointer-events-none absolute top-10 right-6 z-30 rotate-[14deg]"
       >
-        <div className="border-[5px] border-danger rounded-2xl px-6 py-3 bg-danger/15 backdrop-blur-md shadow-[0_0_30px_rgba(239,68,68,0.45)]">
-          <span className="text-danger text-4xl font-black tracking-[0.2em]">
+        <div className="border-[3px] border-white/70 rounded-2xl px-6 py-3 bg-black/30 backdrop-blur-md">
+          <span className="text-white text-4xl font-black tracking-[0.2em]">
             ПРОПУСК
           </span>
         </div>
