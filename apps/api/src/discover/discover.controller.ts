@@ -14,6 +14,13 @@ export class DiscoverController {
     @CurrentUser() current: { id: string },
     @Query("verticals") verticalsCsv?: string,
     @Query("geos") geosCsv?: string,
+    /**
+     * Comma-separated user ids to skip when picking the next card. The FE
+     * queues a small stack (Tinder-style) and uses this to ask for ids it
+     * doesn't already have visible — without this, two consecutive calls
+     * could return the same candidate.
+     */
+    @Query("exclude") excludeCsv?: string,
   ): Promise<DiscoverResponse> {
     // Parse CSV and run through the same Zod validator the frontend uses,
     // so a malformed query (too many tags, oversized tag) is rejected
@@ -22,12 +29,17 @@ export class DiscoverController {
       verticals: csv(verticalsCsv),
       geos: csv(geosCsv),
     });
+    const exclude = csv(excludeCsv).slice(0, 20); // soft cap
     if (!parsed.success) {
       // Bad filters are not the user's fault if it's a stale localStorage
       // payload — silently fall back to no filters rather than 400'ing.
-      return this.discover.next(current.id, { verticals: [], geos: [] });
+      return this.discover.next(
+        current.id,
+        { verticals: [], geos: [] },
+        exclude,
+      );
     }
-    return this.discover.next(current.id, parsed.data);
+    return this.discover.next(current.id, parsed.data, exclude);
   }
 }
 

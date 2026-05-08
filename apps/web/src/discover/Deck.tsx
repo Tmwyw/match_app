@@ -22,12 +22,20 @@ import {
 import { CardView } from "./CardView";
 import { FilterSheet } from "./FilterSheet";
 
+/**
+ * Deck state:
+ *   - loading / needs-profile / error: first-load conditions
+ *   - ok: we have a queue of 0-2 cards. queue[0] is the active draggable
+ *     card; queue[1] (if present) is rendered as a backdrop slightly
+ *     scaled-down behind it. After the top swipes off, the backdrop
+ *     animates up to "top position" while a fresh card is fetched in
+ *     the background and pushed to position 1.
+ */
 type DeckState =
   | { status: "loading" }
   | { status: "needs-profile" }
-  | { status: "empty" }
-  | { status: "ready"; card: PublicCard; remaining: number }
-  | { status: "error"; error: string };
+  | { status: "error"; error: string }
+  | { status: "ok"; queue: PublicCard[]; remaining: number };
 
 const SWIPE_THRESHOLD = 100;
 const UNDO_VISIBLE_MS = 5_000;
@@ -55,28 +63,46 @@ export function Deck({
   const [filterOpen, setFilterOpen] = useState(false);
 
   // Undo tracker — populated after every successful swipe; auto-clears after
-  // 5s. The button calls DELETE /swipes/last and reloads.
+  // 5s. The button calls DELETE /swipes/last and reloads the whole stack.
   const [undoVisible, setUndoVisible] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
   const undoTimer = useRef<number | null>(null);
 
-  const filtersQs =
-    (filters.verticals.length ? `verticals=${filters.verticals.join(",")}` : "") +
-    (filters.geos.length
-      ? `${filters.verticals.length ? "&" : ""}geos=${filters.geos.join(",")}`
-      : "");
+  const buildQs = useCallback(
+    (excludeIds: string[]) => {
+      const qs = new URLSearchParams();
+      if (filters.verticals.length)
+        qs.set("verticals", filters.verticals.join(","));
+      if (filters.geos.length) qs.set("geos", filters.geos.join(","));
+      if (excludeIds.length) qs.set("exclude", excludeIds.join(","));
+      const tail = qs.toString();
+      return tail ? `?${tail}` : "";
+    },
+    [filters.verticals, filters.geos],
+  );
 
-  const load = useCallback(async () => {
+  const fetchOne = useCallback(
+    async (excludeIds: string[]) => {
+      return api<DiscoverResponse>(`/discover${buildQs(excludeIds)}`);
+    },
+    [buildQs],
+  );
+
+  /** Initial load: pull two cards in sequence so the deck has a backdrop
+   *  ready before the user even touches the top one. */
+  const loadInitial = useCallback(async () => {
     setState({ status: "loading" });
     try {
-      const data = await api<DiscoverResponse>(
-        `/discover${filtersQs ? `?${filtersQs}` : ""}`,
-      );
-      if (!data.card) {
-        setState({ status: "empty" });
-      } else {
-        setState({ status: "ready", card: data.card, remaining: data.remaining });
+      const first = await fetchOne([]);
+      if (!first.card) {
+        setState({ status: "ok", queue: [], remaining: 0 });
+        return;
       }
+      const second = await fetchOne([first.card.userId]);
+      const queue: PublicCard[] = second.card
+        ? [first.card, second.card]
+        : [first.card];
+      setState({ status: "ok", queue, remaining: first.remaining });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setState({ status: "needs-profile" });
@@ -87,11 +113,11 @@ export function Deck({
         });
       }
     }
-  }, [filtersQs]);
+  }, [fetchOne]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadInitial();
+  }, [loadInitial]);
 
   const showUndoToast = (msg: string) => {
     setUndoToast(msg);
@@ -107,29 +133,52 @@ export function Deck({
     }, UNDO_VISIBLE_MS);
   };
 
+  /** Push the active card off, advance the queue, and lazily refill the
+   *  backdrop slot in the background. The fly-off animation has already
+   *  finished by the time DraggableCard calls this — that's why the
+   *  pop/visual swap reads as one continuous motion. */
   const swipe = async (action: SwipeAction) => {
-    if (state.status !== "ready" || submitting) return;
-    const card = state.card;
+    if (state.status !== "ok" || state.queue.length === 0 || submitting) return;
+    const top = state.queue[0]!;
     setSubmitting(true);
     try {
       const r = await api<SwipeResponse>("/swipes", {
         method: "POST",
-        body: JSON.stringify({ toUserId: card.userId, action }),
+        body: JSON.stringify({ toUserId: top.userId, action }),
       });
       if (r.matched) {
         setOverlay({
           response: r,
-          otherUserId: card.userId,
-          otherRole: card.role,
-          otherAnonId: card.anonId,
-          otherDisplayName: card.displayName,
+          otherUserId: top.userId,
+          otherRole: top.role,
+          otherAnonId: top.anonId,
+          otherDisplayName: top.displayName,
         });
       } else {
-        // Only offer undo for non-match outcomes — undoing a match is the
-        // server-side 409 case anyway, so don't show the affordance.
         armUndo();
       }
-      await load();
+      // Pop top synchronously — backdrop card scales up to top position.
+      const popped = state.queue.slice(1);
+      setState({
+        status: "ok",
+        queue: popped,
+        remaining: Math.max(0, state.remaining - 1),
+      });
+      // Fetch new backdrop in background. Skip if there's nothing left.
+      const excludeIds = popped.map((c) => c.userId);
+      fetchOne(excludeIds)
+        .then((next) => {
+          if (next.card) {
+            setState((s) => {
+              if (s.status !== "ok") return s;
+              if (s.queue.length >= 2) return s; // user swiped again already
+              return { ...s, queue: [...s.queue, next.card!] };
+            });
+          }
+        })
+        .catch(() => {
+          /* refill is best-effort; user can still swipe what's there */
+        });
     } catch (e) {
       setState({
         status: "error",
@@ -144,7 +193,7 @@ export function Deck({
     setUndoVisible(false);
     try {
       await api("/swipes/last", { method: "DELETE" });
-      await load();
+      await loadInitial();
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         showUndoToast("Уже сматчились, отменить нельзя.");
@@ -174,13 +223,18 @@ export function Deck({
     return (
       <CenteredMessage>
         <p className="text-danger text-sm">{state.error}</p>
-        <Button variant="secondary" size="md" onClick={load} className="mt-2">
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={loadInitial}
+          className="mt-2"
+        >
           retry
         </Button>
       </CenteredMessage>
     );
   }
-  if (state.status === "empty") {
+  if (state.queue.length === 0) {
     return (
       <Screen className="flex flex-col gap-4 min-h-screen">
         <Header
@@ -193,7 +247,12 @@ export function Deck({
               ? "С такими фильтрами никого. Попробуй ослабить."
               : "Пока больше никого. Загляни позже."}
           </p>
-          <Button variant="secondary" size="md" onClick={load} className="mt-2">
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={loadInitial}
+            className="mt-2"
+          >
             обновить
           </Button>
         </CenteredMessage>
@@ -219,8 +278,8 @@ export function Deck({
         remaining={state.remaining}
       />
       <div className="max-w-md w-full mx-auto flex-1 flex flex-col gap-5">
-        <DraggableCard
-          card={state.card}
+        <DeckStack
+          queue={state.queue}
           disabled={submitting}
           onLike={() => swipe("LIKE")}
           onSkip={() => swipe("SKIP")}
@@ -329,6 +388,61 @@ function Header({
           </span>
         )}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Renders the queue as a stack: queue[0] is the active draggable card,
+ * queue[1] sits behind at scale-95 / lower opacity. When queue updates,
+ * cards keyed by userId smoothly transition between positions.
+ */
+function DeckStack({
+  queue,
+  disabled,
+  onLike,
+  onSkip,
+}: {
+  queue: PublicCard[];
+  disabled: boolean;
+  onLike: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="relative">
+      {queue.map((card, i) => {
+        const isTop = i === 0;
+        return (
+          <motion.div
+            key={card.userId}
+            // Backdrop card's hint of depth: subtle scale-down + downward
+            // shift + lower opacity. When this card later becomes the top
+            // (because the previous top was swiped off), framer animates
+            // it up to {scale:1, y:0, opacity:1} — which is what reads as
+            // the "card lifting up" Tinder feel.
+            initial={false}
+            animate={{
+              scale: isTop ? 1 : 0.95,
+              y: isTop ? 0 : 14,
+              opacity: isTop ? 1 : 0.55,
+            }}
+            transition={{ type: "tween", duration: 0.28, ease: "easeOut" }}
+            className={isTop ? "relative" : "absolute inset-0"}
+            style={{ zIndex: queue.length - i, pointerEvents: isTop ? "auto" : "none" }}
+          >
+            {isTop ? (
+              <DraggableCard
+                card={card}
+                disabled={disabled}
+                onLike={onLike}
+                onSkip={onSkip}
+              />
+            ) : (
+              <CardView card={card} />
+            )}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

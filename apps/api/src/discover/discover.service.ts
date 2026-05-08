@@ -15,6 +15,7 @@ export class DiscoverService {
   async next(
     meId: string,
     filters: DiscoverFilters = { verticals: [], geos: [] },
+    excludeIds: string[] = [],
   ): Promise<DiscoverResponse> {
     const me = await this.prisma.user.findUnique({
       where: { id: meId },
@@ -31,7 +32,9 @@ export class DiscoverService {
 
     const where: Prisma.UserWhereInput = {
       role: targetRole,
-      id: { notIn: [meId, ...blockedIds] },
+      // Skip self, blocked-related users, and any ids the FE has already
+      // queued in its stacked deck (Tinder-style preload).
+      id: { notIn: [meId, ...blockedIds, ...excludeIds] },
       // Soft-deleted and banned users are invisible to discovery on both sides.
       deletedAt: null,
       bannedAt: null,
