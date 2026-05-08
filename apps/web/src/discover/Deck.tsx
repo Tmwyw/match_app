@@ -1,4 +1,10 @@
-import { animate, motion, useMotionValue, useTransform } from "framer-motion";
+import {
+  animate,
+  motion,
+  type MotionValue,
+  useMotionValue,
+  useTransform,
+} from "framer-motion";
 import { Filter, Heart, RotateCcw, Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -68,6 +74,21 @@ export function Deck({
   const [undoVisible, setUndoVisible] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
   const undoTimer = useRef<number | null>(null);
+
+  // Lifted drag-x: lives at the Deck level so the side stamps (rendered
+  // outside the card silhouette) can react to the drag. DraggableCard
+  // receives this same MotionValue, so card transform + stamp opacity
+  // share one source of truth. We reset to 0 every time the top card
+  // changes, otherwise the new card would inherit the previous fly-off
+  // position (~window.innerWidth) on mount.
+  const x = useMotionValue(0);
+  const topUserId =
+    state.status === "ok" && state.queue.length > 0
+      ? state.queue[0]!.userId
+      : null;
+  useEffect(() => {
+    x.set(0);
+  }, [topUserId, x]);
 
   const buildQs = useCallback(
     (excludeIds: string[]) => {
@@ -298,14 +319,16 @@ export function Deck({
         activeFilterCount={filters.verticals.length + filters.geos.length}
         remaining={state.remaining}
       />
-      <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
+      <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3 overflow-visible">
         <div className="flex-1 min-h-0 relative">
           <DeckStack
             queue={state.queue}
             disabled={submitting}
             onLike={() => swipe("LIKE")}
             onSkip={() => swipe("SKIP")}
+            x={x}
           />
+          {state.queue.length > 0 && <SideStamps x={x} />}
         </div>
         <div className="flex items-center justify-center gap-8 pt-1 pb-2 shrink-0">
           <BigActionButton
@@ -425,11 +448,13 @@ function DeckStack({
   disabled,
   onLike,
   onSkip,
+  x,
 }: {
   queue: PublicCard[];
   disabled: boolean;
   onLike: () => void;
   onSkip: () => void;
+  x: MotionValue<number>;
 }) {
   return (
     <div className="absolute inset-0">
@@ -466,6 +491,7 @@ function DeckStack({
                 disabled={disabled}
                 onLike={onLike}
                 onSkip={onSkip}
+                x={x}
               />
             ) : (
               <CardView card={card} />
@@ -492,15 +518,16 @@ function DraggableCard({
   disabled,
   onLike,
   onSkip,
+  x,
 }: {
   card: PublicCard;
   disabled: boolean;
   onLike: () => void;
   onSkip: () => void;
+  x: MotionValue<number>;
 }) {
-  const x = useMotionValue(0);
   const rotate = useTransform(x, [-300, 0, 300], [-15, 0, 15]);
-  // Tint and stamp opacity ramp up over the threshold distance so the
+  // Tint and edge-glow opacity ramp up over the threshold distance so the
   // visual builds gradually; full opacity at the threshold.
   const likeOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
   const skipOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
@@ -575,33 +602,65 @@ function DraggableCard({
         className="pointer-events-none absolute inset-0 rounded-card border-[3px] border-danger z-10"
       />
 
-      {/* Neutral white/gray stamps — colour signal lives on the card itself.
-          Convention: stamp appears on the side opposite to drag direction
-          (drag right → LIKE stamp on the left, stamp left behind as the
-          card flies away). */}
-      <motion.div
-        style={{ opacity: likeOpacity }}
-        className="pointer-events-none absolute top-10 left-6 z-30 -rotate-[14deg]"
-      >
-        <div className="border-[3px] border-white/70 rounded-2xl px-6 py-3 bg-black/30 backdrop-blur-md">
-          <span className="text-white text-4xl font-black tracking-[0.2em]">
-            ЛАЙК
-          </span>
-        </div>
-      </motion.div>
-
-      <motion.div
-        style={{ opacity: skipOpacity }}
-        className="pointer-events-none absolute top-10 right-6 z-30 rotate-[14deg]"
-      >
-        <div className="border-[3px] border-white/70 rounded-2xl px-6 py-3 bg-black/30 backdrop-blur-md">
-          <span className="text-white text-4xl font-black tracking-[0.2em]">
-            ПРОПУСК
-          </span>
-        </div>
-      </motion.div>
-
       <CardView card={card} />
     </motion.div>
+  );
+}
+
+/**
+ * Side stamps — vertical-edge swipe indicators rendered OUTSIDE the card
+ * silhouette (they live in the deck-slot, not in DraggableCard, so the
+ * card's `overflow-hidden rounded-card` doesn't clip them). They share
+ * the lifted drag-x with the active card, so the ramp tracks the drag
+ * 1:1.
+ *
+ * Visual: at idle (x=0) both are invisible. As the user drags, the side
+ * matching the direction fades in from a dim gray-tinted state to its
+ * full saturated color (red for SKIP on the left, green for LIKE on the
+ * right). Color and opacity ramp simultaneously so the signal builds
+ * gradually instead of popping on at the threshold.
+ */
+function SideStamps({ x }: { x: MotionValue<number> }) {
+  const skipOpacity = useTransform(
+    x,
+    [-SWIPE_THRESHOLD, -20, 0],
+    [1, 0.35, 0],
+  );
+  const likeOpacity = useTransform(
+    x,
+    [0, 20, SWIPE_THRESHOLD],
+    [0, 0.35, 1],
+  );
+  // Color ramp: dim gray at the start of the drag, vivid danger/success
+  // at the threshold. useTransform interpolates between hex strings.
+  const skipColor = useTransform(
+    x,
+    [-SWIPE_THRESHOLD, -20],
+    ["#ef4444", "#9ca3af"],
+  );
+  const likeColor = useTransform(
+    x,
+    [20, SWIPE_THRESHOLD],
+    ["#9ca3af", "#10b981"],
+  );
+  return (
+    <>
+      <motion.div
+        style={{ opacity: skipOpacity, color: skipColor }}
+        className="pointer-events-none absolute top-1/2 -translate-y-1/2 left-2 z-30 select-none"
+      >
+        <span className="text-3xl font-black tracking-[0.18em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+          ПРОПУСК
+        </span>
+      </motion.div>
+      <motion.div
+        style={{ opacity: likeOpacity, color: likeColor }}
+        className="pointer-events-none absolute top-1/2 -translate-y-1/2 right-2 z-30 select-none"
+      >
+        <span className="text-3xl font-black tracking-[0.18em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+          ЛАЙК
+        </span>
+      </motion.div>
+    </>
   );
 }
