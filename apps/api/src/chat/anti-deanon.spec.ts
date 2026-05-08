@@ -148,6 +148,32 @@ describe("antiDeanon", () => {
     expect(r.filtered).toBe(true);
   });
 
+  it("[bypass] dot-prefixed handle '.durov' is scrubbed", () => {
+    const r = antiDeanon("пиши .durov расскажу");
+    expect(r.filtered).toBe(true);
+    expect(r.content).not.toContain("durov");
+  });
+
+  it("[bypass] colon-prefixed ':arbi_pro' is scrubbed", () => {
+    const r = antiDeanon("ник :arbi_pro");
+    expect(r.filtered).toBe(true);
+    expect(r.content).not.toContain("arbi_pro");
+  });
+
+  it("[bypass] comma-prefixed ',my_handle' is scrubbed", () => {
+    const r = antiDeanon("вот ,my_handle конец");
+    expect(r.filtered).toBe(true);
+    expect(r.content).not.toContain("my_handle");
+  });
+
+  it("doesn't trip on a sentence-ending period followed by a normal word", () => {
+    // "Привет. Как" — period attached to "Привет", not to "Как". Lookbehind
+    // ensures we only catch punct DIRECTLY attached to a word AFTER a space.
+    const r = antiDeanon("Привет. Как дела?");
+    expect(r.filtered).toBe(false);
+    expect(r.content).toBe("Привет. Как дела?");
+  });
+
   it("retains a clean message with the word 'telegram' in passing context", () => {
     // No handle nearby — 'telegram' alone doesn't trigger.
     const r = antiDeanon("работал в telegram-канале раньше");

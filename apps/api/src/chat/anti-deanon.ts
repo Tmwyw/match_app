@@ -74,6 +74,12 @@ const VISIBLE_PATTERNS: RegExp[] = [
   // each separated by whitespace, after a `@`. Distinct from `@ab кончилось`
   // (where `ab` is a single token, not separated chars).
   /@\s+[\p{L}\p{N}_](?:\s+[\p{L}\p{N}_]){3,}/giu,
+  // Punct-prefixed handle bypass: `.durov`, `,durov`, `:durov`, `!durov`,
+  // `;durov` — common when users notice @ gets caught and substitute
+  // a different prefix. We only flag punct-attached-to-word (no space
+  // between) AND require start-of-line / whitespace before the punct
+  // so sentence-ending periods don't trip false positives constantly.
+  /(?:^|\s)[.,:;!][\p{L}\p{N}_]{4,}/giu,
   // Phones — 7+ digits with optional pluses/parens/separators between.
   /\+?\d[\d\s\-().·•]{5,}\d/gu,
 ];
