@@ -8,9 +8,9 @@ import { BuyerProfileForm } from "./BuyerProfileForm";
 import { OwnerProfileForm } from "./OwnerProfileForm";
 
 /** Promo code shown to every user in their profile. Manager link is the
- *  CTA target — UPDATE this URL when the real manager is decided. */
+ *  CTA target — points at the brand's official Telegram account. */
 const PROMO_CODE = "CreoMetricsHR";
-const MANAGER_TG_URL = "https://t.me/creometrics_manager";
+const MANAGER_TG_URL = "https://t.me/creometrics";
 
 type Props = {
   user: MeResponse;

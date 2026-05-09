@@ -101,10 +101,12 @@
                  0 2px 0 rgba(255, 255, 255, 0.22) inset;
 
   /* Dark keeps the original 3-bloom mesh — the navy bg is dramatic
-     enough that a vignette would look flat. */
+     enough that a vignette would look flat. All blooms in the brand
+     cyan family now (was teal at bottom-right; replaced for visual
+     coherence with the rest of the brand). */
   --app-bg-gradient:
     radial-gradient(ellipse 90% 60% at 20% 0%, rgba(47, 182, 255, 0.45), transparent 60%),
-    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(20, 184, 166, 0.32), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(47, 182, 255, 0.32), transparent 60%),
     radial-gradient(ellipse 100% 80% at 50% 100%, rgba(56, 189, 248, 0.18), transparent 70%),
     linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-deep) 100%);
 }

@@ -553,7 +553,9 @@ function DraggableCard({
   // user commits to the gesture.
   const likeGlow = useTransform(
     likeOpacity,
-    (v) => `0 0 ${20 + 40 * v}px ${v * 18}px rgba(16, 185, 129, ${0.35 * v})`,
+    // Brand cyan rgb 47,182,255 — was success green; aligned with the
+    // accent palette so swipe-right matches the rest of the brand.
+    (v) => `0 0 ${20 + 40 * v}px ${v * 18}px rgba(47, 182, 255, ${0.35 * v})`,
   );
   const skipGlow = useTransform(
     skipOpacity,
@@ -605,11 +607,12 @@ function DraggableCard({
     >
       {/* Whole-card tint that picks up the swipe colour. Plus an outer
           glow on the card itself (driven by likeGlow / skipGlow motion
-          values below) so the green/red signal reads even on a passing
-          glance. */}
+          values below) so the cyan/red signal reads even on a passing
+          glance. LIKE = brand cyan (matches the heart action button),
+          SKIP = brand red. */}
       <motion.div
         style={{ opacity: likeOpacity }}
-        className="pointer-events-none absolute inset-0 rounded-card bg-success/30 z-10"
+        className="pointer-events-none absolute inset-0 rounded-card bg-accent/30 z-10"
       />
       <motion.div
         style={{ opacity: skipOpacity }}
@@ -617,7 +620,7 @@ function DraggableCard({
       />
       <motion.div
         style={{ opacity: likeOpacity, boxShadow: likeGlow }}
-        className="pointer-events-none absolute inset-0 rounded-card border-[3px] border-success z-10"
+        className="pointer-events-none absolute inset-0 rounded-card border-[3px] border-accent z-10"
       />
       <motion.div
         style={{ opacity: skipOpacity, boxShadow: skipGlow }}
