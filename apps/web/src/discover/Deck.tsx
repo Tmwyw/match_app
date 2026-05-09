@@ -45,26 +45,33 @@ type DeckState =
   | { status: "ok"; queue: PublicCard[]; remaining: number };
 
 /**
- * Device-adaptive swipe thresholds. Touch (phones / tablets) wants
- * lighter gestures; mouse / trackpad wants stricter so cursor jitter
- * doesn't accidentally swipe a card.
- *
- * Detected via the CSS `pointer: coarse` media query — true for any
- * primary touch input. Computed at module load (the user can't change
- * primary input mid-session inside a Mini App).
+ * Device detection — phone/tablet vs mouse/trackpad. Used to tune the
+ * commit threshold tighter on mouse so cursor jitter doesn't trigger.
  */
 const IS_TOUCH =
   typeof window !== "undefined" &&
   window.matchMedia?.("(pointer: coarse)").matches;
-/** Fraction of the card's width the user must drag to commit a swipe.
- *  Touch (phone): 18% — small thumb drags commit reliably.
- *  Mouse: 30% — protects against jitter. */
-const SWIPE_FRACTION = IS_TOUCH ? 0.18 : 0.3;
-/** Floor so the threshold doesn't get silly on a 220px-wide card. */
-const SWIPE_MIN_PX = IS_TOUCH ? 50 : 100;
-/** Velocity-based commit (px/sec). Touch flicks routinely exceed 600;
- *  mouse drags rarely exceed 400 unless deliberate. */
-const SWIPE_VELOCITY = IS_TOUCH ? 350 : 550;
+
+/**
+ * Single confidence score that combines drag distance AND release
+ * velocity, taken straight from the official Framer Motion image-slider
+ * example: `power = |offset| × velocity`. A short fast flick (50px ×
+ * 600 = 30000) and a slow long pull (200px × 100 = 20000) both pass
+ * the threshold — neither path requires the other.
+ *
+ * Touch threshold lower because thumb flicks are imprecise but
+ * intentional; mouse threshold higher because click-drag jitter
+ * routinely produces a few hundred power and shouldn't swipe.
+ */
+const SWIPE_CONFIDENCE = IS_TOUCH ? 7000 : 11000;
+const swipePower = (offset: number, velocity: number) =>
+  Math.abs(offset) * velocity;
+
+/** Visual-ramp threshold — purely for the cyan/red glow opacity. Decoupled
+ *  from commit logic above because power has no single distance equivalent.
+ *  25% of card width feels "this is the commit zone" without false promise. */
+const VISUAL_FRACTION = 0.25;
+const VISUAL_MIN_PX = 70;
 const UNDO_VISIBLE_MS = 5_000;
 
 export function Deck({
@@ -585,14 +592,21 @@ function DraggableCard({
     ro.observe(node);
     return () => ro.disconnect();
   }, []);
-  const swipeThreshold = Math.max(SWIPE_MIN_PX, cardWidth * SWIPE_FRACTION);
+  const visualThreshold = Math.max(VISUAL_MIN_PX, cardWidth * VISUAL_FRACTION);
+  // Track the latest pointer velocity via the MotionValue itself —
+  // some webviews populate `info.velocity` at drag end inconsistently
+  // (Telegram WebView on iOS especially). `x.getVelocity()` is the
+  // running pointer velocity that framer-motion updates on every
+  // frame; reading it inside onDrag and stashing the latest gives us
+  // a reliable number regardless of platform quirks.
+  const lastVelocity = useRef(0);
 
   const rotate = useTransform(x, [-300, 0, 300], [-15, 0, 15]);
-  // Tint and edge-glow opacity ramp up over the threshold distance so the
-  // visual builds gradually; full opacity at the (now device-relative)
-  // commit threshold.
-  const likeOpacity = useTransform(x, [20, swipeThreshold], [0, 1]);
-  const skipOpacity = useTransform(x, [-swipeThreshold, -20], [1, 0]);
+  // Tint and edge-glow opacity ramp up over a fixed visual threshold
+  // (decoupled from commit logic which uses combined offset×velocity
+  // power). Full saturation around 25% of card width.
+  const likeOpacity = useTransform(x, [20, visualThreshold], [0, 1]);
+  const skipOpacity = useTransform(x, [-visualThreshold, -20], [1, 0]);
   const opacity = useTransform(x, [-400, -200, 0, 200, 400], [0, 1, 1, 1, 0]);
   // Card-edge glow that mirrors the tint — colour gets stronger as the
   // user commits to the gesture.
@@ -611,10 +625,14 @@ function DraggableCard({
   const flyOff = (direction: 1 | -1, after: () => void) => {
     if (flying.current) return;
     flying.current = true;
+    // Slightly slower than the previous 0.28s to read as smoother — the
+    // user reported the old timing as "слишком резко". easeOut keeps
+    // the start fast (so the gesture "completes" instantly) while the
+    // tail decelerates.
     animate(x, direction * window.innerWidth * 1.2, {
       type: "tween",
-      duration: 0.28,
-      ease: "easeOut",
+      duration: 0.36,
+      ease: [0.25, 0.46, 0.45, 0.94],
     }).then(() => {
       // Snap x back to 0 BEFORE triggering the swipe handler. Since x is
       // now lifted to the Deck level (so the side stamps can subscribe),
@@ -633,29 +651,34 @@ function DraggableCard({
       style={{ x, rotate, opacity, touchAction: "pan-y" }}
       drag={disabled ? false : "x"}
       dragConstraints={{ left: 0, right: 0 }}
-      // dragElastic = 1 → no resistance past constraint (constraint is
-      // 0,0 i.e. every drag is past it). Card moves 1:1 with the finger.
-      // Was 0.9 which left a tiny perceptible drag on the gesture and
-      // contributed to the "card barely moved" feel users reported.
       dragElastic={1}
+      // Snap-back physics for non-committing drags. Default framer
+      // tuning is springy/wobbly — slowed down with more damping so
+      // the card eases back to centre without overshoot when the user
+      // releases mid-drag.
+      dragTransition={{ bounceStiffness: 350, bounceDamping: 30 }}
+      onDrag={(_, info) => {
+        // Cache the running velocity. info.velocity at onDragEnd is
+        // unreliable on some webviews (Telegram iOS in particular
+        // reports 0 there); reading it during the drag gives us the
+        // true instantaneous value to use at release time.
+        lastVelocity.current = info.velocity.x;
+      }}
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
-        const vx = info.velocity.x;
-        // Two paths to commit, each device-aware:
-        //  1) Distance: dragged past `swipeThreshold` (28% of card width,
-        //     min 80px) — works for slow drags on any size screen.
-        //  2) Velocity: a deliberate flick > 600 px/s in the matching
-        //     direction — works even if the user lifts before reaching
-        //     the distance threshold.
-        const distCommit = Math.abs(dx) >= swipeThreshold;
-        const veloCommit = Math.abs(vx) >= SWIPE_VELOCITY;
-        const towardLike = dx > 0;
-        const towardSkip = dx < 0;
-        if (towardLike && (distCommit || (veloCommit && vx > 0))) {
+        // Prefer the running velocity from onDrag; fall back to
+        // info.velocity if the drag fired without onDrag updates.
+        const vx = lastVelocity.current || info.velocity.x;
+        // Official Framer-Motion image-slider pattern: combine
+        // distance and velocity into a single confidence score.
+        // A short fast flick or a long slow drag both pass.
+        const power = swipePower(dx, vx);
+        if (power > SWIPE_CONFIDENCE && dx > 0) {
           flyOff(1, onLike);
-        } else if (towardSkip && (distCommit || (veloCommit && vx < 0))) {
+        } else if (power > SWIPE_CONFIDENCE && dx < 0) {
           flyOff(-1, onSkip);
         }
+        lastVelocity.current = 0;
       }}
       // h-full + w-full so the inner CardView's `h-full` has a definite
       // box to resolve against — without these the card collapsed to 0
