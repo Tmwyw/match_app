@@ -21,8 +21,8 @@
  */
 :root {
   /* ── LIGHT theme — default ──────────────────────────────────────── */
-  --app-bg: #f4f8fd;
-  --app-bg-deep: #e7eef8;
+  --app-bg: #ffffff;
+  --app-bg-deep: #38bdf8;
 
   --app-glass: rgba(255, 255, 255, 0.72);
   --app-glass-strong: rgba(255, 255, 255, 0.86);
@@ -52,10 +52,17 @@
   --danger-muted: rgba(239, 68, 68, 0.14);
   --success: #10b981;
 
-  /* Background-gradient bloom stops, consumed by .app-bg-gradient. */
-  --bg-bloom-1: rgba(47, 182, 255, 0.18);
-  --bg-bloom-2: rgba(20, 184, 166, 0.14);
-  --bg-bloom-3: rgba(56, 189, 248, 0.10);
+  /* Light background = vignette: white center, brand cyan at edges.
+     Content sits in the white center; the cyan frame gives the brand
+     "wrap". Stops keep the white area dominant (35% pure white, then
+     ramping to cyan at the very edges). */
+  --app-bg-gradient:
+    radial-gradient(
+      ellipse 115% 100% at 50% 50%,
+      var(--app-bg) 0%,
+      var(--app-bg) 35%,
+      var(--app-bg-deep) 100%
+    );
 
   --radius-card: 22px;
   --radius-button: 16px;
@@ -84,19 +91,20 @@
   --accent-glow: 0 8px 32px -8px rgba(47, 182, 255, 0.55),
                  0 2px 0 rgba(255, 255, 255, 0.22) inset;
 
-  --bg-bloom-1: rgba(47, 182, 255, 0.45);
-  --bg-bloom-2: rgba(20, 184, 166, 0.32);
-  --bg-bloom-3: rgba(56, 189, 248, 0.18);
+  /* Dark keeps the original 3-bloom mesh — the navy bg is dramatic
+     enough that a vignette would look flat. */
+  --app-bg-gradient:
+    radial-gradient(ellipse 90% 60% at 20% 0%, rgba(47, 182, 255, 0.45), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(20, 184, 166, 0.32), transparent 60%),
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(56, 189, 248, 0.18), transparent 70%),
+    linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-deep) 100%);
 }
 
-/* Background gradient — consumed by <Background />. Uses CSS vars so
-   the gradient automatically flips with the theme. */
+/* Background gradient — consumed by <Background />. Uses a per-theme
+   CSS var so each theme paints its own composition (light vignette vs
+   dark bloom mesh) without component-level branching. */
 .app-bg-gradient {
-  background:
-    radial-gradient(ellipse 90% 60% at 20% 0%, var(--bg-bloom-1), transparent 60%),
-    radial-gradient(ellipse 80% 60% at 100% 100%, var(--bg-bloom-2), transparent 60%),
-    radial-gradient(ellipse 100% 80% at 50% 100%, var(--bg-bloom-3), transparent 70%),
-    linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-deep) 100%);
+  background: var(--app-bg-gradient);
 }
 
 html,
