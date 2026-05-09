@@ -1,4 +1,4 @@
-import { Banknote, BadgePercent, Briefcase, Building2, Copy, ExternalLink, Globe2, Pencil, Settings, Sparkles, Target } from "lucide-react";
+import { Banknote, BadgePercent, Briefcase, Building2, Bug, Copy, ExternalLink, Globe2, Pencil, Send, Settings, Sparkles, Target } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import type { MeResponse, MyProfileResponse } from "@tg-app-meet/shared";
@@ -11,6 +11,9 @@ import { OwnerProfileForm } from "./OwnerProfileForm";
  *  CTA target — points at the brand's official Telegram account. */
 const PROMO_CODE = "CreoMetricsHR";
 const MANAGER_TG_URL = "https://t.me/creometrics";
+/** Same handle today, but kept as a separate constant so support and
+ *  sales destinations can diverge later without a copy-grep. */
+const SUPPORT_TG_URL = "https://t.me/creometrics";
 
 type Props = {
   user: MeResponse;
@@ -84,6 +87,8 @@ export function MyProfile({
         </Button>
 
         <PromoCodeSection />
+
+        <SupportSection />
 
         <Button
           variant="ghost"
@@ -161,6 +166,33 @@ function PromoCodeSection() {
       {toast && (
         <div className="text-[11px] text-tg-hint text-center">{toast}</div>
       )}
+    </Card>
+  );
+}
+
+/**
+ * Surface for "found a bug / need help" — sits in the profile main flow
+ * (right under PromoCodeSection) so users discover the support channel
+ * without diving into Settings. Opens @creometrics in a new tab; the
+ * Telegram client picks up the deep-link and switches into the DM.
+ */
+function SupportSection() {
+  const open = () => {
+    window.open(SUPPORT_TG_URL, "_blank", "noopener,noreferrer");
+  };
+  return (
+    <Card className="flex items-center gap-3 p-4">
+      <Bug size={18} className="text-accent shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold">Нашли баг?</div>
+        <div className="text-[11px] text-tg-hint">
+          Напишите нам — поможем разобраться.
+        </div>
+      </div>
+      <Button variant="primary" size="md" onClick={open}>
+        <Send size={14} />
+        Написать
+      </Button>
     </Card>
   );
 }
