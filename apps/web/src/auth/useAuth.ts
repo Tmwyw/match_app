@@ -62,6 +62,12 @@ export function useAuth() {
       // that the Home screen needs without an extra render flash.
       const me = await api<MeResponse>("/me");
       setState({ status: "authed", user: me, error: null });
+      // Notify child screens that any in-flight data fetches that just
+      // failed with 401 should be retried — fresh token is in place now.
+      // (Pairs with the `creo:auth-lost` event api.ts fires on 401.)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("creo:auth-recovered"));
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 403 && e.code === "BANNED") {
         const reason = readReason(e.body);

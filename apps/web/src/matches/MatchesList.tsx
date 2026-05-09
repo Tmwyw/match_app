@@ -46,6 +46,18 @@ export function MatchesList({
     void load();
   }, [load]);
 
+  // Mid-session auth recovery: re-fetch matches once a fresh JWT lands.
+  // Otherwise a 401 mid-session leaves the list stuck on "missing
+  // bearer token" until the user manually navigates away and back.
+  useEffect(() => {
+    const onRecover = () => {
+      void load();
+    };
+    window.addEventListener("creo:auth-recovered", onRecover);
+    return () =>
+      window.removeEventListener("creo:auth-recovered", onRecover);
+  }, [load]);
+
   return (
     <Screen className="min-h-screen">
       <div className="max-w-md mx-auto flex flex-col gap-3">

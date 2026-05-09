@@ -125,6 +125,18 @@ export function SettingsScreen({ onClose, onDeleted }: Props) {
     void load();
   }, [load]);
 
+  // Re-fetch after a mid-session auth recovery (paired event with
+  // useAuth re-running on 401). Without this the screen would stay
+  // stuck on the "missing bearer token" error from the failed call.
+  useEffect(() => {
+    const onRecover = () => {
+      void load();
+    };
+    window.addEventListener("creo:auth-recovered", onRecover);
+    return () =>
+      window.removeEventListener("creo:auth-recovered", onRecover);
+  }, [load]);
+
   const unblock = async (userId: string) => {
     try {
       await api(`/blocks/${userId}`, { method: "DELETE" });
@@ -377,11 +389,14 @@ function NotificationsSection() {
   const [prefs, setPrefs] = useState<NotificationPrefsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let aborted = false;
     api<NotificationPrefsResponse>("/me/notifications")
       .then((p) => {
-        if (!aborted) setPrefs(p);
+        if (!aborted) {
+          setPrefs(p);
+          setError(null);
+        }
       })
       .catch((e) => {
         if (!aborted) setError(e instanceof Error ? e.message : String(e));
@@ -390,6 +405,20 @@ function NotificationsSection() {
       aborted = true;
     };
   }, []);
+
+  useEffect(() => {
+    return load();
+  }, [load]);
+
+  // Re-fetch on auth-recovery (see SettingsScreen above).
+  useEffect(() => {
+    const onRecover = () => {
+      load();
+    };
+    window.addEventListener("creo:auth-recovered", onRecover);
+    return () =>
+      window.removeEventListener("creo:auth-recovered", onRecover);
+  }, [load]);
 
   const patch = async (
     delta: Partial<NotificationPrefsResponse>,
