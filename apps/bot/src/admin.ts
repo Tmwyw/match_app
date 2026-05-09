@@ -505,7 +505,7 @@ export function registerAdminHandlers(bot: Bot): void {
       return;
     }
     await ctx.reply(
-      "<b>tg-meet · admin</b>\n\nВыбери действие в меню снизу.",
+      "<b>CREO Metrics · admin</b>\n\nВыбери действие в меню снизу.",
       {
         parse_mode: "HTML",
         reply_markup: adminReplyKeyboard(),

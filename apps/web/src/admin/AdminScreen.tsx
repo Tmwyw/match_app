@@ -29,7 +29,7 @@ export function AdminScreen({ token }: { token: string }) {
     <div style={styles.page}>
       <div style={styles.shell}>
         <div style={styles.header}>
-          <h1 style={styles.title}>tg-meet · admin</h1>
+          <h1 style={styles.title}>CREO Metrics · admin</h1>
         </div>
 
         <div style={styles.tabBar}>

@@ -120,11 +120,23 @@ export class NotificationsService implements OnModuleDestroy {
 
   async notifyMatch(toUserId: string, otherAnonId: string): Promise<void> {
     const prefs = await this.safePrefs(toUserId);
-    if (!prefs.matches) return;
-    if (this.isMuted(prefs)) return;
+    if (!prefs.matches) {
+      this.logger.warn(`notifyMatch SKIP ${toUserId}: prefs.matches=false`);
+      return;
+    }
+    if (this.isMuted(prefs)) {
+      this.logger.warn(
+        `notifyMatch SKIP ${toUserId}: muted until ${prefs.mutedUntil?.toISOString()}`,
+      );
+      return;
+    }
 
     const tgId = await this.resolveTelegramId(toUserId);
-    if (tgId === null) return;
+    if (tgId === null) {
+      this.logger.warn(`notifyMatch SKIP ${toUserId}: no telegramId resolved`);
+      return;
+    }
+    this.logger.log(`notifyMatch SEND ${toUserId} → tg:${tgId}`);
     await this.send(
       tgId,
       `🎉 Новый матч с ${otherAnonId}!\n\nОткрой приложение, чтобы начать общаться.`,

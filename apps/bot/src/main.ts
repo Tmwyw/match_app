@@ -4,6 +4,7 @@ import { Bot, InlineKeyboard } from "grammy";
 // extension. Dev (tsx) is fine without — only prod (`node dist/main.js`) breaks.
 import { registerAdminHandlers } from "./admin.js";
 import { env } from "./env.js";
+import { prisma } from "./prisma.js";
 import { handleStartPayload } from "./start-payload.js";
 
 const bot = new Bot(env.BOT_TOKEN);
@@ -11,6 +12,16 @@ const bot = new Bot(env.BOT_TOKEN);
 // Mount /admin BEFORE the catch-all message handlers so its text-input flow
 // (search query) gets first dibs on incoming messages from admins.
 registerAdminHandlers(bot);
+
+const FIRST_TIME_WELCOME =
+  "👋 <b>Добро пожаловать в CREO Metrics</b>\n\n" +
+  "Это B2B-площадка для арбитражных команд: баеры и владельцы офферов " +
+  "находят друг друга по интересам и общаются анонимно, пока обе стороны " +
+  "не согласятся раскрыть контакты.\n\n" +
+  "Заполни анкету и приступай к поиску 👇";
+
+const RETURN_WELCOME =
+  "С возвращением в <b>CREO Metrics</b>!\n\nЖми кнопку чтобы открыть приложение 👇";
 
 bot.command("start", async (ctx) => {
   // ctx.match is everything after "/start " (empty string when no payload).
@@ -24,11 +35,31 @@ bot.command("start", async (ctx) => {
       console.warn("[bot] start payload persist failed:", e);
     }
   }
+
+  // First-time vs returning detection. We treat "has a role" as the signal
+  // for "real user who's been through onboarding" — a row with role=null
+  // can be a fresh stub from a referral deep-link or a literal first /start
+  // and should still see the elaborate welcome.
+  let isReturning = false;
+  if (ctx.from) {
+    try {
+      const u = await prisma.user.findUnique({
+        where: { telegramId: BigInt(ctx.from.id) },
+        select: { role: true },
+      });
+      isReturning = u?.role != null;
+    } catch (e) {
+      // DB lookup failure → fall through to the first-time copy. Safer to
+      // over-explain than to silently truncate a real first-time greeting.
+      console.warn("[bot] /start lookup failed:", e);
+    }
+  }
+
   const kb = new InlineKeyboard().webApp("Открыть приложение", env.WEB_APP_URL);
-  await ctx.reply(
-    "👋 Это TG Meet — мэтчинг баеров и овнеров.\nЖми кнопку, чтобы открыть приложение.",
-    { reply_markup: kb }
-  );
+  await ctx.reply(isReturning ? RETURN_WELCOME : FIRST_TIME_WELCOME, {
+    parse_mode: "HTML",
+    reply_markup: kb,
+  });
 });
 
 bot.command("help", (ctx) =>

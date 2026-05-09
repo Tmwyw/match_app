@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma, SwipeAction as DbSwipeAction } from "@prisma/client";
@@ -21,6 +22,8 @@ type SwipeOutcome = SwipeResponse & { justMatched: boolean };
 
 @Injectable()
 export class SwipesService {
+  private readonly logger = new Logger(SwipesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -51,8 +54,15 @@ export class SwipesService {
     );
 
     if (outcome.justMatched) {
+      this.logger.log(
+        `swipe → just matched: ${meId} ↔ ${body.toUserId} (matchId=${outcome.matchId})`,
+      );
       // Fire-and-forget: a Telegram API hiccup must not fail the swipe HTTP.
       void this.fireMatchNotifications(meId, body.toUserId);
+    } else if (outcome.matched) {
+      this.logger.debug(
+        `swipe → already matched (no fan-out): ${meId} ↔ ${body.toUserId}`,
+      );
     }
 
     const { justMatched: _ignored, ...response } = outcome;
@@ -193,20 +203,31 @@ export class SwipesService {
 
   private async fireMatchNotifications(meId: string, otherId: string): Promise<void> {
     try {
+      this.logger.log(`match push fan-out: ${meId} ↔ ${otherId}`);
       const users = await this.prisma.user.findMany({
         where: { id: { in: [meId, otherId] } },
         select: { id: true, anonId: true, displayName: true },
       });
       const me = users.find((u) => u.id === meId);
       const other = users.find((u) => u.id === otherId);
-      if (!me?.anonId || !other?.anonId) return;
+      if (!me?.anonId || !other?.anonId) {
+        this.logger.warn(
+          `match push aborted — missing anonId. me=${me?.anonId} other=${other?.anonId}`,
+        );
+        return;
+      }
       await Promise.all([
         this.notifications.notifyMatch(meId, other.displayName ?? other.anonId),
         this.notifications.notifyMatch(otherId, me.displayName ?? me.anonId),
       ]);
-    } catch {
-      // Notifications service already logs; swallow here so Phase-6 plumbing
-      // can never break Phase-3 swipe behaviour.
+      this.logger.log(`match push fan-out done: ${meId} ↔ ${otherId}`);
+    } catch (e) {
+      // Notifications service already logs network-level errors; this branch
+      // is for the unexpected (DB hiccup, prisma throw). Surface so we can
+      // tell apart "Telegram blocked" vs "we never tried".
+      this.logger.error(
+        `match push fan-out failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 }
