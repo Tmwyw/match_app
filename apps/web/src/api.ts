@@ -90,6 +90,15 @@ export async function api<T>(
 
   if (res.status === 401) {
     clearToken();
+    // Mid-session 401 = JWT references a user that no longer exists
+    // (admin hard-deleted them) OR token expired OR localStorage was
+    // dropped by the webview. Fire a window event so useAuth can
+    // reboot from initData without a manual page reload. Skip for the
+    // auth endpoint itself — a 401 there means initData was rejected,
+    // re-running it would just loop forever.
+    if (typeof window !== "undefined" && !path.startsWith("/auth/")) {
+      window.dispatchEvent(new CustomEvent("creo:auth-lost"));
+    }
   }
 
   let body: unknown = null;

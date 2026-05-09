@@ -86,6 +86,19 @@ export function useAuth() {
     void run();
   }, [run]);
 
+  // Mid-session recovery: api.ts dispatches `creo:auth-lost` whenever a
+  // request gets 401 (token expired / user hard-deleted / webview lost
+  // localStorage). Re-run the auth flow — initData mints a fresh JWT
+  // and creates a new User row if the old one was deleted, so the user
+  // doesn't get stuck on a "missing bearer token" retry screen.
+  useEffect(() => {
+    const onLost = () => {
+      void run();
+    };
+    window.addEventListener("creo:auth-lost", onLost);
+    return () => window.removeEventListener("creo:auth-lost", onLost);
+  }, [run]);
+
   const signOut = useCallback(() => {
     clearToken();
     setState({ status: "needs-telegram", user: null, error: null });
