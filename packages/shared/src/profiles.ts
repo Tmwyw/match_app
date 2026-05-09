@@ -33,7 +33,10 @@ const BuyerShape = z.object({
   geos: TagList(15),
   budgetMin: z.number().int().positive(),
   budgetMax: z.number().int().positive(),
-  experience: z.number().int().min(0).max(50),
+  // Years of experience — at least 1, max 50. Was `min(0)` which let
+  // a "0 years" (or worse, negative via type=number on web) slip
+  // through. Frontend also enforces min="1" on the input.
+  experience: z.number().int().min(1).max(50),
   // "Дополнительно" — короткая заметка, ≤100 chars (matches OwnerShape).
   notes: z.string().max(100).nullish(),
 });

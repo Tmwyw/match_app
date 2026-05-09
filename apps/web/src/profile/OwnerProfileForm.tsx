@@ -230,6 +230,8 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                   label="от, $"
                   type="number"
                   inputMode="numeric"
+                  min={1}
+                  step={1}
                   value={payoutMin}
                   onChange={(e) => setPayoutMin(e.target.value)}
                   error={errors.payoutMin}
@@ -238,6 +240,8 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                   label="до, $"
                   type="number"
                   inputMode="numeric"
+                  min={1}
+                  step={1}
                   value={payoutMax}
                   onChange={(e) => setPayoutMax(e.target.value)}
                   error={errors.payoutMax}

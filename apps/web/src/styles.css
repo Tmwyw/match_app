@@ -59,18 +59,17 @@
   --success: #10b981;
 
   /* Light background — asymmetric blob mesh. Five radial blobs of
-     varying size and intensity scattered at non-mirrored positions,
-     so neither axis reads as "framed". Center area (roughly 40–60%
-     horizontal × 30–70% vertical) stays clean white for content
-     legibility; blobs cluster toward the corners + a couple of stray
-     accents. The base linear is a near-white sky so the canvas isn't
-     pure #ffffff. */
+     varying size and intensity at non-mirrored positions. Falloffs
+     extended past 100% (transparent 110-130%) so the gradient
+     transitions don't form visible arcs at their cutoff radius —
+     was 62-75% which produced a hard edge users picked up as a
+     "blur cropped on the left" artifact. */
   --app-bg-gradient:
-    radial-gradient(ellipse 55% 45% at 8% 12%, rgba(56, 189, 248, 0.62), transparent 65%),
-    radial-gradient(ellipse 45% 55% at 95% 85%, rgba(14, 165, 233, 0.55), transparent 62%),
-    radial-gradient(ellipse 35% 30% at 80% 18%, rgba(125, 211, 252, 0.48), transparent 70%),
-    radial-gradient(ellipse 40% 45% at 12% 92%, rgba(56, 189, 248, 0.42), transparent 65%),
-    radial-gradient(ellipse 25% 20% at 55% 5%, rgba(186, 230, 253, 0.40), transparent 75%),
+    radial-gradient(ellipse 70% 60% at 8% 12%, rgba(56, 189, 248, 0.55), transparent 110%),
+    radial-gradient(ellipse 60% 70% at 95% 85%, rgba(14, 165, 233, 0.5), transparent 110%),
+    radial-gradient(ellipse 45% 40% at 80% 18%, rgba(125, 211, 252, 0.42), transparent 120%),
+    radial-gradient(ellipse 50% 55% at 12% 92%, rgba(56, 189, 248, 0.38), transparent 115%),
+    radial-gradient(ellipse 35% 28% at 55% 5%, rgba(186, 230, 253, 0.35), transparent 130%),
     linear-gradient(180deg, #ffffff 0%, #f5faff 100%);
 
   --radius-card: 22px;

@@ -46,7 +46,13 @@ export function Logo({ size = 96, glow = false, className }: Props) {
         draggable={false}
         className={cn(
           "absolute top-1/2 left-1/2 select-none",
-          glow && "drop-shadow-[0_8px_24px_rgba(47,182,255,0.45)]",
+          // `glow` used to add a cyan drop-shadow, but drop-shadow
+          // follows the image's alpha matte and the source PNGs have
+          // a roughly rectangular alpha → the shadow rendered as a
+          // visible square halo around the logo. The 3D-rendered
+          // logo carries enough visual weight on its own that the
+          // shadow wasn't doing meaningful work; leaving the prop in
+          // the API as a no-op for now so callers don't need updating.
         )}
         style={
           isDark

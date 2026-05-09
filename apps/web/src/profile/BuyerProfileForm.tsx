@@ -217,6 +217,8 @@ export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                   label="от, $"
                   type="number"
                   inputMode="numeric"
+                  min={1}
+                  step={1}
                   value={budgetMin}
                   onChange={(e) => setBudgetMin(e.target.value)}
                   error={errors.budgetMin}
@@ -225,6 +227,8 @@ export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                   label="до, $"
                   type="number"
                   inputMode="numeric"
+                  min={1}
+                  step={1}
                   value={budgetMax}
                   onChange={(e) => setBudgetMax(e.target.value)}
                   error={errors.budgetMax}
@@ -239,6 +243,9 @@ export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                 label="лет"
                 type="number"
                 inputMode="numeric"
+                min={1}
+                max={50}
+                step={1}
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
                 error={errors.experience}

@@ -46,8 +46,23 @@ export function useAuth() {
         }
       }
 
-      const initData = getTelegramWebApp()?.initData;
+      // Some Telegram clients populate WebApp.initData a tick after the
+      // script loads — especially on iOS after a cold reload of the
+      // Mini App. If we read it the moment React mounts, it can come
+      // back empty even though we ARE inside Telegram. Retry briefly
+      // before showing the "open from inside Telegram" screen, which
+      // is otherwise a dead-end for legitimate users.
+      let initData = getTelegramWebApp()?.initData;
       if (!initData) {
+        for (let i = 0; i < 10 && !initData; i += 1) {
+          await new Promise((r) => setTimeout(r, 100));
+          initData = getTelegramWebApp()?.initData;
+        }
+      }
+      if (!initData) {
+        // Truly outside Telegram (or a client variant that never
+        // surfaces initData). Treat as the legacy "open from inside
+        // Telegram" state.
         setState({ status: "needs-telegram", user: null, error: null });
         return;
       }
