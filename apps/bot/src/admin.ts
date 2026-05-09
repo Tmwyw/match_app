@@ -237,42 +237,42 @@ async function runBroadcast(ctx: Context, text: string): Promise<void> {
 
 function statsText(s: AdminStats): string {
   return [
-    "<b>📊 Stats</b>",
+    "<b>📊 Статистика</b>",
     "",
-    "<b>users</b>",
-    `total: <b>${s.users.total}</b> · with role: ${s.users.withRole}`,
-    `online now: <b>${s.users.onlineNow}</b>`,
-    `buyers: ${s.users.buyers} · owners: ${s.users.owners}`,
-    `banned: ${s.users.banned} · deleted: ${s.users.deleted}`,
-    `new: ${s.users.new24h} (24h) / ${s.users.new7d} (7d)`,
+    "<b>Пользователи</b>",
+    `всего: <b>${s.users.total}</b> · с ролью: ${s.users.withRole}`,
+    `онлайн сейчас: <b>${s.users.onlineNow}</b>`,
+    `баеры: ${s.users.buyers} · овнеры: ${s.users.owners}`,
+    `забанены: ${s.users.banned} · удалены: ${s.users.deleted}`,
+    `новых: ${s.users.new24h} (24ч) / ${s.users.new7d} (7д)`,
     "",
-    "<b>matches</b>",
-    `total: ${s.matches.total} · 24h: ${s.matches.last24h} · 7d: ${s.matches.last7d}`,
+    "<b>Матчи</b>",
+    `всего: ${s.matches.total} · 24ч: ${s.matches.last24h} · 7д: ${s.matches.last7d}`,
     "",
-    "<b>messages</b>",
-    `total: ${s.messages.total} · 24h: ${s.messages.last24h}`,
+    "<b>Сообщения</b>",
+    `всего: ${s.messages.total} · 24ч: ${s.messages.last24h}`,
     "",
-    "<b>reports</b>",
-    `open: <b>${s.reports.open}</b> · resolved: ${s.reports.resolved} · 7d: ${s.reports.last7d}`,
+    "<b>Жалобы</b>",
+    `открытых: <b>${s.reports.open}</b> · решено: ${s.reports.resolved} · 7д: ${s.reports.last7d}`,
   ].join("\n");
 }
 
 function statsKb(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("⟳ Refresh", "a:stats")
+    .text("⟳ Обновить", "a:stats")
     .text("✕ Скрыть", "a:close");
 }
 
 function usersListText(data: AdminUsersResponse, skip: number, q?: string): string {
   const head = q
-    ? `<b>👥 Users — поиск "${escapeHtml(q)}"</b>`
-    : "<b>👥 Users</b>";
+    ? `<b>👥 Пользователи — поиск "${escapeHtml(q)}"</b>`
+    : "<b>👥 Пользователи</b>";
   if (data.rows.length === 0) {
     return `${head}\n\n(пусто)`;
   }
   const lines = [
     head,
-    `${data.total} total · ${skip + 1}–${skip + data.rows.length}`,
+    `всего ${data.total} · показаны ${skip + 1}–${skip + data.rows.length}`,
     "",
     ...data.rows.map((u, i) => {
       const tags = [];
@@ -281,7 +281,7 @@ function usersListText(data: AdminUsersResponse, skip: number, q?: string): stri
       if (u.isOnline) tags.push("🟢");
       const tag = tags.length ? ` ${tags.join("")}` : "";
       const handle = u.username ? `@${u.username}` : "—";
-      return `${skip + i + 1}. <b>${escapeHtml(u.anonId ?? "(no role)")}</b>${tag} · ${escapeHtml(handle)} · M:${u.counts.matches} R:${u.counts.reportsAgainst}`;
+      return `${skip + i + 1}. <b>${escapeHtml(u.anonId ?? "(нет роли)")}</b>${tag} · ${escapeHtml(handle)} · 🤝${u.counts.matches} · 🚨${u.counts.reportsAgainst}`;
     }),
   ];
   return lines.join("\n");
@@ -297,15 +297,15 @@ function usersListKb(
   // callback_data is the cuid.
   for (const u of data.rows) {
     kb.text(
-      `${u.anonId ?? "(no role)"} · ${u.username ? `@${u.username}` : "—"}`,
+      `${u.anonId ?? "(нет роли)"} · ${u.username ? `@${u.username}` : "—"}`,
       `a:user:${u.id}`,
     ).row();
   }
   if (skip > 0) {
-    kb.text("← Prev", `a:users:${Math.max(0, skip - PAGE)}`);
+    kb.text("← Назад", `a:users:${Math.max(0, skip - PAGE)}`);
   }
   if (skip + data.rows.length < data.total) {
-    kb.text("Next →", `a:users:${skip + PAGE}`);
+    kb.text("Далее →", `a:users:${skip + PAGE}`);
   }
   kb.row();
   if (searchActive) {
@@ -319,59 +319,76 @@ function usersListKb(
 
 function userDetailText(u: AdminUserDetail): string {
   const tags = [];
-  if (u.bannedAt) tags.push("🚫 BANNED");
-  if (u.deletedAt) tags.push("🗑 DELETED");
-  if (u.isOnline) tags.push("🟢 online");
+  if (u.bannedAt) tags.push("🚫 ЗАБАНЕН");
+  if (u.deletedAt) tags.push("🗑 УДАЛЁН");
+  if (u.isOnline) tags.push("🟢 онлайн");
+  const roleLabel =
+    u.role === "BUYER" ? "БАЕР" : u.role === "OWNER" ? "ОВНЕР" : "—";
 
   const lines = [
-    `<b>${escapeHtml(u.anonId ?? "(no role)")}</b> · ${u.role ?? "—"}${tags.length ? "\n" + tags.join(" · ") : ""}`,
+    `<b>${escapeHtml(u.anonId ?? "(нет роли)")}</b> · ${roleLabel}${tags.length ? "\n" + tags.join(" · ") : ""}`,
     "",
     `id: <code>${u.id}</code>`,
     `tg: <code>${u.telegramId}</code>${u.username ? ` · @${escapeHtml(u.username)}` : ""}`,
-    `created: ${fmtDate(u.createdAt)} · last seen: ${fmtDateTime(u.lastSeenAt)}`,
-    `M:${u.counts.matches} · Msg:${u.counts.messages} · R:${u.counts.reportsAgainst} · B:${u.counts.blocksAgainst}`,
+    `создан: ${fmtDate(u.createdAt)} · был онлайн: ${fmtDateTime(u.lastSeenAt)}`,
+    `🤝 матчей: ${u.counts.matches} · 💬 сообщений: ${u.counts.messages} · 🚨 жалоб: ${u.counts.reportsAgainst} · 🚫 блоков: ${u.counts.blocksAgainst}`,
   ];
   if (u.bannedAt) {
-    lines.push(`banned: ${fmtDateTime(u.bannedAt)} — ${escapeHtml(u.banReason ?? "no reason")}`);
+    lines.push(
+      `забанен: ${fmtDateTime(u.bannedAt)} — ${escapeHtml(u.banReason ?? "без причины")}`,
+    );
   }
   if (u.deletedAt) {
-    lines.push(`deleted: ${fmtDateTime(u.deletedAt)}`);
+    lines.push(`удалён: ${fmtDateTime(u.deletedAt)}`);
   }
   if (u.buyerProfile) {
     lines.push(
       "",
-      "<b>Buyer profile</b>",
-      `position: ${escapeHtml(u.buyerProfile.desiredPosition) || "—"}`,
-      `traffic: ${u.buyerProfile.trafficSources.join(", ") || "—"}`,
-      `verticals: ${u.buyerProfile.verticals.join(", ") || "—"}`,
-      `geos: ${u.buyerProfile.geos.join(", ") || "—"}`,
-      `salary: $${u.buyerProfile.budgetMin}–${u.buyerProfile.budgetMax}`,
-      `experience: ${u.buyerProfile.experience}`,
+      "<b>Анкета баера</b>",
+      `вакансия: ${escapeHtml(u.buyerProfile.desiredPosition) || "—"}`,
+      `трафик: ${u.buyerProfile.trafficSources.join(", ") || "—"}`,
+      `вертикали: ${u.buyerProfile.verticals.join(", ") || "—"}`,
+      `гео: ${u.buyerProfile.geos.join(", ") || "—"}`,
+      `зп: $${u.buyerProfile.budgetMin}–${u.buyerProfile.budgetMax}`,
+      `опыт: ${u.buyerProfile.experience} лет`,
     );
     if (u.buyerProfile.notes) {
-      lines.push(`notes: ${escapeHtml(u.buyerProfile.notes)}`);
+      lines.push(`заметки: ${escapeHtml(u.buyerProfile.notes)}`);
     }
   }
   if (u.ownerProfile) {
     lines.push(
       "",
-      "<b>Owner profile</b>",
-      `offer (нужен): ${escapeHtml(u.ownerProfile.offerName)}`,
-      `traffic: ${u.ownerProfile.trafficSources.join(", ") || "—"}`,
-      `verticals: ${u.ownerProfile.verticals.join(", ") || "—"}`,
-      `geos: ${u.ownerProfile.geos.join(", ") || "—"}`,
-      `payout: $${u.ownerProfile.payoutMin}–${u.ownerProfile.payoutMax}`,
+      "<b>Анкета овнера</b>",
+      `нужен: ${escapeHtml(u.ownerProfile.offerName)}`,
+      `трафик: ${u.ownerProfile.trafficSources.join(", ") || "—"}`,
+      `вертикали: ${u.ownerProfile.verticals.join(", ") || "—"}`,
+      `гео: ${u.ownerProfile.geos.join(", ") || "—"}`,
+      `выплата: $${u.ownerProfile.payoutMin}–${u.ownerProfile.payoutMax}`,
     );
-    if (u.ownerProfile.bio) lines.push(`bio: ${escapeHtml(u.ownerProfile.bio)}`);
+    if (u.ownerProfile.bio) lines.push(`о себе: ${escapeHtml(u.ownerProfile.bio)}`);
   }
   if (u.recentReportsAgainst.length > 0) {
-    lines.push("", `<b>Reports against (${u.recentReportsAgainst.length})</b>`);
+    lines.push(
+      "",
+      `<b>Жалобы на пользователя (${u.recentReportsAgainst.length})</b>`,
+    );
     for (const r of u.recentReportsAgainst.slice(0, 5)) {
-      const resolution = r.resolution ? ` → ${r.resolution}` : " (open)";
+      const resolution = r.resolution
+        ? ` → ${translateResolution(r.resolution)}`
+        : " (открыта)";
       lines.push(`· ${r.reason}${resolution} — ${fmtDate(r.createdAt)}`);
     }
   }
   return lines.join("\n");
+}
+
+/** "no_action" / "warned" / "banned" → readable Russian. */
+function translateResolution(raw: string): string {
+  if (raw === "no_action") return "без мер";
+  if (raw === "warned") return "предупреждение";
+  if (raw === "banned") return "бан";
+  return raw;
 }
 
 function userDetailKb(u: AdminUserDetail): InlineKeyboard {
@@ -387,13 +404,13 @@ function userDetailKb(u: AdminUserDetail): InlineKeyboard {
       .row();
   }
   if (u.bannedAt) {
-    kb.text("🟢 Unban", `a:user:${u.id}:unban`);
+    kb.text("🟢 Разбанить", `a:user:${u.id}:unban`);
   } else if (!u.deletedAt) {
-    kb.text("🚫 Ban", `a:user:${u.id}:askban`);
+    kb.text("🚫 Забанить", `a:user:${u.id}:askban`);
   }
-  kb.text("🔄 Reset role", `a:user:${u.id}:askreset`);
+  kb.text("🔄 Сбросить роль", `a:user:${u.id}:askreset`);
   kb.row();
-  kb.text("⟳ Refresh", `a:user:${u.id}`);
+  kb.text("⟳ Обновить", `a:user:${u.id}`);
   kb.text("← К списку", "a:users:0");
   return kb;
 }
@@ -415,7 +432,7 @@ function pendingListText(data: AdminUsersResponse): string {
     ...data.rows.map((u, i) => {
       const handle = u.username ? `@${u.username}` : "—";
       const tag = u.role === "BUYER" ? "БАЕР" : u.role === "OWNER" ? "ОВНЕР" : "?";
-      return `${i + 1}. <b>${escapeHtml(u.anonId ?? "(no anon)")}</b> · ${tag} · ${escapeHtml(handle)}`;
+      return `${i + 1}. <b>${escapeHtml(u.anonId ?? "(нет anonId)")}</b> · ${tag} · ${escapeHtml(handle)}`;
     }),
   ];
   return lines.join("\n");
@@ -425,35 +442,38 @@ function pendingListKb(data: AdminUsersResponse): InlineKeyboard {
   const kb = new InlineKeyboard();
   for (const u of data.rows) {
     kb.text(
-      `${u.anonId ?? "(no anon)"} · ${u.username ? `@${u.username}` : "—"}`,
+      `${u.anonId ?? "(нет anonId)"} · ${u.username ? `@${u.username}` : "—"}`,
       `a:user:${u.id}`,
     ).row();
   }
-  kb.text("⟳ Refresh", "a:pending").text("✕ Скрыть", "a:close");
+  kb.text("⟳ Обновить", "a:pending").text("✕ Скрыть", "a:close");
   return kb;
 }
 
 function reportText(r: AdminReport): string {
   const lines = [
-    `<b>🚨 Report</b> · ${escapeHtml(r.reason)}`,
-    `created: ${fmtDateTime(r.createdAt)}`,
+    `<b>🚨 Жалоба</b> · ${escapeHtml(r.reason)}`,
+    `создана: ${fmtDateTime(r.createdAt)}`,
     "",
-    `from: <b>${escapeHtml(r.reporterAnonId ?? "?")}</b>`,
-    `target: <b>${escapeHtml(r.targetAnonId ?? "?")}</b>${r.targetUsername ? ` · @${escapeHtml(r.targetUsername)}` : ""}${r.targetBannedAt ? " 🚫" : ""}`,
+    `от кого: <b>${escapeHtml(r.reporterAnonId ?? "?")}</b>`,
+    `на кого: <b>${escapeHtml(r.targetAnonId ?? "?")}</b>${r.targetUsername ? ` · @${escapeHtml(r.targetUsername)}` : ""}${r.targetBannedAt ? " 🚫" : ""}`,
   ];
-  if (r.chatId) lines.push(`chat: <code>${r.chatId}</code>`);
+  if (r.chatId) lines.push(`чат: <code>${r.chatId}</code>`);
   if (r.details) {
-    lines.push("", "<i>details:</i>", escapeHtml(r.details));
+    lines.push("", "<i>детали:</i>", escapeHtml(r.details));
   }
   if (r.resolvedAt) {
-    lines.push("", `<b>resolved</b> → ${r.resolution} at ${fmtDateTime(r.resolvedAt)}`);
+    lines.push(
+      "",
+      `<b>решена</b> → ${translateResolution(r.resolution ?? "")} в ${fmtDateTime(r.resolvedAt)}`,
+    );
   }
   return lines.join("\n");
 }
 
 function reportsListText(reports: AdminReportsResponse): string {
-  if (reports.length === 0) return "<b>🚨 Reports</b>\n\n(пусто)";
-  const lines = ["<b>🚨 Open reports</b>", ""];
+  if (reports.length === 0) return "<b>🚨 Жалобы</b>\n\n(пусто)";
+  const lines = ["<b>🚨 Открытые жалобы</b>", ""];
   for (let i = 0; i < reports.length; i++) {
     const r = reports[i]!;
     lines.push(
@@ -468,20 +488,20 @@ function reportsListKb(reports: AdminReportsResponse): InlineKeyboard {
   for (const r of reports) {
     kb.text(`${r.reason} · ${r.targetAnonId ?? "?"}`, `a:rep:${r.id}`).row();
   }
-  kb.text("⟳ Refresh", "a:reports").text("✕ Скрыть", "a:close");
+  kb.text("⟳ Обновить", "a:reports").text("✕ Скрыть", "a:close");
   return kb;
 }
 
 function reportDetailKb(r: AdminReport): InlineKeyboard {
   const kb = new InlineKeyboard();
   if (!r.resolvedAt) {
-    kb.text("⚪ no action", `a:rep:${r.id}:no_action`)
-      .text("⚠ warned", `a:rep:${r.id}:warned`)
-      .text("🚫 ban", `a:rep:${r.id}:banned`)
+    kb.text("⚪ Без мер", `a:rep:${r.id}:no_action`)
+      .text("⚠ Предупредить", `a:rep:${r.id}:warned`)
+      .text("🚫 Бан", `a:rep:${r.id}:banned`)
       .row();
   }
   if (r.targetUserId) {
-    kb.text("👤 target", `a:user:${r.targetUserId}`).row();
+    kb.text("👤 Открыть пользователя", `a:user:${r.targetUserId}`).row();
   }
   kb.text("← К списку", "a:reports");
   return kb;
@@ -815,7 +835,7 @@ async function dispatch(ctx: Context, data: string): Promise<void> {
     const reports = await apiClient.reports(true);
     const r = reports.find((x) => x.id === id);
     if (!r) {
-      await ctx.editMessageText("Report не найден.", {
+      await ctx.editMessageText("Жалоба не найдена.", {
         reply_markup: backToMenuKb(),
       });
       return;

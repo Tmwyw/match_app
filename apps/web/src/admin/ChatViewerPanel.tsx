@@ -46,21 +46,21 @@ export function ChatViewerPanel({
       >
         <div style={{ ...styles.toolbar, justifyContent: "space-between" }}>
           <h2 style={{ margin: 0, fontSize: 16 }}>
-            Chat <code style={{ fontSize: 12 }}>{chatId.slice(0, 12)}</code>
+            Чат <code style={{ fontSize: 12 }}>{chatId.slice(0, 12)}</code>
           </h2>
           <div style={{ display: "flex", gap: 6 }}>
             <button style={styles.btn} onClick={load}>
-              refresh
+              обновить
             </button>
             <button style={styles.btn} onClick={onClose}>
-              close
+              закрыть
             </button>
           </div>
         </div>
 
-        {state.status === "loading" && <p>loading…</p>}
+        {state.status === "loading" && <p>загружаем…</p>}
         {state.status === "error" && (
-          <p style={styles.error}>error: {state.error}</p>
+          <p style={styles.error}>ошибка: {state.error}</p>
         )}
         {state.status === "ready" && (
           <Transcript
@@ -104,7 +104,9 @@ function Transcript({
             >
               <b>{p.anonId ?? "?"}</b>
             </button>
-            <span style={{ color: palette.textMuted }}>{p.role ?? "—"}</span>
+            <span style={{ color: palette.textMuted }}>
+              {p.role === "BUYER" ? "БАЕР" : p.role === "OWNER" ? "ОВНЕР" : "—"}
+            </span>
             {p.username && (
               <span style={{ color: palette.textDim }}>@{p.username}</span>
             )}
@@ -125,7 +127,7 @@ function Transcript({
       >
         {transcript.messages.length === 0 && (
           <p style={{ color: palette.textMuted, textAlign: "center" }}>
-            (no messages)
+            (сообщений нет)
           </p>
         )}
         {transcript.messages.map((m) => (
@@ -133,10 +135,10 @@ function Transcript({
             <div style={styles.msgMeta}>
               <b>{m.senderAnonId ?? "?"}</b> · {fmt(m.createdAt)}
               {m.editedAt && (
-                <span style={{ color: palette.textMuted }}> · edited</span>
+                <span style={{ color: palette.textMuted }}> · ред.</span>
               )}
               {m.readAt && (
-                <span style={{ color: palette.textMuted }}> · read</span>
+                <span style={{ color: palette.textMuted }}> · прочитано</span>
               )}
             </div>
             <div

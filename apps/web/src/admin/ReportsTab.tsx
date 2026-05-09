@@ -65,19 +65,19 @@ export function ReportsTab({
             checked={includeResolved}
             onChange={(e) => setIncludeResolved(e.target.checked)}
           />
-          show resolved
+          показывать решённые
         </label>
         <button style={styles.btn} onClick={load}>
-          refresh
+          обновить
         </button>
       </div>
 
-      {state.status === "loading" && <p>loading…</p>}
+      {state.status === "loading" && <p>загружаем…</p>}
       {state.status === "error" && (
-        <p style={styles.error}>error: {state.error}</p>
+        <p style={styles.error}>ошибка: {state.error}</p>
       )}
       {state.status === "ready" && state.reports.length === 0 && (
-        <p style={{ opacity: 0.6 }}>no reports.</p>
+        <p style={{ opacity: 0.6 }}>жалоб нет.</p>
       )}
       {state.status === "ready" &&
         state.reports.map((r) => (
@@ -92,6 +92,14 @@ export function ReportsTab({
         ))}
     </>
   );
+}
+
+/** Map raw resolution codes from the API to readable Russian labels. */
+function translateResolution(raw: string | null): string {
+  if (raw === "no_action") return "без мер";
+  if (raw === "warned") return "предупреждение";
+  if (raw === "banned") return "бан";
+  return raw ?? "решена";
 }
 
 function ReportRow({
@@ -112,19 +120,19 @@ function ReportRow({
       <div style={styles.meta}>
         <code>{r.id}</code> · {new Date(r.createdAt).toLocaleString("ru-RU")}
         {r.targetBannedAt && (
-          <span style={{ ...styles.pill, ...styles.pillBan }}>banned</span>
+          <span style={{ ...styles.pill, ...styles.pillBan }}>забанен</span>
         )}
         {r.resolvedAt && (
           <span style={{ ...styles.pill, ...styles.pillRole }}>
-            {r.resolution ?? "resolved"}
+            {translateResolution(r.resolution)}
           </span>
         )}
       </div>
       <div style={styles.meta}>
-        <b>reason:</b> {r.reason}
+        <b>причина:</b> {r.reason}
       </div>
       <div style={styles.meta}>
-        <b>reporter:</b>{" "}
+        <b>от кого:</b>{" "}
         <button
           style={{ ...styles.btn, ...styles.btnGhost, padding: "0 2px" }}
           onClick={() => onOpenUser(r.reporterId)}
@@ -133,7 +141,7 @@ function ReportRow({
         </button>
       </div>
       <div style={styles.meta}>
-        <b>target:</b>{" "}
+        <b>на кого:</b>{" "}
         <button
           style={{ ...styles.btn, ...styles.btnGhost, padding: "0 2px" }}
           onClick={() => onOpenUser(r.targetUserId)}
@@ -144,12 +152,12 @@ function ReportRow({
       </div>
       {r.chatId && (
         <div style={styles.meta}>
-          <b>chat:</b>{" "}
+          <b>чат:</b>{" "}
           <button
             style={{ ...styles.btn, ...styles.btnGhost, padding: "0 2px" }}
             onClick={() => onOpenChat(r.chatId!)}
           >
-            <code>{r.chatId.slice(0, 12)}</code> — open transcript
+            <code>{r.chatId.slice(0, 12)}</code> — открыть переписку
           </button>
         </div>
       )}
@@ -161,21 +169,21 @@ function ReportRow({
             disabled={busy}
             onClick={() => onResolve("no_action")}
           >
-            no action
+            без мер
           </button>
           <button
             style={{ ...styles.btn, ...styles.btnWarn }}
             disabled={busy}
             onClick={() => onResolve("warned")}
           >
-            warned
+            предупредить
           </button>
           <button
             style={{ ...styles.btn, ...styles.btnDanger }}
             disabled={busy}
             onClick={() => onResolve("banned")}
           >
-            ban
+            бан
           </button>
         </div>
       )}

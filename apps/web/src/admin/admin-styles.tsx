@@ -233,13 +233,13 @@ export function pillFor(
   return (
     <>
       {status.deletedAt && (
-        <span style={{ ...styles.pill, ...styles.pillDeleted }}>deleted</span>
+        <span style={{ ...styles.pill, ...styles.pillDeleted }}>удалён</span>
       )}
       {status.bannedAt && (
-        <span style={{ ...styles.pill, ...styles.pillBan }}>banned</span>
+        <span style={{ ...styles.pill, ...styles.pillBan }}>забанен</span>
       )}
       {status.isOnline && (
-        <span style={{ ...styles.pill, ...styles.pillOnline }}>online</span>
+        <span style={{ ...styles.pill, ...styles.pillOnline }}>онлайн</span>
       )}
     </>
   );

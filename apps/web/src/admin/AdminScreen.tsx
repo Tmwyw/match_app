@@ -9,9 +9,9 @@ import { styles } from "./admin-styles";
 type Tab = "stats" | "users" | "reports";
 
 const TABS: readonly { key: Tab; label: string }[] = [
-  { key: "stats", label: "stats" },
-  { key: "users", label: "users" },
-  { key: "reports", label: "reports" },
+  { key: "stats", label: "статистика" },
+  { key: "users", label: "пользователи" },
+  { key: "reports", label: "жалобы" },
 ];
 
 /**

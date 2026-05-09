@@ -28,9 +28,9 @@ export function StatsTab({ token }: { token: string }) {
     void load();
   }, [load]);
 
-  if (state.status === "loading") return <p>loading…</p>;
+  if (state.status === "loading") return <p>загружаем…</p>;
   if (state.status === "error") {
-    return <p style={styles.error}>error: {state.error}</p>;
+    return <p style={styles.error}>ошибка: {state.error}</p>;
   }
 
   const s = state.stats;
@@ -38,37 +38,37 @@ export function StatsTab({ token }: { token: string }) {
     <>
       <div style={styles.toolbar}>
         <button style={styles.btn} onClick={load}>
-          refresh
+          обновить
         </button>
       </div>
 
-      <Section title="users">
-        <Stat label="total" value={s.users.total} />
-        <Stat label="online now" value={s.users.onlineNow} />
-        <Stat label="with role" value={s.users.withRole} />
-        <Stat label="buyers" value={s.users.buyers} />
-        <Stat label="owners" value={s.users.owners} />
-        <Stat label="banned" value={s.users.banned} />
-        <Stat label="deleted" value={s.users.deleted} />
-        <Stat label="new (24h)" value={s.users.new24h} hint="last 24 hours" />
-        <Stat label="new (7d)" value={s.users.new7d} hint="last 7 days" />
+      <Section title="Пользователи">
+        <Stat label="всего" value={s.users.total} />
+        <Stat label="онлайн сейчас" value={s.users.onlineNow} />
+        <Stat label="с ролью" value={s.users.withRole} />
+        <Stat label="баеры" value={s.users.buyers} />
+        <Stat label="овнеры" value={s.users.owners} />
+        <Stat label="забанены" value={s.users.banned} />
+        <Stat label="удалены" value={s.users.deleted} />
+        <Stat label="новых (24ч)" value={s.users.new24h} hint="за последние 24 часа" />
+        <Stat label="новых (7д)" value={s.users.new7d} hint="за последние 7 дней" />
       </Section>
 
-      <Section title="matches">
-        <Stat label="total" value={s.matches.total} />
-        <Stat label="new (24h)" value={s.matches.last24h} />
-        <Stat label="new (7d)" value={s.matches.last7d} />
+      <Section title="Матчи">
+        <Stat label="всего" value={s.matches.total} />
+        <Stat label="новых (24ч)" value={s.matches.last24h} />
+        <Stat label="новых (7д)" value={s.matches.last7d} />
       </Section>
 
-      <Section title="messages">
-        <Stat label="total" value={s.messages.total} />
-        <Stat label="new (24h)" value={s.messages.last24h} />
+      <Section title="Сообщения">
+        <Stat label="всего" value={s.messages.total} />
+        <Stat label="новых (24ч)" value={s.messages.last24h} />
       </Section>
 
-      <Section title="reports">
-        <Stat label="open" value={s.reports.open} />
-        <Stat label="resolved" value={s.reports.resolved} />
-        <Stat label="new (7d)" value={s.reports.last7d} />
+      <Section title="Жалобы">
+        <Stat label="открытых" value={s.reports.open} />
+        <Stat label="решено" value={s.reports.resolved} />
+        <Stat label="новых (7д)" value={s.reports.last7d} />
       </Section>
     </>
   );

@@ -42,7 +42,9 @@ export function UserDetailPanel({
   }, [load]);
 
   const ban = async () => {
-    const reason = window.prompt("Ban reason (shown nowhere user-facing):");
+    const reason = window.prompt(
+      "Причина бана (видна только админам):",
+    );
     if (!reason || !reason.trim()) return;
     setBusy("ban");
     try {
@@ -56,7 +58,7 @@ export function UserDetailPanel({
   };
 
   const unban = async () => {
-    if (!confirm("Unban this user?")) return;
+    if (!confirm("Разбанить этого пользователя?")) return;
     setBusy("unban");
     try {
       const user = await adminApi.unbanUser(token, userId);
@@ -71,7 +73,7 @@ export function UserDetailPanel({
   const resetRole = async () => {
     if (
       !confirm(
-        "Reset this user's role + clear their profile?\n\nThey'll go through onboarding again. Existing matches and chats stay intact (their anonId will change for the new role).",
+        "Сбросить роль пользователя и удалить его анкету?\n\nОн пройдёт онбординг заново. Существующие матчи и чаты останутся, anonId изменится после новой роли.",
       )
     ) {
       return;
@@ -91,20 +93,20 @@ export function UserDetailPanel({
     <div style={styles.modalBackdrop} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={{ ...styles.toolbar, justifyContent: "space-between" }}>
-          <h2 style={{ margin: 0, fontSize: 16 }}>User</h2>
+          <h2 style={{ margin: 0, fontSize: 16 }}>Пользователь</h2>
           <div style={{ display: "flex", gap: 6 }}>
             <button style={styles.btn} onClick={load}>
-              refresh
+              обновить
             </button>
             <button style={styles.btn} onClick={onClose}>
-              close
+              закрыть
             </button>
           </div>
         </div>
 
-        {state.status === "loading" && <p>loading…</p>}
+        {state.status === "loading" && <p>загружаем…</p>}
         {state.status === "error" && (
-          <p style={styles.error}>error: {state.error}</p>
+          <p style={styles.error}>ошибка: {state.error}</p>
         )}
         {state.status === "ready" && (
           <UserBody
@@ -143,9 +145,13 @@ function UserBody({
     <>
       <div style={styles.card}>
         <div style={{ ...styles.meta, fontSize: 14, marginBottom: 8 }}>
-          <b>{user.anonId ?? "(no role yet)"}</b>{" "}
+          <b>{user.anonId ?? "(нет роли)"}</b>{" "}
           <span style={{ ...styles.pill, ...styles.pillRole }}>
-            {user.role ?? "—"}
+            {user.role === "BUYER"
+              ? "БАЕР"
+              : user.role === "OWNER"
+                ? "ОВНЕР"
+                : "—"}
           </span>
           {pillFor(user)}
         </div>
@@ -158,19 +164,19 @@ function UserBody({
         <Field label="username">
           {user.username ? `@${user.username}` : "—"}
         </Field>
-        <Field label="created">{fmt(user.createdAt)}</Field>
-        <Field label="last seen">{fmt(user.lastSeenAt)}</Field>
+        <Field label="создан">{fmt(user.createdAt)}</Field>
+        <Field label="был онлайн">{fmt(user.lastSeenAt)}</Field>
         {user.bannedAt && (
-          <Field label="banned at">
-            {fmt(user.bannedAt)} — {user.banReason ?? "no reason"}
+          <Field label="забанен">
+            {fmt(user.bannedAt)} — {user.banReason ?? "без причины"}
           </Field>
         )}
         {user.deletedAt && (
-          <Field label="deleted at">{fmt(user.deletedAt)}</Field>
+          <Field label="удалён">{fmt(user.deletedAt)}</Field>
         )}
-        <Field label="counts">
-          M:{user.counts.matches} · Msg:{user.counts.messages} · R:
-          {user.counts.reportsAgainst} · B:{user.counts.blocksAgainst}
+        <Field label="счётчики">
+          🤝 матчей: {user.counts.matches} · 💬 сообщений: {user.counts.messages} · 🚨 жалоб:
+          {" "}{user.counts.reportsAgainst} · 🚫 блоков: {user.counts.blocksAgainst}
         </Field>
         <div style={{ ...styles.toolbar, marginTop: 8, marginBottom: 0 }}>
           {user.bannedAt ? (
@@ -179,7 +185,7 @@ function UserBody({
               disabled={!!busy}
               onClick={onUnban}
             >
-              {busy === "unban" ? "..." : "unban"}
+              {busy === "unban" ? "..." : "разбанить"}
             </button>
           ) : (
             <button
@@ -187,7 +193,7 @@ function UserBody({
               disabled={!!busy || !!user.deletedAt}
               onClick={onBan}
             >
-              {busy === "ban" ? "..." : "ban"}
+              {busy === "ban" ? "..." : "забанить"}
             </button>
           )}
           <button
@@ -195,30 +201,32 @@ function UserBody({
             disabled={!!busy}
             onClick={onResetRole}
           >
-            {busy === "reset-role" ? "..." : "reset role + clear profile"}
+            {busy === "reset-role" ? "..." : "сбросить роль + удалить анкету"}
           </button>
         </div>
       </div>
 
       {user.buyerProfile && (
-        <Card title="Buyer profile">
-          <Field label="position">
+        <Card title="Анкета баера">
+          <Field label="вакансия">
             {user.buyerProfile.desiredPosition || "—"}
           </Field>
-          <Field label="traffic">
+          <Field label="трафик">
             {user.buyerProfile.trafficSources.join(", ") || "—"}
           </Field>
-          <Field label="verticals">
+          <Field label="вертикали">
             {user.buyerProfile.verticals.join(", ") || "—"}
           </Field>
-          <Field label="geos">
+          <Field label="гео">
             {user.buyerProfile.geos.join(", ") || "—"}
           </Field>
-          <Field label="salary">
+          <Field label="зп">
             ${user.buyerProfile.budgetMin}–${user.buyerProfile.budgetMax}
           </Field>
-          <Field label="experience">{user.buyerProfile.experience}</Field>
-          <Field label="active">{String(user.buyerProfile.isActive)}</Field>
+          <Field label="опыт">{user.buyerProfile.experience} лет</Field>
+          <Field label="активна">
+            {user.buyerProfile.isActive ? "да" : "нет"}
+          </Field>
           {user.buyerProfile.notes && (
             <pre style={styles.details}>{user.buyerProfile.notes}</pre>
           )}
@@ -226,21 +234,23 @@ function UserBody({
       )}
 
       {user.ownerProfile && (
-        <Card title="Owner profile">
-          <Field label="offer (нужен)">{user.ownerProfile.offerName}</Field>
-          <Field label="traffic">
+        <Card title="Анкета овнера">
+          <Field label="нужен">{user.ownerProfile.offerName}</Field>
+          <Field label="трафик">
             {user.ownerProfile.trafficSources.join(", ") || "—"}
           </Field>
-          <Field label="verticals">
+          <Field label="вертикали">
             {user.ownerProfile.verticals.join(", ") || "—"}
           </Field>
-          <Field label="geos">
+          <Field label="гео">
             {user.ownerProfile.geos.join(", ") || "—"}
           </Field>
-          <Field label="payout">
+          <Field label="выплата">
             ${user.ownerProfile.payoutMin}–${user.ownerProfile.payoutMax}
           </Field>
-          <Field label="active">{String(user.ownerProfile.isActive)}</Field>
+          <Field label="активна">
+            {user.ownerProfile.isActive ? "да" : "нет"}
+          </Field>
           {user.ownerProfile.requirements && (
             <pre style={styles.details}>{user.ownerProfile.requirements}</pre>
           )}
@@ -251,7 +261,9 @@ function UserBody({
       )}
 
       {user.recentReportsAgainst.length > 0 && (
-        <Card title={`Reports against (${user.recentReportsAgainst.length})`}>
+        <Card
+          title={`Жалобы на пользователя (${user.recentReportsAgainst.length})`}
+        >
           {user.recentReportsAgainst.map((r) => (
             <div
               key={r.id}
@@ -266,12 +278,12 @@ function UserBody({
                 <b>{r.reason}</b> · {fmt(r.createdAt)}
                 {r.resolution && (
                   <span style={{ marginLeft: 6, color: palette.textDim }}>
-                    → {r.resolution}
+                    → {translateResolutionLabel(r.resolution)}
                   </span>
                 )}
               </div>
               <div style={{ color: palette.textDim }}>
-                from {r.reporterAnonId ?? "?"}
+                от {r.reporterAnonId ?? "?"}
               </div>
               {r.details && (
                 <pre style={{ ...styles.details, margin: "4px 0" }}>
@@ -284,7 +296,7 @@ function UserBody({
       )}
 
       {user.recentChats.length > 0 && (
-        <Card title={`Recent chats (${user.recentChats.length})`}>
+        <Card title={`Недавние чаты (${user.recentChats.length})`}>
           {user.recentChats.map((c) => (
             <div
               key={c.chatId}
@@ -298,17 +310,17 @@ function UserBody({
               }}
             >
               <div>
-                with{" "}
+                с{" "}
                 <button
                   style={{ ...styles.btn, ...styles.btnGhost, padding: "0 2px" }}
                   onClick={() => onOpenUser(c.otherUserId)}
                 >
                   {c.otherAnonId ?? c.otherUserId.slice(0, 8)}
                 </button>{" "}
-                · {c.messagesCount} msgs
+                · {c.messagesCount} сообщ.
                 {c.lastMessageAt && (
                   <span style={{ color: palette.textDim, marginLeft: 6 }}>
-                    last: {fmt(c.lastMessageAt)}
+                    последнее: {fmt(c.lastMessageAt)}
                   </span>
                 )}
               </div>
@@ -316,7 +328,7 @@ function UserBody({
                 style={styles.btn}
                 onClick={() => onOpenChat(c.chatId)}
               >
-                open chat
+                открыть чат
               </button>
             </div>
           ))}
@@ -354,4 +366,11 @@ function Field({
 function fmt(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("ru-RU");
+}
+
+function translateResolutionLabel(raw: string | null): string {
+  if (raw === "no_action") return "без мер";
+  if (raw === "warned") return "предупреждение";
+  if (raw === "banned") return "бан";
+  return raw ?? "—";
 }

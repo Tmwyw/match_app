@@ -57,7 +57,7 @@ export function UsersTab({
       <form style={styles.toolbar} onSubmit={submit}>
         <input
           style={{ ...styles.input, flex: 1 }}
-          placeholder="search anonId / username / id / telegramId"
+          placeholder="поиск по anonId / username / id / telegramId"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -69,10 +69,10 @@ export function UsersTab({
             setSkip(0);
           }}
         >
-          <option value="any">any status</option>
-          <option value="active">active</option>
-          <option value="banned">banned</option>
-          <option value="deleted">deleted</option>
+          <option value="any">любой статус</option>
+          <option value="active">активные</option>
+          <option value="banned">забаненные</option>
+          <option value="deleted">удалённые</option>
         </select>
         <select
           style={styles.select}
@@ -82,40 +82,40 @@ export function UsersTab({
             setSkip(0);
           }}
         >
-          <option value="">any role</option>
-          <option value="BUYER">buyers</option>
-          <option value="OWNER">owners</option>
+          <option value="">любая роль</option>
+          <option value="BUYER">баеры</option>
+          <option value="OWNER">овнеры</option>
         </select>
         <button style={styles.btn} type="submit">
-          search
+          найти
         </button>
       </form>
 
-      {state.status === "loading" && <p>loading…</p>}
+      {state.status === "loading" && <p>загружаем…</p>}
       {state.status === "error" && (
-        <p style={styles.error}>error: {state.error}</p>
+        <p style={styles.error}>ошибка: {state.error}</p>
       )}
       {state.status === "ready" && (
         <>
           <div style={{ fontSize: 12, marginBottom: 8, opacity: 0.7 }}>
-            {state.data.total} total ·{" "}
+            всего {state.data.total} ·{" "}
             {state.data.rows.length === 0
-              ? "no rows"
-              : `showing ${skip + 1}–${skip + state.data.rows.length}`}
+              ? "нет результатов"
+              : `показаны ${skip + 1}–${skip + state.data.rows.length}`}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={styles.table}>
               <thead>
                 <tr>
                   <th style={styles.th}>anon</th>
-                  <th style={styles.th}>role</th>
+                  <th style={styles.th}>роль</th>
                   <th style={styles.th}>username</th>
-                  <th style={styles.th}>created</th>
-                  <th style={styles.th}>last seen</th>
-                  <th style={styles.th}>matches</th>
-                  <th style={styles.th}>msgs</th>
-                  <th style={styles.th}>reports</th>
-                  <th style={styles.th}>state</th>
+                  <th style={styles.th}>создан</th>
+                  <th style={styles.th}>был онлайн</th>
+                  <th style={styles.th}>матчей</th>
+                  <th style={styles.th}>сообщ</th>
+                  <th style={styles.th}>жалоб</th>
+                  <th style={styles.th}>статус</th>
                 </tr>
               </thead>
               <tbody>
@@ -131,17 +131,17 @@ export function UsersTab({
               disabled={skip === 0}
               onClick={() => setSkip(Math.max(0, skip - PAGE))}
             >
-              ← prev
+              ← назад
             </button>
             <button
               style={styles.btn}
               disabled={skip + state.data.rows.length >= state.data.total}
               onClick={() => setSkip(skip + PAGE)}
             >
-              next →
+              далее →
             </button>
             <button style={styles.btn} onClick={load}>
-              refresh
+              обновить
             </button>
           </div>
         </>
