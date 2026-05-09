@@ -133,6 +133,14 @@ html,
 body,
 #root {
   background: transparent;
+  /* Block iOS rubber-band overscroll. Without this, dragging the
+     swipe card on iPhone bounces the whole viewport with the finger
+     because the touch starts an overscroll gesture on the document
+     before framer-motion can claim it.
+     overscroll-behavior: none — disables the native bounce.
+     overflow: hidden on body — prevents body-level scrolling so
+     individual tabs control their own scroll containers. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -142,7 +150,11 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  overflow: hidden;
+  /* `overscroll-behavior-y: none` again on body for the iOS-specific
+     case where body has its own overscroll context separate from
+     html. Belt-and-braces. */
+  overscroll-behavior-y: none;
 }
 
 /* iOS safe-area helpers */

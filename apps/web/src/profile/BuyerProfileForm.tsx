@@ -107,9 +107,13 @@ export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
     }
   };
 
+  // Both modes own their own scroll container — body has
+  // overflow: hidden globally (to block iOS rubber-band on the swipe
+  // deck), so anything that wants to be taller than the viewport
+  // must scroll itself.
   const wrapperClass = isEdit
     ? "fixed inset-0 z-40 overflow-y-auto"
-    : "min-h-screen";
+    : "fixed inset-0 z-30 overflow-y-auto";
 
   return (
     <div className={wrapperClass}>

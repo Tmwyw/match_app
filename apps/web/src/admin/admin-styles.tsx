@@ -25,7 +25,11 @@ export const styles: Record<string, React.CSSProperties> = {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
     color: palette.text,
     background: palette.bg,
-    minHeight: "100vh",
+    // Body has overflow: hidden globally (iOS rubber-band fix for the
+    // Mini App). The operator console runs in a regular browser and
+    // can have long tables/lists, so it owns its own scroll container.
+    height: "100vh",
+    overflowY: "auto",
   },
   shell: { padding: 16, maxWidth: 1100, margin: "0 auto" },
   header: {

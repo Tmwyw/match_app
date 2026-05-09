@@ -59,8 +59,11 @@ export function MatchesList({
   }, [load]);
 
   return (
-    <Screen className="min-h-screen">
-      <div className="max-w-md mx-auto flex flex-col gap-3">
+    // h-full + overflow-y-auto: body has overflow: hidden globally
+    // (iOS rubber-band fix), so the matches list owns its own scroll
+    // container. Same pattern as MyProfile.
+    <Screen className="h-full overflow-y-auto pb-safe">
+      <div className="max-w-md mx-auto flex flex-col gap-3 pb-6">
         <div className="flex justify-center pt-2">
           <Logo size={64} />
         </div>

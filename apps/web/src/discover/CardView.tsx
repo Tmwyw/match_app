@@ -20,7 +20,15 @@ export function CardView({ card }: { card: PublicCard }) {
           <h2 className="text-2xl font-bold">{card.displayName ?? card.anonId}</h2>
         </div>
       </header>
-      <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+      {/* `touch-pan-y` (touch-action: pan-y) explicitly tells Android
+          and iOS that touches starting here are for vertical scroll
+          ONLY — horizontal touches bubble up to the framer-motion drag
+          handler on the card wrapper. Without this, mobile WebViews
+          arbitrate the gesture and sometimes claim the touch for their
+          own (no-op) horizontal scroll, dropping frames in our drag.
+          `overscroll-contain` blocks scroll-chaining so reaching the
+          top/bottom doesn't bubble to the document. */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y -mx-1 px-1">
         {card.role === "BUYER" ? <BuyerBody card={card} /> : <OwnerBody card={card} />}
       </div>
     </Card>
