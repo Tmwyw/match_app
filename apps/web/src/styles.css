@@ -24,9 +24,15 @@
   --app-bg: #ffffff;
   --app-bg-deep: #38bdf8;
 
-  --app-glass: rgba(255, 255, 255, 0.72);
-  --app-glass-strong: rgba(255, 255, 255, 0.86);
-  --app-glass-elevated: rgba(255, 255, 255, 0.94);
+  /* In light mode the bg gradient is colourful — translucent glass let
+     the cyan blobs bleed through cards and tinted everything blue.
+     Bumped to near-opaque so cards/tab bars/inputs read as crisp white
+     surfaces with the gradient strictly in the background. Dark mode
+     keeps its real glassiness because the navy bg is uniform enough
+     not to bleed badly. */
+  --app-glass: rgba(255, 255, 255, 0.96);
+  --app-glass-strong: rgba(255, 255, 255, 0.98);
+  --app-glass-elevated: rgba(255, 255, 255, 1);
   --app-glass-border: rgba(13, 25, 41, 0.10);
   --app-glass-border-strong: rgba(13, 25, 41, 0.18);
   --app-glass-highlight: rgba(47, 182, 255, 0.30);
