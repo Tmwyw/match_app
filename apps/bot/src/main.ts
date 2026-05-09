@@ -63,8 +63,19 @@ bot.command("start", async (ctx) => {
 });
 
 bot.command("help", (ctx) =>
-  ctx.reply("Команды:\n/start — открыть приложение")
+  ctx.reply("Команды:\n/start — открыть приложение\n/support — связаться с нами")
 );
+
+const SUPPORT_TG_URL = "https://t.me/creometrics";
+
+bot.command("support", async (ctx) => {
+  const kb = new InlineKeyboard().url("🤝 Открыть поддержку", SUPPORT_TG_URL);
+  await ctx.reply(
+    "🤝 <b>Поддержка CREO Metrics</b>\n\nЕсли возникли вопросы или нужна " +
+      "помощь — пиши нам в Telegram, ответим в рабочие часы.",
+    { parse_mode: "HTML", reply_markup: kb },
+  );
+});
 
 // Reset menu commands once on boot. /admin is shown only to whitelisted
 // Telegram IDs via Bot API scope.
@@ -73,6 +84,7 @@ async function setupCommands() {
     await bot.api.setMyCommands(
       [
         { command: "start", description: "Открыть приложение" },
+        { command: "support", description: "🤝 Поддержка" },
         { command: "help", description: "Помощь" },
       ],
       { scope: { type: "default" } },
@@ -83,6 +95,7 @@ async function setupCommands() {
           await bot.api.setMyCommands(
             [
               { command: "start", description: "Открыть приложение" },
+              { command: "support", description: "🤝 Поддержка" },
               { command: "admin", description: "Админ-консоль" },
             ],
             { scope: { type: "chat", chat_id: Number(tgId) } },

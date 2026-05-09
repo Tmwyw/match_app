@@ -1,4 +1,4 @@
-import { Bell, Moon, Palette, RotateCcw, Sun, Trash2, UserMinus } from "lucide-react";
+import { Bell, LifeBuoy, Moon, Palette, RotateCcw, Sun, Trash2, UserMinus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type {
   BlocksResponse,
@@ -182,6 +182,8 @@ export function SettingsScreen({ onClose, onDeleted }: Props) {
               ))}
           </section>
 
+          <SupportSection />
+
           <AppearanceSection />
 
           <NotificationsSection />
@@ -300,6 +302,36 @@ function plural(n: number, one: string, few: string, many: string): string {
   if (mod10 === 1 && mod100 !== 11) return one;
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
   return many;
+}
+
+/** Support link — opens the brand's Telegram contact (@creometrics).
+ *  Window.open with noopener so the host webview hands the link to the
+ *  Telegram client which resolves the deep-link natively. */
+const SUPPORT_URL = "https://t.me/creometrics";
+
+function SupportSection() {
+  const open = () => {
+    window.open(SUPPORT_URL, "_blank", "noopener,noreferrer");
+  };
+  return (
+    <section className="flex flex-col gap-2 mt-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-tg-hint px-1 flex items-center gap-1.5">
+        <LifeBuoy size={12} /> Поддержка
+      </h2>
+      <Card className="flex items-center gap-3 p-4">
+        <LifeBuoy size={18} className="text-accent shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold">🤝 Связаться с нами</div>
+          <div className="text-[11px] text-tg-hint">
+            Напиши в @creometrics — ответим в рабочие часы.
+          </div>
+        </div>
+        <Button variant="primary" size="md" onClick={open}>
+          Открыть
+        </Button>
+      </Card>
+    </section>
+  );
 }
 
 /**

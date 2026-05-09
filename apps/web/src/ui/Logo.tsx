@@ -1,8 +1,9 @@
+import { useTheme } from "../theme";
 import { cn } from "./cn";
 
 type Props = {
   /** Visual height of the horizontal logo, in px. The wrapper auto-sizes
-   *  width via the image's natural aspect (979:525 → ~1.87× height). */
+   *  width via the image's natural aspect (~1.87–1.89× height). */
   size?: number;
   /** Subtle cyan drop-shadow for hero placement. */
   glow?: boolean;
@@ -10,22 +11,28 @@ type Props = {
   className?: string;
 };
 
-/** Native PNG aspect ratio after rotating −90° to read horizontally. */
-const VISUAL_W_OVER_H = 979 / 525;
-
 /**
- * Static brand mark. Source PNG (public/logo.png) was supplied by the user
- * in portrait orientation (525×979). The CREO METRICS lockup reads
- * horizontally only after a −90° rotation, so we rotate via CSS instead
- * of asking for a re-export.
+ * Brand mark. Two source PNGs:
  *
- * Rotated bounding box:
- *   inner img is sized portrait (height = wrapper width). After CSS
- *   rotate(-90deg), the visual occupies wrapper.width × wrapper.height.
- *   The wrapper itself is positioned in normal flow.
+ *   /logo.png        — dark-theme variant. Supplied portrait (525×979),
+ *                      reads horizontally only after CSS rotate(90deg).
+ *                      Aspect after rotation: 979/525 ≈ 1.87.
+ *
+ *   /logo-light.png  — light-theme variant (1278×676). Already
+ *                      horizontal, no rotation, slightly different
+ *                      colour treatment that reads on white bg.
+ *                      Aspect: 1278/676 ≈ 1.89.
+ *
+ * The two ratios are close enough (~1%) that we can use one wrapper-
+ * sizing constant — visual jitter on theme toggle is imperceptible.
  */
+const VISUAL_W_OVER_H = 1.88;
+
 export function Logo({ size = 96, glow = false, className }: Props) {
+  const [theme] = useTheme();
   const w = Math.round(size * VISUAL_W_OVER_H);
+  const isDark = theme === "dark";
+  const src = isDark ? "/logo.png" : "/logo-light.png";
   return (
     <div
       className={cn("relative inline-block", className)}
@@ -34,22 +41,33 @@ export function Logo({ size = 96, glow = false, className }: Props) {
       role="img"
     >
       <img
-        src="/logo.png"
+        src={src}
         alt=""
         draggable={false}
         className={cn(
           "absolute top-1/2 left-1/2 select-none",
           glow && "drop-shadow-[0_8px_24px_rgba(47,182,255,0.45)]",
         )}
-        style={{
-          // pre-rotation height = post-rotation width = wrapper.width;
-          // width:auto preserves the PNG's natural aspect, which after
-          // rotation gives wrapper.height visible.
-          height: w,
-          width: "auto",
-          transform: "translate(-50%, -50%) rotate(90deg)",
-          transformOrigin: "center",
-        }}
+        style={
+          isDark
+            ? {
+                // Dark variant ships portrait — rotate 90° so it reads
+                // horizontally. Pre-rotation height = post-rotation width
+                // = wrapper.width; `width: auto` lets the PNG's natural
+                // aspect drive the visible height after rotation.
+                height: w,
+                width: "auto",
+                transform: "translate(-50%, -50%) rotate(90deg)",
+                transformOrigin: "center",
+              }
+            : {
+                // Light variant is already horizontal — just centre + scale.
+                width: w,
+                height: "auto",
+                transform: "translate(-50%, -50%)",
+                transformOrigin: "center",
+              }
+        }
       />
     </div>
   );
