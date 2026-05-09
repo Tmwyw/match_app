@@ -52,7 +52,7 @@ export function MatchesList({
         <div className="flex justify-center pt-2">
           <Logo size={64} />
         </div>
-        <h1 className="text-2xl font-bold mt-1 mb-1">Мои матчи</h1>
+        <h1 className="text-2xl font-bold mt-1 mb-1">Мои диалоги</h1>
 
         {inboundLikesCount > 0 && (
           <div className="rounded-card bg-accent-muted border border-app-border px-3 py-2.5 flex items-center gap-2.5">
