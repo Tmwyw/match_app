@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, type Context, InlineKeyboard, Keyboard } from "grammy";
 // Explicit .js extensions: bot is `"type": "module"` and tsc preserves
 // the import paths verbatim, so Node ESM at runtime needs the real file
 // extension. Dev (tsx) is fine without — only prod (`node dist/main.js`) breaks.
@@ -24,6 +24,34 @@ const RETURN_WELCOME =
   "С возвращением в <b>CREO Metrics</b>!\n\nЖми кнопку чтобы открыть приложение 👇";
 
 const SUPPORT_TG_URL = "https://t.me/creometrics";
+
+// Reply-keyboard labels for non-admin users. The webApp button opens
+// the Mini App in one tap; the text button below it triggers the
+// same handler as /support via bot.hears().
+const USER_BTN_OPEN = "📱 Открыть приложение";
+const USER_BTN_SUPPORT = "🤝 Поддержка";
+
+/** Build a fresh keyboard each call — grammy mutates the Keyboard
+ *  instance internally, so reusing it across messages is unsafe. */
+function userReplyKeyboard(): Keyboard {
+  return new Keyboard()
+    .webApp(USER_BTN_OPEN, env.WEB_APP_URL)
+    .row()
+    .text(USER_BTN_SUPPORT)
+    .resized()
+    .persistent();
+}
+
+/** Shared body of the "support" reply — used by both /support and the
+ *  reply-keyboard tap on "🤝 Поддержка". */
+async function sendSupportReply(ctx: Context): Promise<void> {
+  const kb = new InlineKeyboard().url("🤝 Открыть поддержку", SUPPORT_TG_URL);
+  await ctx.reply(
+    "🤝 <b>Поддержка CREO Metrics</b>\n\nЕсли возникли вопросы или нужна " +
+      "помощь — пиши нам в Telegram, ответим в рабочие часы.",
+    { parse_mode: "HTML", reply_markup: kb },
+  );
+}
 
 bot.command("start", async (ctx) => {
   // ctx.match is everything after "/start " (empty string when no payload).
@@ -68,20 +96,27 @@ bot.command("start", async (ctx) => {
     parse_mode: "HTML",
     reply_markup: kb,
   });
+
+  // Pin the persistent reply keyboard. Telegram only supports one
+  // reply_markup per message, so the inline buttons above and the
+  // reply keyboard need separate messages. Once attached, it survives
+  // until the bot sends `remove_keyboard: true` — i.e. forever.
+  await ctx.reply("Меню всегда доступно снизу 👇", {
+    reply_markup: userReplyKeyboard(),
+  });
 });
+
+// Reply-keyboard "🤝 Поддержка" tap → same content as /support.
+// Registered AFTER admin handlers (which run first via grammy's
+// registration order) so admin's awaiting-search/broadcast modes
+// can still consume their text input first when relevant.
+bot.hears(USER_BTN_SUPPORT, sendSupportReply);
 
 bot.command("help", (ctx) =>
   ctx.reply("Команды:\n/start — открыть приложение\n/support — связаться с нами")
 );
 
-bot.command("support", async (ctx) => {
-  const kb = new InlineKeyboard().url("🤝 Открыть поддержку", SUPPORT_TG_URL);
-  await ctx.reply(
-    "🤝 <b>Поддержка CREO Metrics</b>\n\nЕсли возникли вопросы или нужна " +
-      "помощь — пиши нам в Telegram, ответим в рабочие часы.",
-    { parse_mode: "HTML", reply_markup: kb },
-  );
-});
+bot.command("support", sendSupportReply);
 
 // Reset menu commands once on boot. /admin is shown only to whitelisted
 // Telegram IDs via Bot API scope.
