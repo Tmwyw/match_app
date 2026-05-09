@@ -23,6 +23,8 @@ const FIRST_TIME_WELCOME =
 const RETURN_WELCOME =
   "С возвращением в <b>CREO Metrics</b>!\n\nЖми кнопку чтобы открыть приложение 👇";
 
+const SUPPORT_TG_URL = "https://t.me/creometrics";
+
 bot.command("start", async (ctx) => {
   // ctx.match is everything after "/start " (empty string when no payload).
   const payload = (ctx.match as string | undefined)?.trim();
@@ -55,7 +57,13 @@ bot.command("start", async (ctx) => {
     }
   }
 
-  const kb = new InlineKeyboard().webApp("Открыть приложение", env.WEB_APP_URL);
+  // Two buttons stacked: primary "Open App" + secondary "Support" link.
+  // The support button is here so first-time users immediately see how
+  // to reach a human, without having to discover the /support command.
+  const kb = new InlineKeyboard()
+    .webApp("Открыть приложение", env.WEB_APP_URL)
+    .row()
+    .url("🤝 Поддержка", SUPPORT_TG_URL);
   await ctx.reply(isReturning ? RETURN_WELCOME : FIRST_TIME_WELCOME, {
     parse_mode: "HTML",
     reply_markup: kb,
@@ -65,8 +73,6 @@ bot.command("start", async (ctx) => {
 bot.command("help", (ctx) =>
   ctx.reply("Команды:\n/start — открыть приложение\n/support — связаться с нами")
 );
-
-const SUPPORT_TG_URL = "https://t.me/creometrics";
 
 bot.command("support", async (ctx) => {
   const kb = new InlineKeyboard().url("🤝 Открыть поддержку", SUPPORT_TG_URL);
