@@ -83,7 +83,7 @@ export function MatchesList({
         )}
         {state.status === "ready" && state.data.length === 0 && (
           <p className="text-tg-hint text-sm mt-6 text-center">
-            Пока матчей нет. Лайкай кандидатов во вкладке «Найти».
+            Пока диалогов нет. Лайкай кандидатов во вкладке «Поиск».
           </p>
         )}
         {state.status === "ready" && state.data.length > 0 && (

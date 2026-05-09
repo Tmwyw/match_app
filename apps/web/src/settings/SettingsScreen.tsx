@@ -466,14 +466,14 @@ function NotificationsSection() {
       {prefs && (
         <Card className="flex flex-col gap-3 p-4">
           <Toggle
-            label="Матчи"
-            description="DM при новом мэтче"
+            label="Лайки"
+            description="Уведомление о новом лайке"
             checked={prefs.matches}
             onChange={(v) => void patch({ matches: v })}
           />
           <Toggle
             label="Сообщения"
-            description="DM когда тебе пишут офлайн"
+            description="Уведомления, когда ты оффлайн"
             checked={prefs.messages}
             onChange={(v) => void patch({ messages: v })}
           />
