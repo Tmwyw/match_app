@@ -319,7 +319,7 @@ export function Deck({
         activeFilterCount={filters.verticals.length + filters.geos.length}
         remaining={state.remaining}
       />
-      <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3 overflow-visible">
+      <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
         <div className="flex-1 min-h-0 relative">
           <DeckStack
             queue={state.queue}
@@ -328,7 +328,6 @@ export function Deck({
             onSkip={() => swipe("SKIP")}
             x={x}
           />
-          {state.queue.length > 0 && <SideStamps x={x} />}
         </div>
         <div className="flex items-center justify-center gap-8 pt-1 pb-2 shrink-0">
           <BigActionButton
@@ -612,60 +611,3 @@ function DraggableCard({
   );
 }
 
-/**
- * Side stamps — vertical-edge swipe indicators rendered OUTSIDE the card
- * silhouette (they live in the deck-slot, not in DraggableCard, so the
- * card's `overflow-hidden rounded-card` doesn't clip them). They share
- * the lifted drag-x with the active card, so the ramp tracks the drag
- * 1:1.
- *
- * Visual: at idle (x=0) both are invisible. As the user drags, the side
- * matching the direction fades in from a dim gray-tinted state to its
- * full saturated color (red for SKIP on the left, green for LIKE on the
- * right). Color and opacity ramp simultaneously so the signal builds
- * gradually instead of popping on at the threshold.
- */
-function SideStamps({ x }: { x: MotionValue<number> }) {
-  const skipOpacity = useTransform(
-    x,
-    [-SWIPE_THRESHOLD, -20, 0],
-    [1, 0.35, 0],
-  );
-  const likeOpacity = useTransform(
-    x,
-    [0, 20, SWIPE_THRESHOLD],
-    [0, 0.35, 1],
-  );
-  // Color ramp: dim gray at the start of the drag, vivid danger/success
-  // at the threshold. useTransform interpolates between hex strings.
-  const skipColor = useTransform(
-    x,
-    [-SWIPE_THRESHOLD, -20],
-    ["#ef4444", "#9ca3af"],
-  );
-  const likeColor = useTransform(
-    x,
-    [20, SWIPE_THRESHOLD],
-    ["#9ca3af", "#10b981"],
-  );
-  return (
-    <>
-      <motion.div
-        style={{ opacity: skipOpacity, color: skipColor }}
-        className="pointer-events-none absolute top-1/2 -translate-y-1/2 left-2 z-30 select-none"
-      >
-        <span className="text-3xl font-black tracking-[0.18em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
-          ПРОПУСК
-        </span>
-      </motion.div>
-      <motion.div
-        style={{ opacity: likeOpacity, color: likeColor }}
-        className="pointer-events-none absolute top-1/2 -translate-y-1/2 right-2 z-30 select-none"
-      >
-        <span className="text-3xl font-black tracking-[0.18em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
-          ЛАЙК
-        </span>
-      </motion.div>
-    </>
-  );
-}
