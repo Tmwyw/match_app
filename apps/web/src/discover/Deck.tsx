@@ -45,17 +45,18 @@ type DeckState =
   | { status: "ok"; queue: PublicCard[]; remaining: number };
 
 /** Fraction of the card's width the user must drag to commit a swipe.
- *  28% gives a deliberate gesture without being a full half-card pull.
- *  Used both for the visual ramp (tint/glow opacity) and the commit
- *  decision in onDragEnd. Device-independent — small phones and large
- *  laptops feel the same. */
-const SWIPE_FRACTION = 0.28;
+ *  20% feels right across devices in testing — was 28%, users on
+ *  Telegram webviews reported "swipe registers but card snaps back"
+ *  because they were dragging ~50–70px and the threshold was 80–125px.
+ *  Lowered until small deliberate drags commit reliably. */
+const SWIPE_FRACTION = 0.2;
 /** Floor so the threshold doesn't get silly on a 220px-wide card. */
-const SWIPE_MIN_PX = 80;
-/** Velocity-based commit. 600 px/s is a deliberate flick; finger drift
- *  on touchscreens stays well under this. Was 1100 — too high for
- *  trackpads / slower flicks. */
-const SWIPE_VELOCITY = 600;
+const SWIPE_MIN_PX = 55;
+/** Velocity-based commit (px/sec). A regular drag-and-release on
+ *  trackpad/mouse hits ~250-400; we stay under that for less
+ *  effortful flicks. Hard threshold of 350 was tuned by testing on
+ *  iOS / Android / Mac trackpad / Windows mouse. */
+const SWIPE_VELOCITY = 350;
 const UNDO_VISIBLE_MS = 5_000;
 
 export function Deck({
@@ -624,7 +625,11 @@ function DraggableCard({
       style={{ x, rotate, opacity, touchAction: "pan-y" }}
       drag={disabled ? false : "x"}
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.9}
+      // dragElastic = 1 → no resistance past constraint (constraint is
+      // 0,0 i.e. every drag is past it). Card moves 1:1 with the finger.
+      // Was 0.9 which left a tiny perceptible drag on the gesture and
+      // contributed to the "card barely moved" feel users reported.
+      dragElastic={1}
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
         const vx = info.velocity.x;
