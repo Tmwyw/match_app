@@ -9,8 +9,9 @@ import type {
   ReportResolution,
 } from "@tg-app-meet/shared";
 import type { Bot, Context } from "grammy";
-import { InlineKeyboard } from "grammy";
+import { InlineKeyboard, Keyboard } from "grammy";
 import { env, isAdminTelegramId } from "./env.js";
+import { prisma } from "./prisma.js";
 
 /**
  * Admin console inside Telegram. The bot is the front-end; the API is the
@@ -100,11 +101,40 @@ const apiClient = {
     adminFetch<AdminChatTranscript>(`/admin/chats/${id}/messages`),
 };
 
-// ─── Pending text input (search query) ──────────────────────────────────────
+// ─── Reply-keyboard (persistent admin menu) ────────────────────────────────
+
+// Button labels used for the persistent reply keyboard. The constants are
+// also matched in bot.hears(...) so renaming here is enough to update both.
+const BTN_STATS = "📊 Статистика";
+const BTN_USERS = "👥 Пользователи";
+const BTN_REPORTS = "🚨 Жалобы";
+const BTN_BROADCAST = "📢 Рассылка";
+const BTN_HIDE = "✕ Скрыть меню";
+
+/** Build a fresh keyboard each call — grammy mutates internally otherwise. */
+function adminReplyKeyboard(): Keyboard {
+  return new Keyboard()
+    .text(BTN_STATS)
+    .row()
+    .text(BTN_USERS)
+    .text(BTN_REPORTS)
+    .row()
+    .text(BTN_BROADCAST)
+    .row()
+    .text(BTN_HIDE)
+    .resized()
+    .persistent();
+}
+
+// ─── Pending text input (search query / broadcast composition) ────────────
 
 /** When a user clicks "🔍 Поиск", we set this so the next text message from
  *  them is treated as a search query instead of a normal user message. */
 const awaitingSearch = new Set<bigint>();
+
+/** When a user clicks "📢 Рассылка", their next text message becomes the
+ *  broadcast body sent to every user with a telegramId. /cancel exits. */
+const awaitingBroadcast = new Set<bigint>();
 
 // ─── Renderers ──────────────────────────────────────────────────────────────
 
@@ -131,19 +161,65 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
-function mainMenuKb(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("📊 Stats", "a:stats")
-    .row()
-    .text("👥 Users", "a:users:0")
-    .row()
-    .text("🚨 Reports", "a:reports")
-    .row()
-    .text("✕ Закрыть", "a:close");
+function backToMenuKb(): InlineKeyboard {
+  return new InlineKeyboard().text("← Закрыть", "a:close");
 }
 
-function backToMenuKb(): InlineKeyboard {
-  return new InlineKeyboard().text("← В меню", "a:menu");
+function clearAwaiting(ctx: Context): void {
+  const id = ctx.from?.id;
+  if (!id) return;
+  const bid = BigInt(id);
+  awaitingSearch.delete(bid);
+  awaitingBroadcast.delete(bid);
+}
+
+/**
+ * Iterate every user with a telegramId and send `text` to each via the
+ * bot API. We sleep ~50ms between sends to stay under Telegram's
+ * 30 msg/sec throughput limit. Errors per recipient (blocked-bot, chat
+ * not found) are counted and reported at the end — never propagated.
+ */
+async function runBroadcast(ctx: Context, text: string): Promise<void> {
+  // Pull only what we need. Skip banned/deleted users — they shouldn't
+  // get marketing pushes.
+  // telegramId is required on User (every account is created via Telegram
+  // auth) — no null-check needed. We just exclude banned/deleted.
+  const recipients = await prisma.user.findMany({
+    where: {
+      bannedAt: null,
+      deletedAt: null,
+    },
+    select: { id: true, telegramId: true },
+  });
+  if (recipients.length === 0) {
+    await ctx.reply("Получателей нет.");
+    return;
+  }
+  const startedAt = Date.now();
+  await ctx.reply(`📢 Запускаю рассылку на <b>${recipients.length}</b> получателей…`, {
+    parse_mode: "HTML",
+  });
+  let sent = 0;
+  let failed = 0;
+  for (const u of recipients) {
+    try {
+      await ctx.api.sendMessage(Number(u.telegramId), text, {
+        parse_mode: "HTML",
+        link_preview_options: { is_disabled: true },
+      });
+      sent += 1;
+    } catch {
+      failed += 1;
+    }
+    // Throttle below the 30 msg/sec global limit. ~22 msg/sec leaves
+    // headroom for incidental other API calls (callback acks etc).
+    await new Promise((r) => setTimeout(r, 45));
+  }
+  const dur = ((Date.now() - startedAt) / 1000).toFixed(1);
+  await ctx.reply(
+    `Готово за ${dur}s.\n· отправлено: <b>${sent}</b>\n· ошибок: ${failed}`,
+    { parse_mode: "HTML" },
+  );
 }
 
 function statsText(s: AdminStats): string {
@@ -171,7 +247,7 @@ function statsText(s: AdminStats): string {
 function statsKb(): InlineKeyboard {
   return new InlineKeyboard()
     .text("⟳ Refresh", "a:stats")
-    .text("← В меню", "a:menu");
+    .text("✕ Скрыть", "a:close");
 }
 
 function usersListText(data: AdminUsersResponse, skip: number, q?: string): string {
@@ -224,7 +300,7 @@ function usersListKb(
   } else {
     kb.text("🔍 Поиск", "a:search");
   }
-  kb.text("← В меню", "a:menu");
+  kb.text("✕ Скрыть", "a:close");
   return kb;
 }
 
@@ -340,7 +416,7 @@ function reportsListKb(reports: AdminReportsResponse): InlineKeyboard {
   for (const r of reports) {
     kb.text(`${r.reason} · ${r.targetAnonId ?? "?"}`, `a:rep:${r.id}`).row();
   }
-  kb.text("⟳ Refresh", "a:reports").text("← В меню", "a:menu");
+  kb.text("⟳ Refresh", "a:reports").text("✕ Скрыть", "a:close");
   return kb;
 }
 
@@ -376,34 +452,121 @@ export function registerAdminHandlers(bot: Bot): void {
       await ctx.reply("¯\\_(ツ)_/¯");
       return;
     }
-    await ctx.reply("<b>tg-meet · admin</b>", {
-      parse_mode: "HTML",
-      reply_markup: mainMenuKb(),
-    });
+    await ctx.reply(
+      "<b>tg-meet · admin</b>\n\nВыбери действие в меню снизу.",
+      {
+        parse_mode: "HTML",
+        reply_markup: adminReplyKeyboard(),
+      },
+    );
   });
 
-  // Text-message catcher for the search flow. Runs BEFORE other text handlers
-  // because grammy dispatches in registration order.
-  bot.on("message:text", async (ctx, next) => {
-    const id = ctx.from?.id;
-    if (!id || !guard(ctx) || !awaitingSearch.has(BigInt(id))) {
-      return next();
-    }
-    awaitingSearch.delete(BigInt(id));
-    const q = ctx.message.text.trim();
-    if (q === "/cancel" || q === "" || q.startsWith("/")) {
-      await ctx.reply("Поиск отменён.", { reply_markup: backToMenuKb() });
-      return;
-    }
+  // ─── Reply-keyboard button handlers ──────────────────────────────────────
+  // Each button sends its label as a normal message; bot.hears() matches.
+  // Registered BEFORE bot.on("message:text") so the catch-all (search /
+  // broadcast) doesn't swallow these.
+
+  bot.hears(BTN_STATS, async (ctx) => {
+    if (!guard(ctx)) return;
+    clearAwaiting(ctx);
     try {
-      const data = await apiClient.listUsers({ q, take: PAGE, skip: 0 });
-      await ctx.reply(usersListText(data, 0, q), {
+      const s = await apiClient.stats();
+      await ctx.reply(statsText(s), { parse_mode: "HTML" });
+    } catch (e) {
+      await ctx.reply(`error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  });
+
+  bot.hears(BTN_USERS, async (ctx) => {
+    if (!guard(ctx)) return;
+    clearAwaiting(ctx);
+    try {
+      const list = await apiClient.listUsers({ take: PAGE, skip: 0 });
+      await ctx.reply(usersListText(list, 0), {
         parse_mode: "HTML",
-        reply_markup: usersListKb(data, 0, true),
+        // Inline kb stays on the message for pagination + per-user drill-down.
+        reply_markup: usersListKb(list, 0, false),
       });
     } catch (e) {
       await ctx.reply(`error: ${e instanceof Error ? e.message : String(e)}`);
     }
+  });
+
+  bot.hears(BTN_REPORTS, async (ctx) => {
+    if (!guard(ctx)) return;
+    clearAwaiting(ctx);
+    try {
+      const reports = await apiClient.reports(false);
+      await ctx.reply(reportsListText(reports), {
+        parse_mode: "HTML",
+        reply_markup: reportsListKb(reports),
+      });
+    } catch (e) {
+      await ctx.reply(`error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  });
+
+  bot.hears(BTN_BROADCAST, async (ctx) => {
+    if (!guard(ctx)) return;
+    const id = ctx.from?.id;
+    if (id) {
+      awaitingSearch.delete(BigInt(id));
+      awaitingBroadcast.add(BigInt(id));
+    }
+    await ctx.reply(
+      "📢 Отправь текст рассылки одним сообщением. /cancel — отмена.\n\n" +
+        "<i>HTML поддерживается. Сообщение уйдёт всем пользователям с привязанным telegramId.</i>",
+      { parse_mode: "HTML" },
+    );
+  });
+
+  bot.hears(BTN_HIDE, async (ctx) => {
+    if (!guard(ctx)) return;
+    clearAwaiting(ctx);
+    await ctx.reply("Меню скрыто. /admin откроет снова.", {
+      reply_markup: { remove_keyboard: true },
+    });
+  });
+
+  // Text-message catcher for the search/broadcast flows. Runs AFTER hears()
+  // (grammy dispatches in registration order), so it only sees messages
+  // that aren't menu-button taps.
+  bot.on("message:text", async (ctx, next) => {
+    const id = ctx.from?.id;
+    if (!id || !guard(ctx)) return next();
+    const bid = BigInt(id);
+
+    if (awaitingBroadcast.has(bid)) {
+      awaitingBroadcast.delete(bid);
+      const text = ctx.message.text;
+      if (text === "/cancel") {
+        await ctx.reply("Рассылка отменена.");
+        return;
+      }
+      await runBroadcast(ctx, text);
+      return;
+    }
+
+    if (awaitingSearch.has(bid)) {
+      awaitingSearch.delete(bid);
+      const q = ctx.message.text.trim();
+      if (q === "/cancel" || q === "" || q.startsWith("/")) {
+        await ctx.reply("Поиск отменён.");
+        return;
+      }
+      try {
+        const data = await apiClient.listUsers({ q, take: PAGE, skip: 0 });
+        await ctx.reply(usersListText(data, 0, q), {
+          parse_mode: "HTML",
+          reply_markup: usersListKb(data, 0, true),
+        });
+      } catch (e) {
+        await ctx.reply(`error: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      return;
+    }
+
+    return next();
   });
 
   bot.on("callback_query:data", async (ctx, next) => {
@@ -429,16 +592,11 @@ async function dispatch(ctx: Context, data: string): Promise<void> {
   // (or send a new one) below.
   await ctx.answerCallbackQuery().catch(() => {});
 
-  if (data === "a:close") {
+  if (data === "a:close" || data === "a:menu") {
+    // Reply keyboard at the bottom IS the main menu now — `a:close` and
+    // `a:menu` both just dismiss this inline message. Reply keyboard
+    // stays visible.
     await ctx.deleteMessage().catch(() => {});
-    return;
-  }
-
-  if (data === "a:menu") {
-    await ctx.editMessageText("<b>tg-meet · admin</b>", {
-      parse_mode: "HTML",
-      reply_markup: mainMenuKb(),
-    });
     return;
   }
 
