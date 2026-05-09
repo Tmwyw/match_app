@@ -322,11 +322,14 @@ export function Deck({
         activeFilterCount={filters.verticals.length + filters.geos.length}
         remaining={state.remaining}
       />
-      {/* Outer container intentionally NO overflow-hidden — was clipping
-          the action buttons' drop-shadow into a square silhouette below
-          the card. The deck slot itself still clips card content. */}
+      {/* Outer container — no overflow-hidden anywhere along the drag
+          path. CardView's Card already has `overflow-hidden rounded-card`
+          which clips its own content to the rounded silhouette. Letting
+          the deck slot and per-card motion wrapper bleed means the card
+          flies cleanly off-screen during drag instead of being clipped
+          at the column's edge. */}
       <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3">
-        <div className="flex-1 min-h-0 relative overflow-hidden rounded-card">
+        <div className="flex-1 min-h-0 relative">
           <DeckStack
             queue={state.queue}
             disabled={submitting}
@@ -351,27 +354,32 @@ export function Deck({
             icon={<Heart size={28} fill="currentColor" />}
           />
         </div>
-      </div>
-
-      {undoVisible && (
-        <div className="fixed bottom-28 left-0 right-0 flex justify-center z-40 px-4">
-          <button
-            type="button"
-            onClick={undo}
-            className="flex items-center gap-2 rounded-button bg-card border border-app-border-strong shadow-action px-4 py-2 text-sm text-tg-text active:scale-[0.98]"
-          >
-            <Undo2 size={16} />
-            Отменить
-          </button>
-        </div>
-      )}
-      {undoToast && (
-        <div className="fixed bottom-28 left-0 right-0 flex justify-center z-40 px-4">
-          <div className="rounded-button bg-card border border-app-border px-3 py-2 text-xs text-tg-hint">
-            {undoToast}
+        {/* Undo toast — rendered as a flex child UNDER the action buttons
+            instead of fixed-positioned. The previous `fixed bottom-28`
+            placed it inside the action-button row's vertical band (96–160
+            px from screen bottom thanks to App's pb-24) so it overlapped
+            the X/Heart. In-flow placement guarantees it sits below the
+            buttons regardless of viewport size. */}
+        {(undoVisible || undoToast) && (
+          <div className="flex justify-center shrink-0 pb-1">
+            {undoVisible && (
+              <button
+                type="button"
+                onClick={undo}
+                className="flex items-center gap-2 rounded-button bg-card border border-app-border-strong shadow-action px-4 py-2 text-sm text-tg-text active:scale-[0.98]"
+              >
+                <Undo2 size={16} />
+                Отменить
+              </button>
+            )}
+            {undoToast && (
+              <div className="rounded-button bg-card border border-app-border px-3 py-2 text-xs text-tg-hint">
+                {undoToast}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {overlay && (
         <MatchOverlay
@@ -484,7 +492,11 @@ function DeckStack({
               filter: isTop ? "blur(0px)" : "blur(10px)",
             }}
             transition={{ type: "tween", duration: 0.28, ease: "easeOut" }}
-            className="absolute inset-0 overflow-hidden rounded-card"
+            // No overflow-hidden — would clip the dragged card at the
+            // slot edge mid-fly-off. CardView's Card carries its own
+            // `overflow-hidden rounded-card` so the visible silhouette
+            // stays clean.
+            className="absolute inset-0 rounded-card"
             style={{
               zIndex: queue.length - i,
               pointerEvents: isTop ? "auto" : "none",
