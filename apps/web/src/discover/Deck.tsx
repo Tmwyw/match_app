@@ -72,6 +72,22 @@ const swipePower = (offset: number, velocity: number) =>
  *  25% of card width feels "this is the commit zone" without false promise. */
 const VISUAL_FRACTION = 0.25;
 const VISUAL_MIN_PX = 70;
+
+/** Dev-only swipe debug overlay. Activate via `?debug=swipe` in the
+ *  URL (or set `localStorage["creo:debug-swipe"]="1"`). When on, the
+ *  card paints a small panel in the top-left showing live offset,
+ *  velocity, computed power, and whether the current gesture would
+ *  commit. Lets us tune thresholds against real-device measurements. */
+const SWIPE_DEBUG =
+  typeof window !== "undefined" &&
+  (new URLSearchParams(window.location.search).get("debug") === "swipe" ||
+    (() => {
+      try {
+        return window.localStorage.getItem("creo:debug-swipe") === "1";
+      } catch {
+        return false;
+      }
+    })());
 const UNDO_VISIBLE_MS = 5_000;
 
 export function Deck({
@@ -601,6 +617,11 @@ function DraggableCard({
   // a reliable number regardless of platform quirks.
   const lastVelocity = useRef(0);
 
+  // Debug-overlay live values — only state-driven when the overlay is
+  // active so production builds pay no extra render cost.
+  const [debugDx, setDebugDx] = useState(0);
+  const [debugVx, setDebugVx] = useState(0);
+
   const rotate = useTransform(x, [-300, 0, 300], [-15, 0, 15]);
   // Tint and edge-glow opacity ramp up over a fixed visual threshold
   // (decoupled from commit logic which uses combined offset×velocity
@@ -663,6 +684,10 @@ function DraggableCard({
         // reports 0 there); reading it during the drag gives us the
         // true instantaneous value to use at release time.
         lastVelocity.current = info.velocity.x;
+        if (SWIPE_DEBUG) {
+          setDebugDx(info.offset.x);
+          setDebugVx(info.velocity.x);
+        }
       }}
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
@@ -708,7 +733,62 @@ function DraggableCard({
       />
 
       <CardView card={card} />
+
+      {SWIPE_DEBUG && (
+        <SwipeDebugOverlay
+          cardWidth={cardWidth}
+          dx={debugDx}
+          vx={debugVx}
+        />
+      )}
     </motion.div>
+  );
+}
+
+/** On-screen panel showing the live drag numbers. Only rendered when
+ *  SWIPE_DEBUG is on (URL `?debug=swipe`). Helps tune thresholds
+ *  against real-device touch behaviour. */
+function SwipeDebugOverlay({
+  cardWidth,
+  dx,
+  vx,
+}: {
+  cardWidth: number;
+  dx: number;
+  vx: number;
+}) {
+  const power = swipePower(dx, vx);
+  const wouldCommit = Math.abs(power) > SWIPE_CONFIDENCE;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 8,
+        left: 8,
+        zIndex: 60,
+        padding: "6px 10px",
+        background: "rgba(0,0,0,0.85)",
+        color: "#fff",
+        fontFamily: "ui-monospace, monospace",
+        fontSize: 11,
+        lineHeight: 1.4,
+        borderRadius: 8,
+        pointerEvents: "none",
+      }}
+    >
+      <div>cardW: {cardWidth}</div>
+      <div>dx: {dx.toFixed(0)} ({((dx / cardWidth) * 100).toFixed(0)}%)</div>
+      <div>vx: {vx.toFixed(0)}</div>
+      <div>
+        power: {power.toFixed(0)} / {SWIPE_CONFIDENCE}
+      </div>
+      <div style={{ color: wouldCommit ? "#10b981" : "#ef4444" }}>
+        {wouldCommit ? "✓ COMMIT" : "✗ no"}
+      </div>
+      <div style={{ opacity: 0.5, fontSize: 9 }}>
+        {IS_TOUCH ? "touch" : "mouse"}
+      </div>
+    </div>
   );
 }
 
