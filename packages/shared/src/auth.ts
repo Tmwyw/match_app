@@ -34,5 +34,10 @@ export type AuthResponse = z.infer<typeof AuthResponse>;
 export const MeResponse = PublicUser.extend({
   referralCount: z.number().int().nonnegative(),
   pendingViewProfile: z.string().nullable(),
+  // Profile moderation gate. Frontend uses this to decide whether to
+  // route the user into the deck (approved) or into the "submitted for
+  // review" holding screen (null). True when the User row has a non-null
+  // profileApprovedAt timestamp.
+  profileApproved: z.boolean(),
 });
 export type MeResponse = z.infer<typeof MeResponse>;

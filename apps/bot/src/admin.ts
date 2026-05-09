@@ -88,6 +88,16 @@ const apiClient = {
     adminFetch<AdminUserDetail>(`/admin/users/${id}/reset-role`, {
       method: "POST",
     }),
+  pendingProfiles: () =>
+    adminFetch<AdminUsersResponse>("/admin/profiles/pending"),
+  approveProfile: (id: string) =>
+    adminFetch<AdminUserDetail>(`/admin/users/${id}/approve-profile`, {
+      method: "POST",
+    }),
+  rejectProfile: (id: string) =>
+    adminFetch<AdminUserDetail>(`/admin/users/${id}/reject-profile`, {
+      method: "POST",
+    }),
   reports: (includeResolved: boolean) =>
     adminFetch<AdminReportsResponse>(
       `/admin/reports?resolved=${includeResolved}`,
@@ -108,6 +118,7 @@ const apiClient = {
 const BTN_STATS = "📊 Статистика";
 const BTN_USERS = "👥 Пользователи";
 const BTN_REPORTS = "🚨 Жалобы";
+const BTN_PENDING = "📋 Модерация";
 const BTN_BROADCAST = "📢 Рассылка";
 const BTN_HIDE = "✕ Скрыть меню";
 
@@ -115,6 +126,8 @@ const BTN_HIDE = "✕ Скрыть меню";
 function adminReplyKeyboard(): Keyboard {
   return new Keyboard()
     .text(BTN_STATS)
+    .row()
+    .text(BTN_PENDING)
     .row()
     .text(BTN_USERS)
     .text(BTN_REPORTS)
@@ -363,6 +376,16 @@ function userDetailText(u: AdminUserDetail): string {
 
 function userDetailKb(u: AdminUserDetail): InlineKeyboard {
   const kb = new InlineKeyboard();
+  // Pending profile (has a buyer/owner row but profileApprovedAt is null)
+  // — surface approve/reject as the primary action.
+  const isPending =
+    u.profileApprovedAt == null &&
+    (u.buyerProfile != null || u.ownerProfile != null);
+  if (isPending) {
+    kb.text("✅ Одобрить", `a:user:${u.id}:approve`)
+      .text("✕ Отклонить", `a:user:${u.id}:askreject`)
+      .row();
+  }
   if (u.bannedAt) {
     kb.text("🟢 Unban", `a:user:${u.id}:unban`);
   } else if (!u.deletedAt) {
@@ -379,6 +402,35 @@ function confirmKb(yesData: string, noData: string): InlineKeyboard {
   return new InlineKeyboard()
     .text("✅ Да", yesData)
     .text("✕ Отмена", noData);
+}
+
+function pendingListText(data: AdminUsersResponse): string {
+  if (data.rows.length === 0) {
+    return "<b>📋 Модерация</b>\n\n(очередь пуста)";
+  }
+  const lines = [
+    `<b>📋 Модерация — ${data.total} в очереди</b>`,
+    "Жми на анкету чтобы посмотреть детали и одобрить/отклонить.",
+    "",
+    ...data.rows.map((u, i) => {
+      const handle = u.username ? `@${u.username}` : "—";
+      const tag = u.role === "BUYER" ? "БАЕР" : u.role === "OWNER" ? "ОВНЕР" : "?";
+      return `${i + 1}. <b>${escapeHtml(u.anonId ?? "(no anon)")}</b> · ${tag} · ${escapeHtml(handle)}`;
+    }),
+  ];
+  return lines.join("\n");
+}
+
+function pendingListKb(data: AdminUsersResponse): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const u of data.rows) {
+    kb.text(
+      `${u.anonId ?? "(no anon)"} · ${u.username ? `@${u.username}` : "—"}`,
+      `a:user:${u.id}`,
+    ).row();
+  }
+  kb.text("⟳ Refresh", "a:pending").text("✕ Скрыть", "a:close");
+  return kb;
 }
 
 function reportText(r: AdminReport): string {
@@ -500,6 +552,20 @@ export function registerAdminHandlers(bot: Bot): void {
       await ctx.reply(reportsListText(reports), {
         parse_mode: "HTML",
         reply_markup: reportsListKb(reports),
+      });
+    } catch (e) {
+      await ctx.reply(`error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  });
+
+  bot.hears(BTN_PENDING, async (ctx) => {
+    if (!guard(ctx)) return;
+    clearAwaiting(ctx);
+    try {
+      const list = await apiClient.pendingProfiles();
+      await ctx.reply(pendingListText(list), {
+        parse_mode: "HTML",
+        reply_markup: pendingListKb(list),
       });
     } catch (e) {
       await ctx.reply(`error: ${e instanceof Error ? e.message : String(e)}`);
@@ -684,6 +750,41 @@ async function dispatch(ctx: Context, data: string): Promise<void> {
       });
       return;
     }
+    if (action === "approve") {
+      const u = await apiClient.approveProfile(id);
+      await ctx.editMessageText(userDetailText(u), {
+        parse_mode: "HTML",
+        reply_markup: userDetailKb(u),
+      });
+      return;
+    }
+    if (action === "askreject") {
+      await ctx.editMessageText(
+        `Отклонить заявку <code>${id}</code>?\n\nПрофиль и роль будут удалены — пользователь окажется на экране выбора роли.`,
+        {
+          parse_mode: "HTML",
+          reply_markup: confirmKb(`a:user:${id}:reject`, `a:user:${id}`),
+        },
+      );
+      return;
+    }
+    if (action === "reject") {
+      const u = await apiClient.rejectProfile(id);
+      await ctx.editMessageText(userDetailText(u), {
+        parse_mode: "HTML",
+        reply_markup: userDetailKb(u),
+      });
+      return;
+    }
+  }
+
+  if (data === "a:pending") {
+    const list = await apiClient.pendingProfiles();
+    await ctx.editMessageText(pendingListText(list), {
+      parse_mode: "HTML",
+      reply_markup: pendingListKb(list),
+    });
+    return;
   }
 
   if (data === "a:reports") {

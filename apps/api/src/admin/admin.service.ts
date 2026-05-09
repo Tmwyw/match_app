@@ -14,6 +14,7 @@ import type {
   AdminUsersResponse,
 } from "@tg-app-meet/shared";
 import { ChatGateway } from "../chat/chat.gateway";
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma.service";
 
 const USER_LIST_PAGE_MAX = 100;
@@ -24,6 +25,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: ChatGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ─── Stats ────────────────────────────────────────────────────────────────
@@ -270,6 +272,99 @@ export class AdminService {
     };
   }
 
+  // ─── Profile moderation ──────────────────────────────────────────────────
+
+  /**
+   * Users awaiting first-profile approval — they've submitted a buyer or
+   * owner profile but `profileApprovedAt` is still null. Returned in
+   * submission order (oldest first) so the admin clears the queue FIFO.
+   */
+  async listPendingProfiles(): Promise<AdminUsersResponse> {
+    const where: Prisma.UserWhereInput = {
+      profileApprovedAt: null,
+      bannedAt: null,
+      deletedAt: null,
+      OR: [
+        { buyerProfile: { isNot: null } },
+        { ownerProfile: { isNot: null } },
+      ],
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        // Oldest pending first — they've been waiting longest.
+        orderBy: { createdAt: "asc" },
+        take: 50,
+        include: {
+          _count: {
+            select: {
+              matchesA: true,
+              matchesB: true,
+              messages: true,
+              reportsAgainst: true,
+              blocksAgainst: true,
+            },
+          },
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+    return { total, rows: rows.map((u) => this.toSummary(u)) };
+  }
+
+  /**
+   * Mark a user's profile approved. Idempotent — re-approving an already
+   * approved user is a no-op (no extra push). Fires a one-shot Telegram
+   * notification on transition pending → approved so the user knows
+   * they can start swiping.
+   */
+  async approveProfile(id: string): Promise<AdminUserDetail> {
+    const u = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, profileApprovedAt: true, deletedAt: true, bannedAt: true },
+    });
+    if (!u) throw new NotFoundException("USER_NOT_FOUND");
+    if (u.deletedAt) throw new BadRequestException("USER_DELETED");
+    if (u.bannedAt) throw new BadRequestException("USER_BANNED");
+
+    if (u.profileApprovedAt == null) {
+      await this.prisma.user.update({
+        where: { id },
+        data: { profileApprovedAt: new Date() },
+      });
+      // Fire-and-forget — never let a Telegram hiccup fail the approval.
+      void this.notifications.notifyProfileApproved(id).catch(() => {});
+    }
+    return this.getUserDetail(id);
+  }
+
+  /**
+   * Reject the pending profile — clears the profile row + role + anonId
+   * so the user lands back on RolePicker with a clean slate. Optionally
+   * sends them a "rejected" DM (not yet implemented; deletion alone is
+   * the strong signal).
+   */
+  async rejectProfile(id: string): Promise<AdminUserDetail> {
+    const u = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, profileApprovedAt: true },
+    });
+    if (!u) throw new NotFoundException("USER_NOT_FOUND");
+    if (u.profileApprovedAt != null) {
+      // Already approved — admin should ban or reset-role instead.
+      throw new BadRequestException("ALREADY_APPROVED");
+    }
+    await this.prisma.$transaction([
+      this.prisma.buyerProfile.deleteMany({ where: { userId: id } }),
+      this.prisma.ownerProfile.deleteMany({ where: { userId: id } }),
+      this.prisma.user.update({
+        where: { id },
+        data: { role: null, anonId: null, displayName: null },
+      }),
+    ]);
+    return this.getUserDetail(id);
+  }
+
   // ─── Ban / unban ──────────────────────────────────────────────────────────
 
   async ban(id: string, input: AdminBanInput): Promise<AdminUserDetail> {
@@ -314,7 +409,14 @@ export class AdminService {
       this.prisma.ownerProfile.deleteMany({ where: { userId: id } }),
       this.prisma.user.update({
         where: { id },
-        data: { role: null, anonId: null, displayName: null },
+        // profileApprovedAt cleared too — otherwise the user's NEXT
+        // submission after re-onboarding would skip moderation review.
+        data: {
+          role: null,
+          anonId: null,
+          displayName: null,
+          profileApprovedAt: null,
+        },
       }),
     ]);
     return this.getUserDetail(id);
@@ -405,6 +507,7 @@ export class AdminService {
     deletedAt: Date | null;
     bannedAt: Date | null;
     banReason: string | null;
+    profileApprovedAt: Date | null;
     _count: {
       matchesA: number;
       matchesB: number;
@@ -424,6 +527,7 @@ export class AdminService {
       deletedAt: u.deletedAt?.toISOString() ?? null,
       bannedAt: u.bannedAt?.toISOString() ?? null,
       banReason: u.banReason,
+      profileApprovedAt: u.profileApprovedAt?.toISOString() ?? null,
       isOnline: this.gateway.isOnline(u.id),
       counts: {
         matches: u._count.matchesA + u._count.matchesB,

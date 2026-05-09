@@ -22,5 +22,6 @@ export function toMeResponse(
     ...toPublicUser(user),
     referralCount: extras.referralCount,
     pendingViewProfile: user.pendingViewProfile,
+    profileApproved: user.profileApprovedAt != null,
   };
 }

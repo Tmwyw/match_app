@@ -72,6 +72,23 @@ export class AdminController {
     return this.admin.resetUserRole(id);
   }
 
+  // ── Profile moderation ──────────────────────────────────────────────────
+
+  @Get("profiles/pending")
+  async pendingProfiles(): Promise<AdminUsersResponse> {
+    return this.admin.listPendingProfiles();
+  }
+
+  @Post("users/:id/approve-profile")
+  async approveProfile(@Param("id") id: string): Promise<AdminUserDetail> {
+    return this.admin.approveProfile(id);
+  }
+
+  @Post("users/:id/reject-profile")
+  async rejectProfile(@Param("id") id: string): Promise<AdminUserDetail> {
+    return this.admin.rejectProfile(id);
+  }
+
   @Get("chats/:id/messages")
   async chatTranscript(@Param("id") id: string): Promise<AdminChatTranscript> {
     return this.admin.getChatTranscript(id);

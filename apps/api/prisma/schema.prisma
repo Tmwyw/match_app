@@ -51,6 +51,13 @@ model User {
   // Bot stores `p_<userId>` deep-link payload here so Mini App opens the
   // intended user's card on next launch. Cleared once the frontend reads it.
   pendingViewProfile String?
+  // Profile moderation. NULL = pending review (a profile row exists but
+  // admin hasn't approved yet). Non-null = approved at this timestamp.
+  // Discover excludes pending users in BOTH directions: pending users
+  // can't browse others, and they don't appear in others' decks. Existing
+  // users at migration time are backfilled with `createdAt` so they aren't
+  // suddenly locked out.
+  profileApprovedAt  DateTime?
 
   buyerProfile   BuyerProfile?
   ownerProfile   OwnerProfile?

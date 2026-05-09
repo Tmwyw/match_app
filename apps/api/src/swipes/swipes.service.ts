@@ -36,6 +36,16 @@ export class SwipesService {
       throw new ForbiddenException("BLOCKED");
     }
 
+    // Profile-moderation gate — both sides must be approved. Frontend
+    // never lets a pending user reach the deck, but backend re-checks.
+    const me = await this.prisma.user.findUnique({
+      where: { id: meId },
+      select: { profileApprovedAt: true },
+    });
+    if (!me || me.profileApprovedAt == null) {
+      throw new ConflictException("PROFILE_PENDING");
+    }
+
     const outcome = await this.prisma.$transaction<SwipeOutcome>((tx) =>
       this.runSwipe(tx, meId, body),
     );
@@ -61,6 +71,11 @@ export class SwipesService {
     if (!recipient) throw new NotFoundException("recipient missing");
     if (!recipient.role) throw new NotFoundException("recipient has no role");
     if (recipient.deletedAt || recipient.bannedAt) {
+      throw new NotFoundException("recipient unavailable");
+    }
+    if (recipient.profileApprovedAt == null) {
+      // Pending profiles aren't visible in discover — but they could be
+      // reached via stale FE state or deep-link race. Reject the swipe.
       throw new NotFoundException("recipient unavailable");
     }
     const hasProfile =

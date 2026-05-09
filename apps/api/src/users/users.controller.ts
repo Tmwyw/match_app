@@ -191,6 +191,11 @@ export class UsersController {
     if (!user || user.deletedAt || user.bannedAt || !user.role || !user.anonId) {
       throw new NotFoundException("USER_NOT_FOUND");
     }
+    // Profile-moderation gate. Pending profiles must not leak through
+    // /users/:userId/card either — same rule as discover.
+    if (user.profileApprovedAt == null) {
+      throw new NotFoundException("USER_NOT_FOUND");
+    }
     return toPublicCard(user as UserWithProfiles);
   }
 

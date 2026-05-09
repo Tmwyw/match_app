@@ -101,6 +101,23 @@ export class NotificationsService implements OnModuleDestroy {
     return updated;
   }
 
+  /**
+   * One-shot push fired when admin transitions the user from pending →
+   * approved. Bypasses the matches/messages prefs and the mute window —
+   * this is a transactional account-state notification, not marketing.
+   * Still respects the same fire-and-forget contract as everything else
+   * here (errors logged, never propagated).
+   */
+  async notifyProfileApproved(toUserId: string): Promise<void> {
+    const tgId = await this.resolveTelegramId(toUserId);
+    if (tgId === null) return;
+    await this.send(
+      tgId,
+      "✅ Ваша заявка одобрена и теперь видна всем соискателям.\n\n" +
+        "Поиск тоже доступен — жми кнопку ниже, чтобы открыть приложение 👇",
+    );
+  }
+
   async notifyMatch(toUserId: string, otherAnonId: string): Promise<void> {
     const prefs = await this.safePrefs(toUserId);
     if (!prefs.matches) return;

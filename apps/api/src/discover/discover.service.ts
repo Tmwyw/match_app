@@ -23,6 +23,12 @@ export class DiscoverService {
     });
     if (!me) throw new ConflictException("PROFILE_REQUIRED");
     if (!me.role) throw new ConflictException("PROFILE_REQUIRED");
+    // Profile-moderation gate (requester side): a pending profile can't
+    // browse others. The FE shows a "submitted for review" screen and
+    // never hits /discover, but we double-gate here in case it does.
+    if (me.profileApprovedAt == null) {
+      throw new ConflictException("PROFILE_PENDING");
+    }
 
     const targetRole: Role = me.role === "BUYER" ? "OWNER" : "BUYER";
     const compat = this.buildCompatFilter(me, filters);
@@ -38,6 +44,10 @@ export class DiscoverService {
       // Soft-deleted and banned users are invisible to discovery on both sides.
       deletedAt: null,
       bannedAt: null,
+      // Profile-moderation gate (target side): exclude users whose admin
+      // approval is still pending — they shouldn't appear in anyone's deck
+      // until reviewed.
+      profileApprovedAt: { not: null },
       receivedSwipes: { none: { fromId: meId } },
       ...compat,
     };

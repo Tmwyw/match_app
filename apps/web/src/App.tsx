@@ -8,6 +8,7 @@ import { ChatScreen } from "./chat/ChatScreen";
 import { Deck } from "./discover/Deck";
 import { UserCardScreen } from "./discover/UserCardScreen";
 import { MatchesList } from "./matches/MatchesList";
+import { ModerationPendingScreen } from "./onboarding/ModerationPendingScreen";
 import { RolePicker } from "./onboarding/RolePicker";
 import { BuyerProfileForm } from "./profile/BuyerProfileForm";
 import { MyProfile } from "./profile/MyProfile";
@@ -188,6 +189,13 @@ function ProfileFlow({
         onAbort={abortToRolePicker}
       />
     );
+  }
+
+  // Profile-moderation gate. The user has a saved profile but admin
+  // hasn't approved yet — hold them on a polling screen instead of
+  // letting them into the deck (where /discover would 409 anyway).
+  if (!user.profileApproved) {
+    return <ModerationPendingScreen onCheckStatus={onUserChanged} />;
   }
 
   return (

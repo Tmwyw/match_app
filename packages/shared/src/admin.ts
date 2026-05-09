@@ -48,6 +48,9 @@ export const AdminUserSummary = z.object({
   deletedAt: z.string().nullable(),
   bannedAt: z.string().nullable(),
   banReason: z.string().nullable(),
+  // Profile-moderation timestamp. NULL while pending review (after the
+  // user submitted but before admin approved). Non-null = approved.
+  profileApprovedAt: z.string().nullable(),
   isOnline: z.boolean(),
   counts: z.object({
     matches: z.number().int(),
