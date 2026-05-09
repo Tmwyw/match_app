@@ -44,19 +44,27 @@ type DeckState =
   | { status: "error"; error: string }
   | { status: "ok"; queue: PublicCard[]; remaining: number };
 
+/**
+ * Device-adaptive swipe thresholds. Touch (phones / tablets) wants
+ * lighter gestures; mouse / trackpad wants stricter so cursor jitter
+ * doesn't accidentally swipe a card.
+ *
+ * Detected via the CSS `pointer: coarse` media query — true for any
+ * primary touch input. Computed at module load (the user can't change
+ * primary input mid-session inside a Mini App).
+ */
+const IS_TOUCH =
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(pointer: coarse)").matches;
 /** Fraction of the card's width the user must drag to commit a swipe.
- *  20% feels right across devices in testing — was 28%, users on
- *  Telegram webviews reported "swipe registers but card snaps back"
- *  because they were dragging ~50–70px and the threshold was 80–125px.
- *  Lowered until small deliberate drags commit reliably. */
-const SWIPE_FRACTION = 0.2;
+ *  Touch (phone): 18% — small thumb drags commit reliably.
+ *  Mouse: 30% — protects against jitter. */
+const SWIPE_FRACTION = IS_TOUCH ? 0.18 : 0.3;
 /** Floor so the threshold doesn't get silly on a 220px-wide card. */
-const SWIPE_MIN_PX = 55;
-/** Velocity-based commit (px/sec). A regular drag-and-release on
- *  trackpad/mouse hits ~250-400; we stay under that for less
- *  effortful flicks. Hard threshold of 350 was tuned by testing on
- *  iOS / Android / Mac trackpad / Windows mouse. */
-const SWIPE_VELOCITY = 350;
+const SWIPE_MIN_PX = IS_TOUCH ? 50 : 100;
+/** Velocity-based commit (px/sec). Touch flicks routinely exceed 600;
+ *  mouse drags rarely exceed 400 unless deliberate. */
+const SWIPE_VELOCITY = IS_TOUCH ? 350 : 550;
 const UNDO_VISIBLE_MS = 5_000;
 
 export function Deck({
