@@ -70,21 +70,27 @@ export function UserDetailPanel({
     }
   };
 
-  const resetRole = async () => {
+  const hardDelete = async () => {
     if (
       !confirm(
-        "Сбросить роль пользователя и удалить его анкету?\n\nОн пройдёт онбординг заново. Существующие матчи и чаты останутся, anonId изменится после новой роли.",
+        "🗑 ПОЛНОЕ УДАЛЕНИЕ\n\n" +
+          "Удалить этого пользователя со всеми его данными?\n\n" +
+          "Снесётся: анкета, все его матчи, чаты, сообщения, " +
+          "свайпы, жалобы, блоки, настройки уведомлений.\n\n" +
+          "Восстановить нельзя. При следующем входе через Telegram " +
+          "у него создастся новый аккаунт с нуля.",
       )
     ) {
       return;
     }
-    setBusy("reset-role");
+    setBusy("hard-delete");
     try {
-      const user = await adminApi.resetUserRole(token, userId);
-      setState({ status: "ready", user });
+      await adminApi.hardDeleteUser(token, userId);
+      // User row is gone — close the panel; the parent's user list
+      // will reload itself on next user-card click or refresh.
+      onClose();
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
-    } finally {
       setBusy(null);
     }
   };
@@ -114,7 +120,7 @@ export function UserDetailPanel({
             busy={busy}
             onBan={ban}
             onUnban={unban}
-            onResetRole={resetRole}
+            onHardDelete={hardDelete}
             onOpenChat={onOpenChat}
             onOpenUser={onOpenUser}
           />
@@ -129,7 +135,7 @@ function UserBody({
   busy,
   onBan,
   onUnban,
-  onResetRole,
+  onHardDelete,
   onOpenChat,
   onOpenUser,
 }: {
@@ -137,7 +143,7 @@ function UserBody({
   busy: string | null;
   onBan: () => void;
   onUnban: () => void;
-  onResetRole: () => void;
+  onHardDelete: () => void;
   onOpenChat: (id: string) => void;
   onOpenUser: (id: string) => void;
 }) {
@@ -197,11 +203,11 @@ function UserBody({
             </button>
           )}
           <button
-            style={{ ...styles.btn, ...styles.btnWarn }}
+            style={{ ...styles.btn, ...styles.btnDanger }}
             disabled={!!busy}
-            onClick={onResetRole}
+            onClick={onHardDelete}
           >
-            {busy === "reset-role" ? "..." : "сбросить роль + удалить анкету"}
+            {busy === "hard-delete" ? "..." : "🗑 удалить полностью"}
           </button>
         </div>
       </div>

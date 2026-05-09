@@ -67,9 +67,9 @@ export class AdminController {
     return this.admin.unban(id);
   }
 
-  @Post("users/:id/reset-role")
-  async resetRole(@Param("id") id: string): Promise<AdminUserDetail> {
-    return this.admin.resetUserRole(id);
+  @Post("users/:id/hard-delete")
+  async hardDelete(@Param("id") id: string): Promise<{ deletedId: string }> {
+    return this.admin.hardDeleteUser(id);
   }
 
   // ── Profile moderation ──────────────────────────────────────────────────

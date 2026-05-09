@@ -47,7 +47,10 @@ model User {
   // Set on FIRST auth from a `?start=ref_<id>` deep-link. Never updated
   // afterwards — back-dating attribution would let users farm referrals.
   referredById String?
-  referredBy   User?   @relation("referrer", fields: [referredById], references: [id])
+  // SetNull on referrer delete: hard-deleting an admin-flagged user
+  // mustn't cascade-orphan everyone they invited. The referredById on
+  // those referrals just becomes null (anonymous referral).
+  referredBy   User?   @relation("referrer", fields: [referredById], references: [id], onDelete: SetNull)
   // Bot stores `p_<userId>` deep-link payload here so Mini App opens the
   // intended user's card on next launch. Cleared once the frontend reads it.
   pendingViewProfile String?

@@ -88,10 +88,12 @@ export const adminApi = {
       method: "POST",
     }),
 
-  resetUserRole: (token: string, id: string) =>
-    adminFetch<AdminUserDetail>(token, `/admin/users/${id}/reset-role`, {
-      method: "POST",
-    }),
+  hardDeleteUser: (token: string, id: string) =>
+    adminFetch<{ deletedId: string }>(
+      token,
+      `/admin/users/${id}/hard-delete`,
+      { method: "POST" },
+    ),
 
   chatTranscript: (token: string, id: string) =>
     adminFetch<AdminChatTranscript>(token, `/admin/chats/${id}/messages`),

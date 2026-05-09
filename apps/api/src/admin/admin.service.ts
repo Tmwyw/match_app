@@ -395,31 +395,31 @@ export class AdminService {
     return this.getUserDetail(id);
   }
 
-  /** Operator-side: clear role + anonId + displayName + delete profile so
-   *  the user lands on RolePicker on next launch. Existing matches/messages/
-   *  swipes stay intact — we just want to force re-onboarding. */
-  async resetUserRole(id: string): Promise<AdminUserDetail> {
+  /**
+   * Operator-side hard delete. Removes the User row entirely — Prisma
+   * cascades take care of the rest (BuyerProfile, OwnerProfile, Swipes,
+   * Matches → Chats → Messages, ContactReveals, Reports, Blocks,
+   * NotificationPrefs). Other users who had this account as their
+   * referrer get their `referredById` set to null (see migration
+   * 20260509190000_referred_by_set_null).
+   *
+   * On the user's NEXT /auth/telegram, a fresh User row is created
+   * from their Telegram identity — they come back as a brand-new
+   * account with a new id, new anonId, no history. Effectively a
+   * "factory reset".
+   *
+   * Returns null because the user no longer exists; callers must
+   * handle the "deleted" state themselves rather than trying to
+   * re-fetch detail.
+   */
+  async hardDeleteUser(id: string): Promise<{ deletedId: string }> {
     const u = await this.prisma.user.findUnique({
       where: { id },
       select: { id: true },
     });
     if (!u) throw new NotFoundException("USER_NOT_FOUND");
-    await this.prisma.$transaction([
-      this.prisma.buyerProfile.deleteMany({ where: { userId: id } }),
-      this.prisma.ownerProfile.deleteMany({ where: { userId: id } }),
-      this.prisma.user.update({
-        where: { id },
-        // profileApprovedAt cleared too — otherwise the user's NEXT
-        // submission after re-onboarding would skip moderation review.
-        data: {
-          role: null,
-          anonId: null,
-          displayName: null,
-          profileApprovedAt: null,
-        },
-      }),
-    ]);
-    return this.getUserDetail(id);
+    await this.prisma.user.delete({ where: { id } });
+    return { deletedId: id };
   }
 
   // ─── Chat forensics ───────────────────────────────────────────────────────

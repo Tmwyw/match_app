@@ -84,8 +84,8 @@ const apiClient = {
     }),
   unban: (id: string) =>
     adminFetch<AdminUserDetail>(`/admin/users/${id}/unban`, { method: "POST" }),
-  resetRole: (id: string) =>
-    adminFetch<AdminUserDetail>(`/admin/users/${id}/reset-role`, {
+  hardDelete: (id: string) =>
+    adminFetch<{ deletedId: string }>(`/admin/users/${id}/hard-delete`, {
       method: "POST",
     }),
   pendingProfiles: () =>
@@ -408,7 +408,7 @@ function userDetailKb(u: AdminUserDetail): InlineKeyboard {
   } else if (!u.deletedAt) {
     kb.text("🚫 Забанить", `a:user:${u.id}:askban`);
   }
-  kb.text("🔄 Сбросить роль", `a:user:${u.id}:askreset`);
+  kb.text("🗑 Удалить полностью", `a:user:${u.id}:askdelete`);
   kb.row();
   kb.text("⟳ Обновить", `a:user:${u.id}`);
   kb.text("← К списку", "a:users:0");
@@ -752,22 +752,35 @@ async function dispatch(ctx: Context, data: string): Promise<void> {
       });
       return;
     }
-    if (action === "askreset") {
+    if (action === "askdelete") {
       await ctx.editMessageText(
-        `Сбросить роль и удалить профиль у <code>${id}</code>?\n\nМатчи и чаты останутся, anonId изменится после переонбординга.`,
+        `🗑 <b>Полностью удалить</b> пользователя <code>${id}</code>?\n\n` +
+          "Удалятся анкета, все матчи, чаты, сообщения, свайпы, " +
+          "жалобы и блоки. Восстановить нельзя. При следующем входе " +
+          "через Telegram создастся новый аккаунт с нуля.",
         {
           parse_mode: "HTML",
-          reply_markup: confirmKb(`a:user:${id}:reset`, `a:user:${id}`),
+          reply_markup: confirmKb(
+            `a:user:${id}:delete`,
+            `a:user:${id}`,
+          ),
         },
       );
       return;
     }
-    if (action === "reset") {
-      const u = await apiClient.resetRole(id);
-      await ctx.editMessageText(userDetailText(u), {
-        parse_mode: "HTML",
-        reply_markup: userDetailKb(u),
-      });
+    if (action === "delete") {
+      await apiClient.hardDelete(id);
+      // User no longer exists — no detail to fetch. Show success +
+      // back-to-list button.
+      await ctx.editMessageText(
+        `✅ Пользователь <code>${id}</code> удалён полностью.`,
+        {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard()
+            .text("← К списку", "a:users:0")
+            .text("✕ Скрыть", "a:close"),
+        },
+      );
       return;
     }
     if (action === "approve") {
