@@ -703,8 +703,14 @@ function DraggableCard({
         // gives us at end if no onDrag fired (very short tap-drag).
         const vx = peakVelocity.current || info.velocity.x;
         // Path 1 — power: combined offset × velocity for fast flicks.
+        // swipePower preserves the sign of vx (|dx| is always >= 0,
+        // velocity is signed), so positive power = rightward, negative
+        // power = leftward. Compare against signed thresholds — was
+        // checking `power > THRESH` which never matched on left
+        // swipes because their power is negative.
         const power = swipePower(dx, vx);
-        const powerCommit = power > SWIPE_CONFIDENCE;
+        const rightPower = power > SWIPE_CONFIDENCE;
+        const leftPower = power < -SWIPE_CONFIDENCE;
         // Path 2 — pure distance: catches slow drags whose velocity
         // reads as 0 on the iOS webview. Threshold = % of card width
         // floored at SWIPE_DISTANCE_MIN_PX so it doesn't get tiny.
@@ -712,11 +718,12 @@ function DraggableCard({
           SWIPE_DISTANCE_MIN_PX,
           cardWidth * SWIPE_DISTANCE_FRACTION,
         );
-        const distanceCommit = Math.abs(dx) >= distanceThreshold;
+        const rightDistance = dx > 0 && dx >= distanceThreshold;
+        const leftDistance = dx < 0 && -dx >= distanceThreshold;
 
-        if ((powerCommit || distanceCommit) && dx > 0) {
+        if (rightPower || rightDistance) {
           flyOff(1, onLike);
-        } else if ((powerCommit || distanceCommit) && dx < 0) {
+        } else if (leftPower || leftDistance) {
           flyOff(-1, onSkip);
         }
         peakVelocity.current = 0;
@@ -773,14 +780,20 @@ function SwipeDebugOverlay({
   dx: number;
   vx: number;
 }) {
-  const power = Math.abs(swipePower(dx, vx));
+  // Match the actual onDragEnd logic exactly — signed power compared
+  // against ±SWIPE_CONFIDENCE plus directional distance fallback.
+  const power = swipePower(dx, vx);
   const distancePct = cardWidth ? (Math.abs(dx) / cardWidth) * 100 : 0;
   const distanceThreshold = Math.max(
     SWIPE_DISTANCE_MIN_PX,
     cardWidth * SWIPE_DISTANCE_FRACTION,
   );
-  const powerCommit = power > SWIPE_CONFIDENCE;
-  const distanceCommit = Math.abs(dx) >= distanceThreshold;
+  const rightPower = power > SWIPE_CONFIDENCE;
+  const leftPower = power < -SWIPE_CONFIDENCE;
+  const rightDist = dx > 0 && dx >= distanceThreshold;
+  const leftDist = dx < 0 && -dx >= distanceThreshold;
+  const powerCommit = rightPower || leftPower;
+  const distanceCommit = rightDist || leftDist;
   const wouldCommit = powerCommit || distanceCommit;
   return (
     <div
@@ -805,7 +818,7 @@ function SwipeDebugOverlay({
       </div>
       <div>vx: {vx.toFixed(0)}</div>
       <div style={{ color: powerCommit ? "#10b981" : "#9ca3af" }}>
-        power: {power.toFixed(0)} / {SWIPE_CONFIDENCE}{" "}
+        power: {power.toFixed(0)} / ±{SWIPE_CONFIDENCE}{" "}
         {powerCommit ? "✓" : ""}
       </div>
       <div style={{ color: distanceCommit ? "#10b981" : "#9ca3af" }}>
