@@ -45,6 +45,17 @@ export function App() {
     const tg = getTelegramWebApp();
     tg?.ready();
     tg?.expand();
+    // Bot API 7.7+ — disable the Telegram-level "swipe-down to close
+    // the Mini App" gesture. Without it the WebView is constantly
+    // listening for vertical swipes, which on iOS in particular
+    // partially steals horizontal touch frames from our card deck and
+    // makes swipe-left / swipe-right feel laggy or under-registered.
+    // Older clients silently ignore the call (method missing).
+    try {
+      tg?.disableVerticalSwipes?.();
+    } catch {
+      /* old client without the method — fine */
+    }
   }, []);
 
   if (adminToken) {

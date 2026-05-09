@@ -12,10 +12,21 @@ type TelegramWebApp = {
   ready: () => void;
   expand: () => void;
   colorScheme: "light" | "dark";
+  /** Bot API version string ("7.7", "8.0", …). Lets us feature-test
+   *  newer methods like disableVerticalSwipes which only exist on
+   *  Telegram clients that ship the matching API version. */
+  version?: string;
   openTelegramLink?: (url: string) => void;
   openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
   /** Available on iOS/Android Telegram 7.0+. Web has it too. */
   shareToStory?: (mediaUrl: string, params?: { text?: string }) => void;
+  /** Bot API 7.7+. Disables Telegram's system "swipe-down to close
+   *  the Mini App" gesture. Critical for our card-deck swipe — without
+   *  this the WebView listens for vertical swipes and partially steals
+   *  the horizontal touch on some clients (iOS in particular). */
+  disableVerticalSwipes?: () => void;
+  enableVerticalSwipes?: () => void;
+  isVerticalSwipesEnabled?: boolean;
   HapticFeedback?: {
     impactOccurred?: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void;
     notificationOccurred?: (type: "error" | "success" | "warning") => void;
