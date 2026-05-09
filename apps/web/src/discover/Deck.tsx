@@ -613,17 +613,19 @@ function DraggableCard({
     return () => ro.disconnect();
   }, []);
   const visualThreshold = Math.max(VISUAL_MIN_PX, cardWidth * VISUAL_FRACTION);
-  // Peak velocity tracked PER DIRECTION. Single-peak tracking caused
-  // a real bug: user starts swiping right (peak right = 1500), then
-  // changes their mind and pulls the card back toward centre. The
-  // single peak still reads 1500, so power = |dx| × 1500 commits as
-  // a right-swipe even when the user clearly cancelled.
-  // With separate peaks we read the one matching the FINAL drag
-  // direction. If the user pulled back enough that dx is now < 0,
-  // we use leftPeak (which only saw the cancel motion) — usually
-  // small enough that no commit fires, exactly the user intent.
-  const rightPeak = useRef(0); // max positive velocity seen this drag
-  const leftPeak = useRef(0); // most negative velocity seen this drag
+  // Velocity at release. We track the LAST onDrag sample (≈ the velocity
+  // in the final ~16ms before the user lifted their finger). This is
+  // direction-aware automatically — if the user dragged right then
+  // pulled back to centre, the last sample is leftward (negative), so
+  // power computed against the final dx position naturally registers
+  // a cancel rather than a delayed commit.
+  //
+  // Per-direction peak tracking was tried first and was wrong: peak
+  // captures the historical max velocity in each direction, which
+  // doesn't decay when the user reverses. A right-flick-then-cancel
+  // kept rightPeak at 1500, so power=|dx|×1500 still committed right
+  // even when the user clearly aborted.
+  const lastVelocity = useRef(0);
 
   // Debug-overlay live values — only state-driven when the overlay is
   // active so production builds pay no extra render cost.
@@ -687,30 +689,32 @@ function DraggableCard({
       // releases mid-drag.
       dragTransition={{ bounceStiffness: 350, bounceDamping: 30 }}
       onDrag={(_, info) => {
-        // Track peak velocity per direction. Right peak grows when
-        // user swipes right; left peak (most negative value) grows
-        // when user swipes left. Reversing direction mid-drag adds
-        // to the OTHER peak — the original peak no longer "wins"
-        // automatically.
-        const v = info.velocity.x;
-        if (v > rightPeak.current) rightPeak.current = v;
-        if (v < leftPeak.current) leftPeak.current = v;
+        // Capture the most recent velocity sample. By the time
+        // onDragEnd fires we use this as the "release velocity"
+        // because info.velocity at end is unreliable on some
+        // webviews (Telegram iOS reports 0 when the user paused
+        // before lifting).
+        lastVelocity.current = info.velocity.x;
         if (SWIPE_DEBUG) {
           setDebugDx(info.offset.x);
-          setDebugVx(v);
+          setDebugVx(info.velocity.x);
         }
       }}
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
-        // Use the peak velocity that matches the FINAL drag direction.
-        // If the user dragged right then pulled back to negative dx,
-        // we use leftPeak — which only captured the cancel motion
-        // (small magnitude, so power stays under threshold and the
-        // gesture correctly registers as a cancel).
-        const vx =
-          dx > 0
-            ? rightPeak.current || info.velocity.x
-            : leftPeak.current || info.velocity.x;
+        const lastVx = lastVelocity.current || info.velocity.x;
+        // Cancel detection: if the velocity at release points the
+        // OPPOSITE way from the final dx, the user was reversing /
+        // pulling back. Don't honour that velocity — it would
+        // either commit the wrong direction (lastVx points back) or
+        // commit the original direction (peak-tracking variant).
+        // Treat as if the gesture had no momentum; only the distance
+        // fallback can still commit, and that requires the user to
+        // have dragged genuinely far.
+        const sameDirection =
+          (dx > 0 && lastVx > 0) || (dx < 0 && lastVx < 0);
+        const vx = sameDirection ? lastVx : 0;
+
         // Path 1 — power: combined offset × velocity for fast flicks.
         // Signed comparison both ways (positive power = rightward,
         // negative = leftward).
@@ -718,7 +722,9 @@ function DraggableCard({
         const rightPower = power > SWIPE_CONFIDENCE;
         const leftPower = power < -SWIPE_CONFIDENCE;
         // Path 2 — pure distance: catches slow drags whose velocity
-        // reads as 0 on the iOS webview.
+        // reads as 0 on the iOS webview, and rescues legitimate
+        // commits where the user paused at the destination before
+        // releasing.
         const distanceThreshold = Math.max(
           SWIPE_DISTANCE_MIN_PX,
           cardWidth * SWIPE_DISTANCE_FRACTION,
@@ -731,8 +737,7 @@ function DraggableCard({
         } else if (leftPower || leftDistance) {
           flyOff(-1, onSkip);
         }
-        rightPeak.current = 0;
-        leftPeak.current = 0;
+        lastVelocity.current = 0;
       }}
       // h-full + w-full so the inner CardView's `h-full` has a definite
       // box to resolve against — without these the card collapsed to 0
