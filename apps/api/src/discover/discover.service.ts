@@ -57,6 +57,29 @@ export class DiscoverService {
       return { card: null, remaining: 0 };
     }
 
+    // Tinder-style "Likes You" priority: if the candidate has already
+    // sent a LIKE pointing at me, surface them FIRST regardless of
+    // recency. Their card carries `likedYou: true` so the FE can show
+    // a "💜 Лайкнул(а) вас" badge — and a swipe-right turns into an
+    // instant match.
+    const likedMeWhere: Prisma.UserWhereInput = {
+      ...where,
+      sentSwipes: { some: { toId: meId, action: "LIKE" } },
+    };
+    const likedMeCandidate = await this.prisma.user.findFirst({
+      where: likedMeWhere,
+      orderBy: { createdAt: "desc" },
+      include: { buyerProfile: true, ownerProfile: true },
+    });
+    if (likedMeCandidate) {
+      return {
+        card: toPublicCard(likedMeCandidate as UserWithProfiles, {
+          likedYou: true,
+        }),
+        remaining,
+      };
+    }
+
     const candidate = await this.prisma.user.findFirst({
       where,
       orderBy: { createdAt: "desc" },

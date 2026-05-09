@@ -1,3 +1,4 @@
+import { Heart } from "lucide-react";
 import type { PublicCard } from "@tg-app-meet/shared";
 import { Card, RoleAvatar } from "../ui";
 
@@ -8,7 +9,8 @@ import { Card, RoleAvatar } from "../ui";
  */
 export function CardView({ card }: { card: PublicCard }) {
   return (
-    <Card className="flex flex-col gap-4 p-5 h-full overflow-hidden">
+    <Card className="relative flex flex-col gap-4 p-5 h-full overflow-hidden">
+      {card.likedYou && <LikedYouBadge />}
       <header className="flex items-center gap-3 shrink-0">
         <RoleAvatar role={card.role} size="lg" />
         <div>
@@ -22,6 +24,25 @@ export function CardView({ card }: { card: PublicCard }) {
         {card.role === "BUYER" ? <BuyerBody card={card} /> : <OwnerBody card={card} />}
       </div>
     </Card>
+  );
+}
+
+/**
+ * "Liked you" pill — surfaces in the top-right corner of the card. The
+ * pink/red palette and pulse animation are intentionally distinct from
+ * the (red/green) swipe-direction glow so it reads at a glance: this is
+ * about "they already swiped on you", not "you're swiping right now".
+ */
+function LikedYouBadge() {
+  return (
+    <div className="absolute top-3 right-3 z-20 pointer-events-none">
+      <div className="flex items-center gap-1.5 rounded-full px-3 py-1 bg-pink-500/15 border border-pink-400/60 backdrop-blur-sm shadow-[0_0_18px_rgba(244,114,182,0.55)] animate-pulse">
+        <Heart size={13} className="text-pink-400" fill="currentColor" />
+        <span className="text-[11px] font-bold tracking-wide text-pink-300 uppercase">
+          Лайкнул вас
+        </span>
+      </div>
+    </div>
   );
 }
 

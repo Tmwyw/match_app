@@ -108,6 +108,12 @@ export const MyProfileResponse = z.discriminatedUnion("role", [
 ]);
 export type MyProfileResponse = z.infer<typeof MyProfileResponse>;
 
+/** Tinder-style "this person already liked you" flag. Set by /discover
+ *  for cards whose owner has a pending LIKE pointing at the requester
+ *  (so swiping LIKE will instantly produce a Match). Default false on
+ *  every other card surface (e.g. UserCardScreen deep-link viewer). */
+const LikedYou = z.boolean().default(false);
+
 export const PublicBuyerCard = z.object({
   userId: z.string(),
   anonId: z.string(),
@@ -122,6 +128,7 @@ export const PublicBuyerCard = z.object({
   budgetMax: z.number().int(),
   experience: z.number().int(),
   notes: z.string().nullable(),
+  likedYou: LikedYou,
 });
 export type PublicBuyerCard = z.infer<typeof PublicBuyerCard>;
 
@@ -138,6 +145,7 @@ export const PublicOwnerCard = z.object({
   payoutMax: z.number().int(),
   requirements: z.string().nullable(),
   bio: z.string().nullable(),
+  likedYou: LikedYou,
 });
 export type PublicOwnerCard = z.infer<typeof PublicOwnerCard>;
 

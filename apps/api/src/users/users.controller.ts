@@ -196,7 +196,12 @@ export class UsersController {
     if (user.profileApprovedAt == null) {
       throw new NotFoundException("USER_NOT_FOUND");
     }
-    return toPublicCard(user as UserWithProfiles);
+    // Carry the "Likes You" flag onto deep-link card views too — the
+    // user might open this card from the inbound-likes badge in the
+    // future, and even today the bot's `?start=p_<id>` deep-link could
+    // open the card of someone who already liked them.
+    const likedYou = await this.swipes.hasInboundLike(current.id, userId);
+    return toPublicCard(user as UserWithProfiles, { likedYou });
   }
 
   private async resolveBotUsername(): Promise<string> {

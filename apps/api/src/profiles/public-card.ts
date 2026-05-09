@@ -8,10 +8,14 @@ export type UserWithProfiles = User & {
 
 const PLUG_ANON = "Аккаунт удалён";
 
-export function toPublicCard(user: UserWithProfiles): PublicCard {
+export function toPublicCard(
+  user: UserWithProfiles,
+  opts: { likedYou?: boolean } = {},
+): PublicCard {
   if (!user.role || !user.anonId) {
     throw new Error(`user ${user.id} has no role/anonId`);
   }
+  const likedYou = opts.likedYou ?? false;
   if (user.role === "BUYER") {
     if (!user.buyerProfile) throw new Error(`buyer ${user.id} missing profile`);
     return PublicBuyerCard.parse({
@@ -27,6 +31,7 @@ export function toPublicCard(user: UserWithProfiles): PublicCard {
       budgetMax: user.buyerProfile.budgetMax,
       experience: user.buyerProfile.experience,
       notes: user.buyerProfile.notes,
+      likedYou,
     });
   }
   if (!user.ownerProfile) throw new Error(`owner ${user.id} missing profile`);
@@ -43,6 +48,7 @@ export function toPublicCard(user: UserWithProfiles): PublicCard {
     payoutMax: user.ownerProfile.payoutMax,
     requirements: user.ownerProfile.requirements,
     bio: user.ownerProfile.bio,
+    likedYou,
   });
 }
 

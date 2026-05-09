@@ -125,6 +125,19 @@ export class SwipesService {
   }
 
   /**
+   * Does `otherId` have a pending LIKE pointed at `meId`? Used by the
+   * deep-link card viewer to set the `likedYou` flag on PublicCard so
+   * the FE can paint the "Лайкнул(а) вас" badge.
+   */
+  async hasInboundLike(meId: string, otherId: string): Promise<boolean> {
+    const swipe = await this.prisma.swipe.findUnique({
+      where: { fromId_toId: { fromId: otherId, toId: meId } },
+      select: { action: true },
+    });
+    return swipe?.action === "LIKE";
+  }
+
+  /**
    * How many people LIKE'd the current user without (yet) a reciprocal
    * swipe of any kind. Used by the "💜 N человек тебя лайкнули" badge —
    * we deliberately don't expose WHO so we have a paid-reveal hook later.
