@@ -53,17 +53,21 @@ const IS_TOUCH =
   window.matchMedia?.("(pointer: coarse)").matches;
 
 /**
- * Single confidence score that combines drag distance AND release
- * velocity, taken straight from the official Framer Motion image-slider
- * example: `power = |offset| × velocity`. A short fast flick (50px ×
- * 600 = 30000) and a slow long pull (200px × 100 = 20000) both pass
- * the threshold — neither path requires the other.
+ * Two paths to commit a swipe (either-or):
  *
- * Touch threshold lower because thumb flicks are imprecise but
- * intentional; mouse threshold higher because click-drag jitter
- * routinely produces a few hundred power and shouldn't swipe.
+ *   1. Power: |offset| × peak-velocity > confidence — captures fast
+ *      flicks even when the drag was short. Threshold per input type.
+ *   2. Distance: drag exceeded a % of card width — captures slow
+ *      drags where velocity reads as 0 (Telegram iOS WebView often
+ *      reports velocity unreliably; without this fallback, slow long
+ *      drags wouldn't commit because power = anything × 0 = 0).
+ *
+ * Touch profile is permissive (small thumb flicks should land);
+ * mouse profile is strict (click-drag jitter shouldn't swipe).
  */
-const SWIPE_CONFIDENCE = IS_TOUCH ? 7000 : 11000;
+const SWIPE_CONFIDENCE = IS_TOUCH ? 6000 : 10000;
+const SWIPE_DISTANCE_FRACTION = IS_TOUCH ? 0.22 : 0.32;
+const SWIPE_DISTANCE_MIN_PX = IS_TOUCH ? 70 : 110;
 const swipePower = (offset: number, velocity: number) =>
   Math.abs(offset) * velocity;
 
@@ -609,13 +613,13 @@ function DraggableCard({
     return () => ro.disconnect();
   }, []);
   const visualThreshold = Math.max(VISUAL_MIN_PX, cardWidth * VISUAL_FRACTION);
-  // Track the latest pointer velocity via the MotionValue itself —
-  // some webviews populate `info.velocity` at drag end inconsistently
-  // (Telegram WebView on iOS especially). `x.getVelocity()` is the
-  // running pointer velocity that framer-motion updates on every
-  // frame; reading it inside onDrag and stashing the latest gives us
-  // a reliable number regardless of platform quirks.
-  const lastVelocity = useRef(0);
+  // Track PEAK velocity during the drag, not the last value. Telegram
+  // WebView on iOS often reports the final velocity as 0 (user paused
+  // before releasing → last frame's velocity = 0), and that 0 zeroes
+  // out the power formula even on a vigorous flick. Capturing the
+  // peak (preserving sign) means a flick that hit 800 px/s mid-drag
+  // and then slowed to 0 at release still commits as 800.
+  const peakVelocity = useRef(0);
 
   // Debug-overlay live values — only state-driven when the overlay is
   // active so production builds pay no extra render cost.
@@ -679,31 +683,43 @@ function DraggableCard({
       // releases mid-drag.
       dragTransition={{ bounceStiffness: 350, bounceDamping: 30 }}
       onDrag={(_, info) => {
-        // Cache the running velocity. info.velocity at onDragEnd is
-        // unreliable on some webviews (Telegram iOS in particular
-        // reports 0 there); reading it during the drag gives us the
-        // true instantaneous value to use at release time.
-        lastVelocity.current = info.velocity.x;
+        // Capture peak velocity — keep the value with the largest
+        // magnitude in the drag's direction. info.velocity at
+        // onDragEnd is unreliable on iOS Telegram WebView (often 0
+        // because the user paused before lifting); the peak read
+        // mid-drag is what we use at release time.
+        const v = info.velocity.x;
+        if (Math.abs(v) > Math.abs(peakVelocity.current)) {
+          peakVelocity.current = v;
+        }
         if (SWIPE_DEBUG) {
           setDebugDx(info.offset.x);
-          setDebugVx(info.velocity.x);
+          setDebugVx(v);
         }
       }}
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
-        // Prefer the running velocity from onDrag; fall back to
-        // info.velocity if the drag fired without onDrag updates.
-        const vx = lastVelocity.current || info.velocity.x;
-        // Official Framer-Motion image-slider pattern: combine
-        // distance and velocity into a single confidence score.
-        // A short fast flick or a long slow drag both pass.
+        // Prefer the captured peak; fall back to whatever framer
+        // gives us at end if no onDrag fired (very short tap-drag).
+        const vx = peakVelocity.current || info.velocity.x;
+        // Path 1 — power: combined offset × velocity for fast flicks.
         const power = swipePower(dx, vx);
-        if (power > SWIPE_CONFIDENCE && dx > 0) {
+        const powerCommit = power > SWIPE_CONFIDENCE;
+        // Path 2 — pure distance: catches slow drags whose velocity
+        // reads as 0 on the iOS webview. Threshold = % of card width
+        // floored at SWIPE_DISTANCE_MIN_PX so it doesn't get tiny.
+        const distanceThreshold = Math.max(
+          SWIPE_DISTANCE_MIN_PX,
+          cardWidth * SWIPE_DISTANCE_FRACTION,
+        );
+        const distanceCommit = Math.abs(dx) >= distanceThreshold;
+
+        if ((powerCommit || distanceCommit) && dx > 0) {
           flyOff(1, onLike);
-        } else if (power > SWIPE_CONFIDENCE && dx < 0) {
+        } else if ((powerCommit || distanceCommit) && dx < 0) {
           flyOff(-1, onSkip);
         }
-        lastVelocity.current = 0;
+        peakVelocity.current = 0;
       }}
       // h-full + w-full so the inner CardView's `h-full` has a definite
       // box to resolve against — without these the card collapsed to 0
@@ -757,8 +773,15 @@ function SwipeDebugOverlay({
   dx: number;
   vx: number;
 }) {
-  const power = swipePower(dx, vx);
-  const wouldCommit = Math.abs(power) > SWIPE_CONFIDENCE;
+  const power = Math.abs(swipePower(dx, vx));
+  const distancePct = cardWidth ? (Math.abs(dx) / cardWidth) * 100 : 0;
+  const distanceThreshold = Math.max(
+    SWIPE_DISTANCE_MIN_PX,
+    cardWidth * SWIPE_DISTANCE_FRACTION,
+  );
+  const powerCommit = power > SWIPE_CONFIDENCE;
+  const distanceCommit = Math.abs(dx) >= distanceThreshold;
+  const wouldCommit = powerCommit || distanceCommit;
   return (
     <div
       style={{
@@ -777,12 +800,24 @@ function SwipeDebugOverlay({
       }}
     >
       <div>cardW: {cardWidth}</div>
-      <div>dx: {dx.toFixed(0)} ({((dx / cardWidth) * 100).toFixed(0)}%)</div>
-      <div>vx: {vx.toFixed(0)}</div>
       <div>
-        power: {power.toFixed(0)} / {SWIPE_CONFIDENCE}
+        dx: {dx.toFixed(0)} ({distancePct.toFixed(0)}%)
       </div>
-      <div style={{ color: wouldCommit ? "#10b981" : "#ef4444" }}>
+      <div>vx: {vx.toFixed(0)}</div>
+      <div style={{ color: powerCommit ? "#10b981" : "#9ca3af" }}>
+        power: {power.toFixed(0)} / {SWIPE_CONFIDENCE}{" "}
+        {powerCommit ? "✓" : ""}
+      </div>
+      <div style={{ color: distanceCommit ? "#10b981" : "#9ca3af" }}>
+        dist: {Math.abs(dx).toFixed(0)} / {distanceThreshold.toFixed(0)}{" "}
+        {distanceCommit ? "✓" : ""}
+      </div>
+      <div
+        style={{
+          color: wouldCommit ? "#10b981" : "#ef4444",
+          fontWeight: 700,
+        }}
+      >
         {wouldCommit ? "✓ COMMIT" : "✗ no"}
       </div>
       <div style={{ opacity: 0.5, fontSize: 9 }}>
