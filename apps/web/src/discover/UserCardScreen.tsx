@@ -21,6 +21,10 @@ type Props = {
   userId: string;
   myRole: "BUYER" | "OWNER";
   onClose: () => void;
+  /** Hide the Like/Skip action row. Used when the screen is opened from
+   *  the chats list — at that point we already have a match with this
+   *  user, so showing swipe actions makes no sense. */
+  hideActions?: boolean;
   /** When the deep-link tap turns into a match, the chat shortcut on the
    *  overlay should open the chat — same handler as the Deck. */
   onMatched: (payload: {
@@ -37,7 +41,13 @@ type Props = {
  * deep-link. Provides Like/Skip actions so the user doesn't have to
  * jump back to the deck just to react.
  */
-export function UserCardScreen({ userId, myRole, onClose, onMatched }: Props) {
+export function UserCardScreen({
+  userId,
+  myRole,
+  onClose,
+  onMatched,
+  hideActions = false,
+}: Props) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [submitting, setSubmitting] = useState(false);
   const [matchOverlay, setMatchOverlay] = useState<{
@@ -119,26 +129,28 @@ export function UserCardScreen({ userId, myRole, onClose, onMatched }: Props) {
           {state.status === "ready" && (
             <>
               <CardView card={state.card} />
-              <div className="flex items-center gap-3 mt-2">
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  disabled={submitting}
-                  onClick={() => swipe("SKIP")}
-                >
-                  <X size={18} />
-                  Пропустить
-                </Button>
-                <Button
-                  variant="primary"
-                  fullWidth
-                  disabled={submitting}
-                  onClick={() => swipe("LIKE")}
-                >
-                  <Heart size={18} fill="currentColor" />
-                  Лайк
-                </Button>
-              </div>
+              {!hideActions && (
+                <div className="flex items-center gap-3 mt-2">
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    disabled={submitting}
+                    onClick={() => swipe("SKIP")}
+                  >
+                    <X size={18} />
+                    Пропустить
+                  </Button>
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    disabled={submitting}
+                    onClick={() => swipe("LIKE")}
+                  >
+                    <Heart size={18} fill="currentColor" />
+                    Лайк
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>

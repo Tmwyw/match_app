@@ -213,7 +213,13 @@ function Home({
 }) {
   const [tab, setTab] = useState<Tab>("discover");
   const [openChat, setOpenChat] = useState<OpenChat | null>(null);
-  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
+  // `origin` decides whether the swipe action row shows up. When opened
+  // from the chats list we already matched with this user, so showing
+  // Like/Skip would be nonsensical — hideActions handles that.
+  const [viewing, setViewing] = useState<{
+    id: string;
+    origin: "deep-link" | "chats";
+  } | null>(null);
   const likes = useLikesCount();
 
   // Deep-link routing — runs once after onboarding/profile flow. We honour
@@ -225,7 +231,7 @@ function Home({
     const startTarget = fromStart?.startsWith("p_") ? fromStart.slice(2) : null;
     const target = startTarget ?? user.pendingViewProfile;
     if (!target || target === user.id) return;
-    setViewingProfileId(target);
+    setViewing({ id: target, origin: "deep-link" });
     if (user.pendingViewProfile) {
       // Clear server-side once consumed so reopening doesn't re-trigger.
       void api("/me/pending-view", { method: "DELETE" }).catch(() => {
@@ -239,10 +245,10 @@ function Home({
 
   const tabs: readonly TabItem<Tab>[] = useMemo(
     () => [
-      { key: "discover", label: "Найти", icon: <Flame size={22} /> },
+      { key: "discover", label: "Поиск", icon: <Flame size={22} /> },
       {
         key: "matches",
-        label: "Матчи",
+        label: "Диалоги",
         icon: <MessagesSquare size={22} />,
         badge: likes.count,
       },
@@ -272,7 +278,9 @@ function Home({
         {tab === "matches" && (
           <MatchesList
             onOpenChat={(payload) => setOpenChat(payload)}
-            onOpenProfile={(userId) => setViewingProfileId(userId)}
+            onOpenProfile={(userId) =>
+              setViewing({ id: userId, origin: "chats" })
+            }
             inboundLikesCount={likes.count}
           />
         )}
@@ -298,13 +306,14 @@ function Home({
           onBlocked={() => setOpenChat(null)}
         />
       )}
-      {viewingProfileId && (
+      {viewing && (
         <UserCardScreen
-          userId={viewingProfileId}
+          userId={viewing.id}
           myRole={profile.role}
-          onClose={() => setViewingProfileId(null)}
+          hideActions={viewing.origin === "chats"}
+          onClose={() => setViewing(null)}
           onMatched={(payload) => {
-            setViewingProfileId(null);
+            setViewing(null);
             setOpenChat(payload);
             setTab("matches");
             likes.refresh();

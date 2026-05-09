@@ -1,13 +1,16 @@
-import { Banknote, Briefcase, Building2, Copy, Globe2, Pencil, Send, Settings, Sparkles, Target, Users } from "lucide-react";
+import { Banknote, BadgePercent, Briefcase, Building2, Copy, ExternalLink, Globe2, Pencil, Settings, Sparkles, Target } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import type { MeResponse, MyProfileResponse, ReferralLinkResponse } from "@tg-app-meet/shared";
-import { api } from "../api";
+import { useState } from "react";
+import type { MeResponse, MyProfileResponse } from "@tg-app-meet/shared";
 import { SettingsScreen } from "../settings/SettingsScreen";
-import { shareLink } from "../telegram";
 import { Button, Card, Logo, RoleAvatar, Screen } from "../ui";
 import { BuyerProfileForm } from "./BuyerProfileForm";
 import { OwnerProfileForm } from "./OwnerProfileForm";
+
+/** Promo code shown to every user in their profile. Manager link is the
+ *  CTA target — UPDATE this URL when the real manager is decided. */
+const PROMO_CODE = "CreoMetricsHR";
+const MANAGER_TG_URL = "https://t.me/creometrics_manager";
 
 type Props = {
   user: MeResponse;
@@ -53,8 +56,12 @@ export function MyProfile({
   }
 
   return (
-    <Screen className="pb-safe min-h-screen">
-      <div className="max-w-md mx-auto flex flex-col gap-4">
+    // h-full + overflow-y-auto: the parent (App's tab container) is a
+    // definite-height flex slot, but MyProfile content can be longer than
+    // the viewport (especially the Settings button at the bottom). Scroll
+    // internally instead of overflowing off the screen.
+    <Screen className="h-full overflow-y-auto pb-safe">
+      <div className="max-w-md mx-auto flex flex-col gap-4 pb-6">
         <div className="flex justify-center pt-2 pb-1">
           <Logo size={64} />
         </div>
@@ -76,7 +83,7 @@ export function MyProfile({
           Редактировать
         </Button>
 
-        <ReferralSection referralCount={user.referralCount} />
+        <PromoCodeSection />
 
         <Button
           variant="ghost"
@@ -97,24 +104,14 @@ export function MyProfile({
   );
 }
 
-function ReferralSection({ referralCount }: { referralCount: number }) {
-  const [link, setLink] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/**
+ * Promo-code block — replaced the previous referral link block. Friend-
+ * invite referrals weren't getting traction at this stage, so the slot
+ * is repurposed for a manager-issued discount code that drives CTAs to
+ * an outside Telegram contact.
+ */
+function PromoCodeSection() {
   const [toast, setToast] = useState<string | null>(null);
-
-  useEffect(() => {
-    let aborted = false;
-    api<ReferralLinkResponse>("/me/referral-link")
-      .then((r) => {
-        if (!aborted) setLink(r.link);
-      })
-      .catch((e) => {
-        if (!aborted) setError(e instanceof Error ? e.message : String(e));
-      });
-    return () => {
-      aborted = true;
-    };
-  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -122,47 +119,43 @@ function ReferralSection({ referralCount }: { referralCount: number }) {
   };
 
   const copy = async () => {
-    if (!link) return;
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(PROMO_CODE);
       showToast("Скопировано");
     } catch {
       showToast("Не удалось скопировать");
     }
   };
 
-  const share = () => {
-    if (!link) return;
-    shareLink(link, "Залетай в TG Meet — мэтчинг баеров и овнеров");
+  const order = () => {
+    // Open the manager DM. Telegram MiniApp's openLink handles tg://
+    // and https links uniformly; we use https form here so it works in
+    // the desktop webview too.
+    window.open(MANAGER_TG_URL, "_blank", "noopener,noreferrer");
   };
 
   return (
     <Card className="flex flex-col gap-3 p-4 mt-2">
       <div className="flex items-start gap-3">
-        <Users size={18} className="text-accent shrink-0 mt-0.5" />
+        <BadgePercent size={18} className="text-accent shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold">Пригласи друзей</div>
+          <div className="text-sm font-semibold">Ваш промокод</div>
           <div className="text-[11px] text-tg-hint">
-            {referralCount > 0
-              ? `Ты пригласил ${referralCount} ${pluralPeople(referralCount)}.`
-              : "Реферал привязывается, когда друг открывает приложение по твоей ссылке."}
+            Получите 10% скидку на первый заказ.
           </div>
         </div>
       </div>
-      {error && <p className="text-danger text-xs">{error}</p>}
-      {link && (
-        <div className="rounded-input bg-card-elevated border border-app-border px-3 py-2 text-xs text-tg-text break-all">
-          {link}
-        </div>
-      )}
+      <div className="rounded-input bg-card-elevated border border-app-border px-3 py-2 text-sm font-bold tracking-wider text-tg-text text-center">
+        {PROMO_CODE}
+      </div>
       <div className="flex items-center gap-2">
-        <Button variant="secondary" size="md" fullWidth onClick={copy} disabled={!link}>
+        <Button variant="secondary" size="md" fullWidth onClick={copy}>
           <Copy size={14} />
           Скопировать
         </Button>
-        <Button variant="primary" size="md" fullWidth onClick={share} disabled={!link}>
-          <Send size={14} />
-          Поделиться
+        <Button variant="primary" size="md" fullWidth onClick={order}>
+          <ExternalLink size={14} />
+          Заказать
         </Button>
       </div>
       {toast && (
@@ -170,14 +163,6 @@ function ReferralSection({ referralCount }: { referralCount: number }) {
       )}
     </Card>
   );
-}
-
-function pluralPeople(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "человека";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "человека";
-  return "человек";
 }
 
 function ProfileHero({

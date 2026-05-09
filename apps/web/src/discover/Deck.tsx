@@ -274,7 +274,7 @@ export function Deck({
           </p>
           <div className="flex flex-col gap-2 mt-3 w-full max-w-xs">
             <Button variant="secondary" size="md" onClick={loadInitial}>
-              обновить
+              Обновить
             </Button>
             <Button
               variant="ghost"
@@ -552,6 +552,11 @@ function DraggableCard({
       duration: 0.28,
       ease: "easeOut",
     }).then(() => {
+      // Snap x back to 0 BEFORE triggering the swipe handler. Since x is
+      // now lifted to the Deck level (so the side stamps can subscribe),
+      // the freshly-mounted next card would otherwise inherit the
+      // fly-off transform and render off-screen for one frame.
+      x.set(0);
       after();
       flying.current = false;
     });

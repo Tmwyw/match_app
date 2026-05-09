@@ -200,15 +200,15 @@ export const BuyerGeoPresets = OwnerGeoPresets;
  *  (`@username` typed in there). The "Other" escape hatch keeps the door
  *  open for niche roles. */
 export const PositionPresets = [
+  "CEO",
   "Buyer / Медиабайер",
   "Team Lead",
-  "Designer / Креативщик",
-  "Content Manager",
   "Affiliate Manager",
   "Sales / Продажник",
   "Account Manager",
+  "Content Manager",
+  "Обработчик",
   "Tech / Антифрод",
-  "Менторство / Обучение",
   "Other",
 ] as const;
 

@@ -1,8 +1,11 @@
 import { useState } from "react";
 import {
   type DiscoverFilters,
-  GeoPresets,
-  VerticalPresets,
+  // Use the curated owner/buyer presets (the same chips users see in
+  // their profile forms) — the broader VerticalPresets/GeoPresets
+  // include legacy options that don't exist in current profiles.
+  OwnerGeoPresets,
+  OwnerIndustryVerticalPresets,
 } from "@tg-app-meet/shared";
 import { Modal, ModalConfirmFooter } from "../ui/Modal";
 
@@ -50,8 +53,18 @@ export function FilterSheet({ initial, onApply, onClose }: Props) {
         </>
       }
     >
-      <Group label="Вертикали" options={[...VerticalPresets]} value={verticals} onChange={setVerticals} />
-      <Group label="Гео" options={[...GeoPresets]} value={geos} onChange={setGeos} />
+      <Group
+        label="Вертикали"
+        options={[...OwnerIndustryVerticalPresets]}
+        value={verticals}
+        onChange={setVerticals}
+      />
+      <Group
+        label="Гео"
+        options={[...OwnerGeoPresets]}
+        value={geos}
+        onChange={setGeos}
+      />
       <p className="text-tg-hint text-[11px]">
         Пусто = без фильтра. Фильтр сужает базовую совместимость.
       </p>
