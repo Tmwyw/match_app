@@ -6,7 +6,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { Filter, Heart, RotateCcw, Undo2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   DiscoverFilters,
   DiscoverResponse,
@@ -44,7 +44,18 @@ type DeckState =
   | { status: "error"; error: string }
   | { status: "ok"; queue: PublicCard[]; remaining: number };
 
-const SWIPE_THRESHOLD = 150;
+/** Fraction of the card's width the user must drag to commit a swipe.
+ *  28% gives a deliberate gesture without being a full half-card pull.
+ *  Used both for the visual ramp (tint/glow opacity) and the commit
+ *  decision in onDragEnd. Device-independent — small phones and large
+ *  laptops feel the same. */
+const SWIPE_FRACTION = 0.28;
+/** Floor so the threshold doesn't get silly on a 220px-wide card. */
+const SWIPE_MIN_PX = 80;
+/** Velocity-based commit. 600 px/s is a deliberate flick; finger drift
+ *  on touchscreens stays well under this. Was 1100 — too high for
+ *  trackpads / slower flicks. */
+const SWIPE_VELOCITY = 600;
 const UNDO_VISIBLE_MS = 5_000;
 
 export function Deck({
@@ -543,11 +554,36 @@ function DraggableCard({
   onSkip: () => void;
   x: MotionValue<number>;
 }) {
+  // Measure the actual card width so the swipe threshold scales with
+  // the device. Without this a 150-px hard-coded threshold meant ~47%
+  // of card width on a 320-px phone vs ~33% on a 448-px tablet — wildly
+  // different "feel" across devices.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardWidth, setCardWidth] = useState(0);
+  useLayoutEffect(() => {
+    if (cardRef.current) {
+      setCardWidth(cardRef.current.offsetWidth);
+    }
+  }, []);
+  // Re-measure on resize / orientation change so the threshold tracks
+  // viewport changes (e.g. user rotates phone).
+  useEffect(() => {
+    if (!cardRef.current) return;
+    const node = cardRef.current;
+    const ro = new ResizeObserver(() => {
+      if (node) setCardWidth(node.offsetWidth);
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
+  const swipeThreshold = Math.max(SWIPE_MIN_PX, cardWidth * SWIPE_FRACTION);
+
   const rotate = useTransform(x, [-300, 0, 300], [-15, 0, 15]);
   // Tint and edge-glow opacity ramp up over the threshold distance so the
-  // visual builds gradually; full opacity at the threshold.
-  const likeOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
-  const skipOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
+  // visual builds gradually; full opacity at the (now device-relative)
+  // commit threshold.
+  const likeOpacity = useTransform(x, [20, swipeThreshold], [0, 1]);
+  const skipOpacity = useTransform(x, [-swipeThreshold, -20], [1, 0]);
   const opacity = useTransform(x, [-400, -200, 0, 200, 400], [0, 1, 1, 1, 0]);
   // Card-edge glow that mirrors the tint — colour gets stronger as the
   // user commits to the gesture.
@@ -584,6 +620,7 @@ function DraggableCard({
   return (
     <motion.div
       key={card.userId}
+      ref={cardRef}
       style={{ x, rotate, opacity, touchAction: "pan-y" }}
       drag={disabled ? false : "x"}
       dragConstraints={{ left: 0, right: 0 }}
@@ -591,12 +628,19 @@ function DraggableCard({
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
         const vx = info.velocity.x;
-        // Only commit on a deliberate flick — small jitter shouldn't
-        // accidentally swipe away the whole card.
-        const fastFling = Math.abs(vx) > 1100;
-        if (dx > SWIPE_THRESHOLD || (fastFling && vx > 0)) {
+        // Two paths to commit, each device-aware:
+        //  1) Distance: dragged past `swipeThreshold` (28% of card width,
+        //     min 80px) — works for slow drags on any size screen.
+        //  2) Velocity: a deliberate flick > 600 px/s in the matching
+        //     direction — works even if the user lifts before reaching
+        //     the distance threshold.
+        const distCommit = Math.abs(dx) >= swipeThreshold;
+        const veloCommit = Math.abs(vx) >= SWIPE_VELOCITY;
+        const towardLike = dx > 0;
+        const towardSkip = dx < 0;
+        if (towardLike && (distCommit || (veloCommit && vx > 0))) {
           flyOff(1, onLike);
-        } else if (dx < -SWIPE_THRESHOLD || (fastFling && vx < 0)) {
+        } else if (towardSkip && (distCommit || (veloCommit && vx < 0))) {
           flyOff(-1, onSkip);
         }
       }}
