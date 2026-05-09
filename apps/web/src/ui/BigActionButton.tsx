@@ -11,10 +11,15 @@ type Props = {
   disabled?: boolean;
 };
 
+// White borders used to sit on every variant — they read as a subtle
+// rim in dark mode but vanish into the bg in light mode, leaving the
+// button looking flat. Saturated solid colours (red/cyan/green) define
+// themselves well enough; we lean on the coloured drop-shadow for depth
+// in both themes instead.
 const variants: Record<Variant, string> = {
-  danger: "bg-danger text-white shadow-glow-danger border border-white/15",
-  info: "bg-accent-gradient text-accent-text shadow-glow border border-white/15",
-  success: "bg-success text-white shadow-glow-success border border-white/15",
+  danger: "bg-danger text-white shadow-glow-danger",
+  info: "bg-accent-gradient text-accent-text shadow-glow",
+  success: "bg-success text-white shadow-glow-success",
 };
 
 export function BigActionButton({ variant, icon, ariaLabel, onClick, disabled }: Props) {

@@ -310,7 +310,10 @@ export function Deck({
   }
 
   return (
-    <Screen className="flex flex-col gap-3 h-full overflow-hidden">
+    // No overflow-hidden on the outer Screen — it was clipping the
+    // action-row drop-shadow into a rectangle. Card content is still
+    // clipped by the inner deck slot's own overflow-hidden.
+    <Screen className="flex flex-col gap-3 h-full">
       <div className="flex justify-center pt-2 shrink-0">
         <Logo size={56} />
       </div>
@@ -319,8 +322,11 @@ export function Deck({
         activeFilterCount={filters.verticals.length + filters.geos.length}
         remaining={state.remaining}
       />
-      <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
-        <div className="flex-1 min-h-0 relative">
+      {/* Outer container intentionally NO overflow-hidden — was clipping
+          the action buttons' drop-shadow into a square silhouette below
+          the card. The deck slot itself still clips card content. */}
+      <div className="max-w-md w-full mx-auto flex-1 min-h-0 flex flex-col gap-3">
+        <div className="flex-1 min-h-0 relative overflow-hidden rounded-card">
           <DeckStack
             queue={state.queue}
             disabled={submitting}
