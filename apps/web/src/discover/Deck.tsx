@@ -613,13 +613,17 @@ function DraggableCard({
     return () => ro.disconnect();
   }, []);
   const visualThreshold = Math.max(VISUAL_MIN_PX, cardWidth * VISUAL_FRACTION);
-  // Track PEAK velocity during the drag, not the last value. Telegram
-  // WebView on iOS often reports the final velocity as 0 (user paused
-  // before releasing → last frame's velocity = 0), and that 0 zeroes
-  // out the power formula even on a vigorous flick. Capturing the
-  // peak (preserving sign) means a flick that hit 800 px/s mid-drag
-  // and then slowed to 0 at release still commits as 800.
-  const peakVelocity = useRef(0);
+  // Peak velocity tracked PER DIRECTION. Single-peak tracking caused
+  // a real bug: user starts swiping right (peak right = 1500), then
+  // changes their mind and pulls the card back toward centre. The
+  // single peak still reads 1500, so power = |dx| × 1500 commits as
+  // a right-swipe even when the user clearly cancelled.
+  // With separate peaks we read the one matching the FINAL drag
+  // direction. If the user pulled back enough that dx is now < 0,
+  // we use leftPeak (which only saw the cancel motion) — usually
+  // small enough that no commit fires, exactly the user intent.
+  const rightPeak = useRef(0); // max positive velocity seen this drag
+  const leftPeak = useRef(0); // most negative velocity seen this drag
 
   // Debug-overlay live values — only state-driven when the overlay is
   // active so production builds pay no extra render cost.
@@ -683,15 +687,14 @@ function DraggableCard({
       // releases mid-drag.
       dragTransition={{ bounceStiffness: 350, bounceDamping: 30 }}
       onDrag={(_, info) => {
-        // Capture peak velocity — keep the value with the largest
-        // magnitude in the drag's direction. info.velocity at
-        // onDragEnd is unreliable on iOS Telegram WebView (often 0
-        // because the user paused before lifting); the peak read
-        // mid-drag is what we use at release time.
+        // Track peak velocity per direction. Right peak grows when
+        // user swipes right; left peak (most negative value) grows
+        // when user swipes left. Reversing direction mid-drag adds
+        // to the OTHER peak — the original peak no longer "wins"
+        // automatically.
         const v = info.velocity.x;
-        if (Math.abs(v) > Math.abs(peakVelocity.current)) {
-          peakVelocity.current = v;
-        }
+        if (v > rightPeak.current) rightPeak.current = v;
+        if (v < leftPeak.current) leftPeak.current = v;
         if (SWIPE_DEBUG) {
           setDebugDx(info.offset.x);
           setDebugVx(v);
@@ -699,21 +702,23 @@ function DraggableCard({
       }}
       onDragEnd={(_, info) => {
         const dx = info.offset.x;
-        // Prefer the captured peak; fall back to whatever framer
-        // gives us at end if no onDrag fired (very short tap-drag).
-        const vx = peakVelocity.current || info.velocity.x;
+        // Use the peak velocity that matches the FINAL drag direction.
+        // If the user dragged right then pulled back to negative dx,
+        // we use leftPeak — which only captured the cancel motion
+        // (small magnitude, so power stays under threshold and the
+        // gesture correctly registers as a cancel).
+        const vx =
+          dx > 0
+            ? rightPeak.current || info.velocity.x
+            : leftPeak.current || info.velocity.x;
         // Path 1 — power: combined offset × velocity for fast flicks.
-        // swipePower preserves the sign of vx (|dx| is always >= 0,
-        // velocity is signed), so positive power = rightward, negative
-        // power = leftward. Compare against signed thresholds — was
-        // checking `power > THRESH` which never matched on left
-        // swipes because their power is negative.
+        // Signed comparison both ways (positive power = rightward,
+        // negative = leftward).
         const power = swipePower(dx, vx);
         const rightPower = power > SWIPE_CONFIDENCE;
         const leftPower = power < -SWIPE_CONFIDENCE;
         // Path 2 — pure distance: catches slow drags whose velocity
-        // reads as 0 on the iOS webview. Threshold = % of card width
-        // floored at SWIPE_DISTANCE_MIN_PX so it doesn't get tiny.
+        // reads as 0 on the iOS webview.
         const distanceThreshold = Math.max(
           SWIPE_DISTANCE_MIN_PX,
           cardWidth * SWIPE_DISTANCE_FRACTION,
@@ -726,7 +731,8 @@ function DraggableCard({
         } else if (leftPower || leftDistance) {
           flyOff(-1, onSkip);
         }
-        peakVelocity.current = 0;
+        rightPeak.current = 0;
+        leftPeak.current = 0;
       }}
       // h-full + w-full so the inner CardView's `h-full` has a definite
       // box to resolve against — without these the card collapsed to 0
