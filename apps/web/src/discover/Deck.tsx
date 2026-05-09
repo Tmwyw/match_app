@@ -315,7 +315,7 @@ export function Deck({
     // clipped by the inner deck slot's own overflow-hidden.
     <Screen className="flex flex-col gap-3 h-full">
       <div className="flex justify-center pt-2 shrink-0">
-        <Logo size={56} />
+        <Logo size={64} />
       </div>
       <Header
         onOpenFilters={() => setFilterOpen(true)}
