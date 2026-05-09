@@ -1,10 +1,11 @@
-import { Bell, RotateCcw, Trash2, UserMinus } from "lucide-react";
+import { Bell, Moon, Palette, RotateCcw, Sun, Trash2, UserMinus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type {
   BlocksResponse,
   NotificationPrefsResponse,
 } from "@tg-app-meet/shared";
 import { api, ApiError } from "../api";
+import { type Theme, useTheme } from "../theme";
 import { AppHeader, Background, Button, Card, RoleAvatar, Screen, cn } from "../ui";
 import { Modal, ModalConfirmFooter } from "../ui/Modal";
 
@@ -181,6 +182,8 @@ export function SettingsScreen({ onClose, onDeleted }: Props) {
               ))}
           </section>
 
+          <AppearanceSection />
+
           <NotificationsSection />
 
           <section className="flex flex-col gap-2 mt-4">
@@ -297,6 +300,77 @@ function plural(n: number, one: string, few: string, many: string): string {
   if (mod10 === 1 && mod100 !== 11) return one;
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
   return many;
+}
+
+/**
+ * Theme toggle — light is the default. Choice is persisted by useTheme()
+ * and applied to <html data-theme>. Every Tailwind utility consumed in
+ * the app routes through the CSS vars in styles.css, so this single
+ * attribute swap re-themes the whole UI without component-level work.
+ */
+function AppearanceSection() {
+  const [theme, setTheme] = useTheme();
+  return (
+    <section className="flex flex-col gap-2 mt-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-tg-hint px-1 flex items-center gap-1.5">
+        <Palette size={12} /> Внешний вид
+      </h2>
+      <Card className="flex items-center justify-between gap-3 p-4">
+        <div className="flex flex-col">
+          <span className="text-sm text-tg-text font-medium">Тема</span>
+          <span className="text-[11px] text-tg-hint">
+            Светлая или тёмная — выбор сохранится между сессиями.
+          </span>
+        </div>
+        <div className="flex gap-1 p-1 rounded-button bg-card-elevated border border-app-border shrink-0">
+          <ThemeOption
+            label="Светлая"
+            value="light"
+            active={theme === "light"}
+            onClick={() => setTheme("light")}
+            icon={<Sun size={14} />}
+          />
+          <ThemeOption
+            label="Тёмная"
+            value="dark"
+            active={theme === "dark"}
+            onClick={() => setTheme("dark")}
+            icon={<Moon size={14} />}
+          />
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+function ThemeOption({
+  label,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string;
+  value: Theme;
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-button transition",
+        active
+          ? "bg-accent text-accent-text shadow"
+          : "text-tg-hint hover:text-tg-text",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
 }
 
 function NotificationsSection() {

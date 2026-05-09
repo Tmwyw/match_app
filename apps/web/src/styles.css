@@ -9,16 +9,65 @@
  * Surfaces are translucent so the background gradient mesh shows through
  * subtly behind blurred glass cards (iOS "liquid glass" look, approximated
  * via backdrop-filter — full Metal-shader refraction isn't doable in CSS).
+ *
+ * Two themes:
+ *   :root           → LIGHT (default)
+ *   [data-theme=dark] → DARK (toggle from Settings)
+ *
+ * The accent stays brand-cyan in both. Background, glass, text, border
+ * all swap. CSS vars feed Tailwind utilities (see tailwind.config.js)
+ * so toggling `<html data-theme>` flips every consumer at once — no
+ * per-component branching needed.
  */
 :root {
-  /* "CREO Metrics" palette — deep navy bg, cyan/sky accent matching the
-     logo's 3D blue lettering. Pivoted away from the earlier purple set
-     so the brand mark and UI feel like one piece. */
+  /* ── LIGHT theme — default ──────────────────────────────────────── */
+  --app-bg: #f4f8fd;
+  --app-bg-deep: #e7eef8;
+
+  --app-glass: rgba(255, 255, 255, 0.72);
+  --app-glass-strong: rgba(255, 255, 255, 0.86);
+  --app-glass-elevated: rgba(255, 255, 255, 0.94);
+  --app-glass-border: rgba(13, 25, 41, 0.10);
+  --app-glass-border-strong: rgba(13, 25, 41, 0.18);
+  --app-glass-highlight: rgba(47, 182, 255, 0.30);
+
+  --app-text: #0c1929;
+  --app-text-secondary: #2a3f5a;
+  --app-hint: #6b7d97;
+
+  --accent: #2fb6ff;
+  --accent-2: #0ea5e9;
+  /* Text ON the accent button. Cyan + dark navy reads strong in both
+     themes — kept identical so CTAs feel the same. */
+  --accent-text: #04121e;
+  --accent-muted: rgba(47, 182, 255, 0.16);
+  --accent-ring: rgba(47, 182, 255, 0.5);
+  --accent-glow: 0 8px 32px -8px rgba(47, 182, 255, 0.45),
+                 0 2px 0 rgba(255, 255, 255, 0.6) inset;
+
+  --role-buyer: #2fb6ff;
+  --role-owner: #14b8a6;
+
+  --danger: #ef4444;
+  --danger-muted: rgba(239, 68, 68, 0.14);
+  --success: #10b981;
+
+  /* Background-gradient bloom stops, consumed by .app-bg-gradient. */
+  --bg-bloom-1: rgba(47, 182, 255, 0.18);
+  --bg-bloom-2: rgba(20, 184, 166, 0.14);
+  --bg-bloom-3: rgba(56, 189, 248, 0.10);
+
+  --radius-card: 22px;
+  --radius-button: 16px;
+  --radius-input: 16px;
+  --radius-chip: 999px;
+}
+
+[data-theme="dark"] {
+  /* ── DARK theme ─────────────────────────────────────────────────── */
   --app-bg: #050a12;
   --app-bg-deep: #02050b;
 
-  /* Translucent glass surfaces — backdrop-blur picks up colour from the
-     animated gradient mesh underneath, giving every card subtle tinting. */
   --app-glass: rgba(16, 26, 40, 0.55);
   --app-glass-strong: rgba(20, 32, 48, 0.72);
   --app-glass-elevated: rgba(28, 42, 60, 0.78);
@@ -30,25 +79,24 @@
   --app-text-secondary: #cfd8e6;
   --app-hint: #7d8ba1;
 
-  --accent: #2fb6ff;
   --accent-2: #5ed0ff;
-  --accent-text: #04121e;
   --accent-muted: rgba(47, 182, 255, 0.20);
-  --accent-ring: rgba(47, 182, 255, 0.5);
   --accent-glow: 0 8px 32px -8px rgba(47, 182, 255, 0.55),
                  0 2px 0 rgba(255, 255, 255, 0.22) inset;
 
-  --role-buyer: #2fb6ff;
-  --role-owner: #14b8a6;
+  --bg-bloom-1: rgba(47, 182, 255, 0.45);
+  --bg-bloom-2: rgba(20, 184, 166, 0.32);
+  --bg-bloom-3: rgba(56, 189, 248, 0.18);
+}
 
-  --danger: #ef4444;
-  --danger-muted: rgba(239, 68, 68, 0.18);
-  --success: #10b981;
-
-  --radius-card: 22px;
-  --radius-button: 16px;
-  --radius-input: 16px;
-  --radius-chip: 999px;
+/* Background gradient — consumed by <Background />. Uses CSS vars so
+   the gradient automatically flips with the theme. */
+.app-bg-gradient {
+  background:
+    radial-gradient(ellipse 90% 60% at 20% 0%, var(--bg-bloom-1), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, var(--bg-bloom-2), transparent 60%),
+    radial-gradient(ellipse 100% 80% at 50% 100%, var(--bg-bloom-3), transparent 70%),
+    linear-gradient(180deg, var(--app-bg) 0%, var(--app-bg-deep) 100%);
 }
 
 html,
