@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import type { BuyerProfile, OwnerProfile } from "@prisma/client";
@@ -21,6 +22,8 @@ import { PrismaService } from "../prisma.service";
 
 @Injectable()
 export class ProfilesService {
+  private readonly logger = new Logger(ProfilesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -111,7 +114,15 @@ export class ProfilesService {
     anonId: string | null,
     role: "BUYER" | "OWNER",
   ): Promise<void> {
-    if (!anonId) return Promise.resolve();
+    this.logger.log(
+      `createMine → notifyAdmins anonId=${anonId} role=${role}`,
+    );
+    if (!anonId) {
+      this.logger.warn(
+        "createMine → notifyAdmins SKIP: anonId is null (shouldn't happen post-onboarding)",
+      );
+      return Promise.resolve();
+    }
     return this.notifications
       .notifyAdminsNewSubmission({ anonId, role })
       .catch(() => {

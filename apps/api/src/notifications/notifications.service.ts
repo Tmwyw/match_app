@@ -127,8 +127,14 @@ export class NotificationsService implements OnModuleDestroy {
     role: "BUYER" | "OWNER";
   }): Promise<void> {
     const admins = env.ADMIN_TELEGRAM_IDS;
+    this.logger.log(
+      `notifyAdminsNewSubmission CALL anonId=${opts.anonId} role=${opts.role} admins=${JSON.stringify(admins)}`,
+    );
     if (admins.length === 0) {
-      return; // No admins configured, nothing to do.
+      this.logger.warn(
+        "notifyAdminsNewSubmission SKIP: ADMIN_TELEGRAM_IDS env empty",
+      );
+      return;
     }
     const roleRu = opts.role === "BUYER" ? "БАЕР" : "ОВНЕР";
     // anonId is system-generated ("Buyer #5" pattern), no HTML escape
@@ -140,6 +146,7 @@ export class NotificationsService implements OnModuleDestroy {
     for (const tgId of admins) {
       try {
         await this.bot.api.sendMessage(tgId, text, { parse_mode: "HTML" });
+        this.logger.log(`notifyAdminsNewSubmission SEND ok tg:${tgId}`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         this.logger.warn(
