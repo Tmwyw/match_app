@@ -138,6 +138,11 @@ export class DiscoverService {
       if (filters.verticals.length > 0) {
         buyerWhere.trafficSources = { hasSome: filters.verticals };
       }
+      // Min experience filter — owner-only (buyers don't have
+      // experience to filter on). Skip when 0 / undefined.
+      if (filters.experienceMin && filters.experienceMin > 0) {
+        buyerWhere.experience = { gte: filters.experienceMin };
+      }
       return { buyerProfile: buyerWhere };
     }
     return null;

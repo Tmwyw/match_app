@@ -189,6 +189,7 @@ export const OwnerIndustryVerticalPresets = [
   "Adult",
   "Sweepstakes",
   "eCommerce",
+  "Схемы",
 ] as const;
 export const OwnerGeoPresets = [
   "LATAM",
@@ -219,7 +220,6 @@ export const PositionPresets = [
   "Account Manager",
   "Content Manager",
   "Обработчик",
-  "Схемы",
   "Tech / Антифрод",
   "Other",
 ] as const;

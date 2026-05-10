@@ -143,11 +143,14 @@ export function Deck({
       if (filters.verticals.length)
         qs.set("verticals", filters.verticals.join(","));
       if (filters.geos.length) qs.set("geos", filters.geos.join(","));
+      if (filters.experienceMin && filters.experienceMin > 0) {
+        qs.set("experienceMin", String(filters.experienceMin));
+      }
       if (excludeIds.length) qs.set("exclude", excludeIds.join(","));
       const tail = qs.toString();
       return tail ? `?${tail}` : "";
     },
-    [filters.verticals, filters.geos],
+    [filters.verticals, filters.geos, filters.experienceMin],
   );
 
   const fetchOne = useCallback(
@@ -311,11 +314,18 @@ export function Deck({
         </div>
         <Header
           onOpenFilters={() => setFilterOpen(true)}
-          activeFilterCount={filters.verticals.length + filters.geos.length}
+          activeFilterCount={
+  filters.verticals.length +
+  filters.geos.length +
+  (filters.experienceMin && filters.experienceMin > 0 ? 1 : 0)
+}
         />
         <CenteredMessage>
           <p className="text-tg-hint text-sm">
-            {filters.verticals.length + filters.geos.length > 0
+            {filters.verticals.length +
+              filters.geos.length +
+              (filters.experienceMin && filters.experienceMin > 0 ? 1 : 0) >
+            0
               ? "С такими фильтрами никого. Попробуй ослабить."
               : "Пока больше никого. Загляни позже."}
           </p>
@@ -345,6 +355,7 @@ export function Deck({
         {filterOpen && (
           <FilterSheet
             initial={filters}
+            myRole={myRole}
             onClose={() => setFilterOpen(false)}
             onApply={(next) => {
               setFilters(next);
@@ -366,7 +377,11 @@ export function Deck({
       </div>
       <Header
         onOpenFilters={() => setFilterOpen(true)}
-        activeFilterCount={filters.verticals.length + filters.geos.length}
+        activeFilterCount={
+  filters.verticals.length +
+  filters.geos.length +
+  (filters.experienceMin && filters.experienceMin > 0 ? 1 : 0)
+}
         remaining={state.remaining}
       />
       {/* Outer container — no overflow-hidden anywhere along the drag
@@ -454,6 +469,7 @@ export function Deck({
       {filterOpen && (
         <FilterSheet
           initial={filters}
+          myRole={myRole}
           onClose={() => setFilterOpen(false)}
           onApply={(next) => {
             setFilters(next);

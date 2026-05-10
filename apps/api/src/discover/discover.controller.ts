@@ -14,6 +14,8 @@ export class DiscoverController {
     @CurrentUser() current: { id: string },
     @Query("verticals") verticalsCsv?: string,
     @Query("geos") geosCsv?: string,
+    /** Min years of experience for buyer cards (owner-side filter only). */
+    @Query("experienceMin") experienceMinRaw?: string,
     /**
      * Comma-separated user ids to skip when picking the next card. The FE
      * queues a small stack (Tinder-style) and uses this to ask for ids it
@@ -25,9 +27,14 @@ export class DiscoverController {
     // Parse CSV and run through the same Zod validator the frontend uses,
     // so a malformed query (too many tags, oversized tag) is rejected
     // before we touch the DB.
+    const expMinNum = experienceMinRaw ? Number(experienceMinRaw) : undefined;
     const parsed = DiscoverFilters.safeParse({
       verticals: csv(verticalsCsv),
       geos: csv(geosCsv),
+      experienceMin:
+        expMinNum !== undefined && Number.isFinite(expMinNum)
+          ? expMinNum
+          : undefined,
     });
     const exclude = csv(excludeCsv).slice(0, 20); // soft cap
     if (!parsed.success) {
