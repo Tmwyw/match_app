@@ -264,32 +264,36 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
             <p className="text-danger text-sm text-center">{serverError}</p>
           )}
 
-          <div className="sticky bottom-0 -mx-4 px-4 pt-10 pb-4 flex flex-col gap-2 form-sticky-fade">
-            <Button type="submit" variant="primary" fullWidth disabled={submitting}>
-              {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
-            </Button>
-            {onCancel && (
-              <Button
-                type="button"
-                variant="secondary"
-                fullWidth
-                onClick={onCancel}
-                disabled={submitting}
-              >
-                Отмена
+          {/* Edge-to-edge sticky fade — see BuyerProfileForm for the
+              -mx-[calc(50vw-50%)] rationale. */}
+          <div className="sticky bottom-0 -mx-[calc(50vw-50%)] pt-10 pb-4 form-sticky-fade">
+            <div className="max-w-md w-full mx-auto px-4 flex flex-col gap-2">
+              <Button type="submit" variant="primary" fullWidth disabled={submitting}>
+                {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
               </Button>
-            )}
-            {!isEdit && onAbort && (
-              <Button
-                type="button"
-                variant="ghost"
-                fullWidth
-                onClick={() => void onAbort()}
-                disabled={submitting}
-              >
-                ← Назад к выбору роли
-              </Button>
-            )}
+              {onCancel && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth
+                  onClick={onCancel}
+                  disabled={submitting}
+                >
+                  Отмена
+                </Button>
+              )}
+              {!isEdit && onAbort && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => void onAbort()}
+                  disabled={submitting}
+                >
+                  ← Назад к выбору роли
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </Screen>
