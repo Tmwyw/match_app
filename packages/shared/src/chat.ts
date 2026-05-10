@@ -103,6 +103,11 @@ export const WsServerEvents = {
   Joined: "chat:joined",
   Error: "chat:error",
   RevealUpdated: "reveal:updated",
+  /** Fired into the recipient's user-room when someone LIKE-swipes them
+   *  without producing a mutual match yet. Lets the FE bump the
+   *  inbound-likes badge instantly instead of waiting for the next
+   *  60-second poll of /me/likes/count. */
+  LikesIncoming: "likes:incoming",
 } as const;
 
 export const WsClientEvents = {

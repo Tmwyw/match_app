@@ -9,16 +9,22 @@ import {
 import { Prisma, SwipeAction as DbSwipeAction } from "@prisma/client";
 import type { SwipeRequest, SwipeResponse } from "@tg-app-meet/shared";
 import { BlocksService } from "../blocks/blocks.service";
+import { ChatGateway } from "../chat/chat.gateway";
 import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma.service";
 
 /** Undo window for the most recent swipe — 60 seconds, then it sticks. */
 const UNDO_WINDOW_MS = 60_000;
 
-// Internal-only: lets us tell apart "you matched right now" from
-// "you re-swiped a person you'd already matched" so we only push DMs
-// for the former (otherwise re-swiping floods both inboxes).
-type SwipeOutcome = SwipeResponse & { justMatched: boolean };
+// Internal-only: lets us tell apart fresh outcomes from idempotent
+// re-swipes so we only fire notifications/WS events the first time.
+type SwipeOutcome = SwipeResponse & {
+  justMatched: boolean;
+  /** True when this swipe was a brand-new LIKE that didn't (yet)
+   *  produce a mutual match. Used to fire the inbound-like push +
+   *  WS badge bump on the recipient. */
+  freshInboundLike: boolean;
+};
 
 @Injectable()
 export class SwipesService {
@@ -28,6 +34,7 @@ export class SwipesService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly blocks: BlocksService,
+    private readonly gateway: ChatGateway,
   ) {}
 
   async swipe(meId: string, body: SwipeRequest): Promise<SwipeResponse> {
@@ -59,13 +66,28 @@ export class SwipesService {
       );
       // Fire-and-forget: a Telegram API hiccup must not fail the swipe HTTP.
       void this.fireMatchNotifications(meId, body.toUserId);
+    } else if (outcome.freshInboundLike) {
+      this.logger.log(
+        `swipe → fresh inbound LIKE: ${meId} → ${body.toUserId}`,
+      );
+      // WS badge bump (instant) + Telegram push (background-safe).
+      try {
+        this.gateway.emitLikesIncoming(body.toUserId);
+      } catch {
+        /* WS hiccup must never fail the swipe */
+      }
+      void this.notifications
+        .notifyInboundLike(body.toUserId)
+        .catch(() => {
+          /* notifications service already logs */
+        });
     } else if (outcome.matched) {
       this.logger.debug(
         `swipe → already matched (no fan-out): ${meId} ↔ ${body.toUserId}`,
       );
     }
 
-    const { justMatched: _ignored, ...response } = outcome;
+    const { justMatched: _jm, freshInboundLike: _fil, ...response } = outcome;
     return response;
   }
 
@@ -98,7 +120,7 @@ export class SwipesService {
     });
     if (existing) {
       const state = await matchedStateFor(tx, meId, body.toUserId, existing.action);
-      return { ...state, justMatched: false };
+      return { ...state, justMatched: false, freshInboundLike: false };
     }
 
     await tx.swipe.create({
@@ -110,18 +132,32 @@ export class SwipesService {
     });
 
     if (body.action !== "LIKE") {
-      return { matched: false, matchId: null, chatId: null, justMatched: false };
+      return {
+        matched: false,
+        matchId: null,
+        chatId: null,
+        justMatched: false,
+        freshInboundLike: false,
+      };
     }
 
     const reciprocal = await tx.swipe.findUnique({
       where: { fromId_toId: { fromId: body.toUserId, toId: meId } },
     });
     if (!reciprocal || reciprocal.action !== "LIKE") {
-      return { matched: false, matchId: null, chatId: null, justMatched: false };
+      // First-time LIKE without reciprocal → recipient gets the
+      // inbound-like ping (handled outside the transaction in `swipe`).
+      return {
+        matched: false,
+        matchId: null,
+        chatId: null,
+        justMatched: false,
+        freshInboundLike: true,
+      };
     }
 
     const created = await ensureMatch(tx, meId, body.toUserId);
-    return { ...created, justMatched: true };
+    return { ...created, justMatched: true, freshInboundLike: false };
   }
 
   /**

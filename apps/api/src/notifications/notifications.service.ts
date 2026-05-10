@@ -115,6 +115,27 @@ export class NotificationsService implements OnModuleDestroy {
     );
   }
 
+  /**
+   * One-sided LIKE push — fires when someone LIKE-swipes the user
+   * without producing a mutual match. Reuses the prefs.matches toggle
+   * (same "Лайки" switch in Settings UI controls both inbound likes
+   * and mutual-match notifications) so users have a single off-switch.
+   * Mute window also respected.
+   */
+  async notifyInboundLike(toUserId: string): Promise<void> {
+    const prefs = await this.safePrefs(toUserId);
+    if (!prefs.matches) return; // shared "Лайки" toggle in Settings
+    if (this.isMuted(prefs)) return;
+
+    const tgId = await this.resolveTelegramId(toUserId);
+    if (tgId === null) return;
+    this.logger.log(`notifyInboundLike SEND ${toUserId} → tg:${tgId}`);
+    await this.send(
+      tgId,
+      "💜 Кто-то тебя лайкнул!\n\nОткрой приложение чтобы посмотреть кто и матчнуться.",
+    );
+  }
+
   async notifyMatch(toUserId: string, otherAnonId: string): Promise<void> {
     const prefs = await this.safePrefs(toUserId);
     if (!prefs.matches) {

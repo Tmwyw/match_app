@@ -134,6 +134,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
     this.server.to(userRoom(userId)).emit(WsServerEvents.RevealUpdated, status);
   }
 
+  /** Push an inbound-like ping into the recipient's user-room so their
+   *  badge increments instantly. Payload is intentionally tiny — we
+   *  don't reveal who liked them (paid-reveal hook later); the FE
+   *  uses this purely as a trigger to bump the local count. */
+  emitLikesIncoming(userId: string): void {
+    this.server.to(userRoom(userId)).emit(WsServerEvents.LikesIncoming, {});
+  }
+
   /** True if this socket flipped the user from offline to online. */
   private markOnline(userId: string, socketId: string): boolean {
     let set = this.online.get(userId);
