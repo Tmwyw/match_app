@@ -59,6 +59,10 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       WEB_APP_URL: https://${DOMAIN}
       ADMIN_TOKEN: ${ADMIN_TOKEN}
+      # Same env var the bot uses for /admin command whitelisting —
+      # API needs it too so NotificationsService.notifyAdminsNewSubmission
+      # can DM admins when a profile lands in the moderation queue.
+      ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
     networks:
       - tgmeet
       - coolify
