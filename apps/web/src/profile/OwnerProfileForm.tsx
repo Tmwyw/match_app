@@ -264,7 +264,7 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
             <p className="text-danger text-sm text-center">{serverError}</p>
           )}
 
-          <div className="sticky bottom-0 pt-4 pb-4 bg-tg-bg-deep/85 backdrop-blur-md flex flex-col gap-2">
+          <div className="sticky bottom-0 pt-4 pb-4 bg-card-elevated border-t border-app-border flex flex-col gap-2 shadow-[0_-12px_24px_-8px_rgba(0,0,0,0.08)]">
             <Button type="submit" variant="primary" fullWidth disabled={submitting}>
               {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
             </Button>
