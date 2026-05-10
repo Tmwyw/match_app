@@ -164,6 +164,26 @@ body {
   padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
 }
 
+/*
+ * Sticky-bottom action panel for forms (BuyerProfileForm /
+ * OwnerProfileForm). Combines a backdrop blur with an alpha mask
+ * that fades the entire panel out toward the top — so the buttons
+ * sit on a frosted area that softly dissolves into the form content
+ * above, without leaving a visible rectangular edge in either theme.
+ *
+ * Why a mask instead of a CSS gradient: a `bg-gradient-to-t` only
+ * fades the FILL color; the panel's left/right edges still have a
+ * hard cutoff where the mask area ends. `mask-image` applies the
+ * alpha to the rendered output (including the backdrop blur), so the
+ * blur itself fades softly instead of stopping at a hard edge.
+ */
+.form-sticky-fade {
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  mask-image: linear-gradient(to top, black 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, black 55%, transparent 100%);
+}
+
 /* Glass surface — used by Card, TabBar, AppHeader, inputs.
    Specular highlight along the top edge mimics a refractive bevel. */
 .glass {
