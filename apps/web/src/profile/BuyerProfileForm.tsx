@@ -267,7 +267,7 @@ export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
             <p className="text-danger text-sm text-center">{serverError}</p>
           )}
 
-          <div className="sticky bottom-0 pt-4 pb-4 bg-card-elevated border-t border-app-border flex flex-col gap-2 shadow-[0_-12px_24px_-8px_rgba(0,0,0,0.08)]">
+          <div className="sticky bottom-0 -mx-4 px-4 pt-10 pb-4 flex flex-col gap-2 bg-gradient-to-t from-[var(--app-bg)] from-60% to-transparent">
             <Button type="submit" variant="primary" fullWidth disabled={submitting}>
               {submitting ? "сохраняем…" : isEdit ? "Сохранить" : "Создать профиль"}
             </Button>
