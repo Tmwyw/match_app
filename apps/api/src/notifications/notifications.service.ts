@@ -4,7 +4,6 @@ import { Bot } from "grammy";
 import { env } from "../env";
 import { PrismaService } from "../prisma.service";
 
-const MESSAGE_DEBOUNCE_MS = 30_000;
 const PREVIEW_MAX = 80;
 /** How long to trust a cached prefs row before re-reading from Postgres. */
 const PREFS_CACHE_TTL_MS = 60_000;
@@ -21,8 +20,6 @@ type PendingDigest = {
 export class NotificationsService implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationsService.name);
   private readonly bot: Bot;
-  // key: `${chatId}:${recipientUserId}` → unix ms of last sent push
-  private readonly lastMessageNotif = new Map<string, number>();
   // key: userId → cached prefs row (TTL via cachedAt)
   private readonly prefsCache = new Map<string, CachedPrefs>();
   // key: recipient userId → pending message-digest accumulator (digestMode users)
@@ -158,20 +155,19 @@ export class NotificationsService implements OnModuleDestroy {
       return;
     }
 
-    const key = `${chatId}:${toUserId}`;
-    const last = this.lastMessageNotif.get(key) ?? 0;
-    const now = Date.now();
-    if (now - last < MESSAGE_DEBOUNCE_MS) return;
-    // Set the timestamp before awaiting the network call so a burst of
-    // messages can't race past the debounce while the first push is in flight.
-    this.lastMessageNotif.set(key, now);
+    // No debounce — every offline message gets its own push, per user
+    // request. (Previously was 1 push per (chat, recipient) per 30s
+    // to avoid spam, but users found it confusing when partners sent
+    // multiple messages and only the first surfaced.)
 
     const tgId = await this.resolveTelegramId(toUserId);
     if (tgId === null) return;
 
     const preview =
       content.length > PREVIEW_MAX ? content.slice(0, PREVIEW_MAX - 1) + "…" : content;
-    await this.send(tgId, `💬 ${fromAnonId}\n\n${preview}`);
+    // Pass chatId so the inline "Открыть" button deep-links straight
+    // into this conversation when the user taps it from the bot DM.
+    await this.send(tgId, `💬 ${fromAnonId}\n\n${preview}`, { chatId });
   }
 
   private enqueueDigest(toUserId: string, chatId: string, fromAnonId: string): void {
@@ -240,13 +236,22 @@ export class NotificationsService implements OnModuleDestroy {
     return Number(user.telegramId);
   }
 
-  private async send(tgChatId: number, text: string): Promise<void> {
+  private async send(
+    tgChatId: number,
+    text: string,
+    opts?: { chatId?: string },
+  ): Promise<void> {
     try {
+      // When a chatId is provided, deep-link the "Открыть" button
+      // straight into that conversation. The Mini App reads the
+      // `chat=<id>` query param on mount and opens the matching
+      // ChatScreen automatically. Plain WEB_APP_URL otherwise.
+      const url = opts?.chatId
+        ? `${env.WEB_APP_URL}?chat=${encodeURIComponent(opts.chatId)}`
+        : env.WEB_APP_URL;
       await this.bot.api.sendMessage(tgChatId, text, {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: "Открыть", web_app: { url: env.WEB_APP_URL } }],
-          ],
+          inline_keyboard: [[{ text: "Открыть", web_app: { url } }]],
         },
       });
     } catch (e) {

@@ -219,6 +219,7 @@ export const PositionPresets = [
   "Account Manager",
   "Content Manager",
   "Обработчик",
+  "Схемы",
   "Tech / Антифрод",
   "Other",
 ] as const;

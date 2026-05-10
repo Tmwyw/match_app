@@ -1,6 +1,11 @@
 import { Flame, MessagesSquare, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { MeResponse, MyProfileResponse, Role } from "@tg-app-meet/shared";
+import type {
+  MatchesListResponse,
+  MeResponse,
+  MyProfileResponse,
+  Role,
+} from "@tg-app-meet/shared";
 import { AdminScreen } from "./admin/AdminScreen";
 import { api } from "./api";
 import { useAuth } from "./auth/useAuth";
@@ -259,6 +264,44 @@ function Home({
     }
     // Only react to the initial value — clearing setViewingProfileId(null)
     // shouldn't re-open the card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // `?chat=<id>` deep link — auto-open that conversation. Set by
+  // NotificationsService.send() so the inline "Открыть" button under
+  // a message-push DM jumps the user straight into the right chat
+  // instead of dropping them on the deck. Fetches /matches once,
+  // looks up the chatId, and builds the OpenChat payload from there.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const chatId = new URLSearchParams(window.location.search).get("chat");
+    if (!chatId) return;
+    let aborted = false;
+    void (async () => {
+      try {
+        const matches = await api<MatchesListResponse>(
+          "/matches?archived=false",
+        );
+        if (aborted) return;
+        const m = matches.find((row) => row.chatId === chatId);
+        if (!m) return;
+        setOpenChat({
+          chatId: m.chatId,
+          otherUserId: m.other.userId,
+          otherAnonId: m.other.anonId,
+          otherDisplayName: m.other.displayName,
+          otherRole: m.other.role,
+        });
+        setTab("matches");
+      } catch {
+        /* fall through — user lands on default tab */
+      }
+    })();
+    return () => {
+      aborted = true;
+    };
+    // Only on first mount — clearing openChat shouldn't re-resolve the
+    // URL param.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
