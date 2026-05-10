@@ -116,6 +116,40 @@ export class NotificationsService implements OnModuleDestroy {
   }
 
   /**
+   * Fan-out to every admin Telegram ID listed in env.ADMIN_TELEGRAM_IDS
+   * when a fresh profile lands in the moderation queue. Bypasses prefs
+   * entirely — admins get the DM regardless of their own notification
+   * settings (this is operational, not personal). Errors are swallowed
+   * per-recipient so one blocked-bot admin doesn't kill the fan-out.
+   */
+  async notifyAdminsNewSubmission(opts: {
+    anonId: string;
+    role: "BUYER" | "OWNER";
+  }): Promise<void> {
+    const admins = env.ADMIN_TELEGRAM_IDS;
+    if (admins.length === 0) {
+      return; // No admins configured, nothing to do.
+    }
+    const roleRu = opts.role === "BUYER" ? "БАЕР" : "ОВНЕР";
+    // anonId is system-generated ("Buyer #5" pattern), no HTML escape
+    // needed.
+    const text =
+      `📋 <b>Новая заявка на модерацию</b>\n\n` +
+      `<b>${opts.anonId}</b> · ${roleRu}\n\n` +
+      `Открой /admin → 📋 Модерация чтобы рассмотреть.`;
+    for (const tgId of admins) {
+      try {
+        await this.bot.api.sendMessage(tgId, text, { parse_mode: "HTML" });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(
+          `notifyAdminsNewSubmission failed for ${tgId}: ${msg}`,
+        );
+      }
+    }
+  }
+
+  /**
    * One-sided LIKE push — fires when someone LIKE-swipes the user
    * without producing a mutual match. Reuses the prefs.matches toggle
    * (same "Лайки" switch in Settings UI controls both inbound likes

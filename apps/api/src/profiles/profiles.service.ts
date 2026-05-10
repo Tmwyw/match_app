@@ -16,11 +16,15 @@ import {
 } from "@tg-app-meet/shared";
 import type { ZodSchema } from "zod";
 import { antiDeanon } from "../chat/anti-deanon";
+import { NotificationsService } from "../notifications/notifications.service";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
 export class ProfilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async getMine(userId: string): Promise<MyProfileResponse> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -66,6 +70,7 @@ export class ProfilesService {
           },
         }),
       ]);
+      void this.notifyAdmins(user.anonId, "BUYER");
       return toMyBuyer(created, cleanName);
     }
 
@@ -92,7 +97,26 @@ export class ProfilesService {
         },
       }),
     ]);
+    void this.notifyAdmins(user.anonId, "OWNER");
     return toMyOwner(created, cleanName);
+  }
+
+  /**
+   * Fan-out a "new submission" DM to every admin so they don't have to
+   * poll the moderation queue manually. Fire-and-forget — anonId is
+   * already populated by onboarding's role-pick step before any profile
+   * can be saved, so it's never null here in practice.
+   */
+  private notifyAdmins(
+    anonId: string | null,
+    role: "BUYER" | "OWNER",
+  ): Promise<void> {
+    if (!anonId) return Promise.resolve();
+    return this.notifications
+      .notifyAdminsNewSubmission({ anonId, role })
+      .catch(() => {
+        /* notifications service already logs */
+      });
   }
 
   async patchMine(userId: string, body: unknown): Promise<MyProfileResponse> {
