@@ -28,21 +28,18 @@ const SUPPORT_TG_URL = "https://t.me/creometrics";
 // Reply-keyboard labels for non-admin users. The webApp button opens
 // the Mini App in one tap; the text button below it triggers the
 // same handler as /support via bot.hears().
-const USER_BTN_OPEN = "📱 Открыть приложение";
 const USER_BTN_SUPPORT = "🤝 Поддержка";
 
 /** Build a fresh keyboard each call — grammy mutates the Keyboard
  *  instance internally, so reusing it across messages is unsafe.
- *  No .persistent() — that flag forces the keyboard always-visible
- *  and hides Telegram's native collapse toggle. Without it, the user
- *  gets the standard chevron next to the chat input to hide/show
- *  the keyboard on demand. */
+ *
+ *  Single row: only 🤝 Поддержка. The Mini App entry is exposed via
+ *  the chat menu button (left of the input bar, set globally on bot
+ *  boot via setChatMenuButton). A second "Открыть приложение" tile in
+ *  the reply keyboard was a third redundant entry on top of the menu
+ *  button and the deep-link in the welcome message. */
 function userReplyKeyboard(): Keyboard {
-  return new Keyboard()
-    .webApp(USER_BTN_OPEN, env.WEB_APP_URL)
-    .row()
-    .text(USER_BTN_SUPPORT)
-    .resized();
+  return new Keyboard().text(USER_BTN_SUPPORT).resized();
 }
 
 /** Shared body of the "support" reply — used by both /support and the
