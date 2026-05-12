@@ -1,4 +1,4 @@
-import { Bot, type Context, InlineKeyboard, Keyboard } from "grammy";
+import { Bot, type Context, InlineKeyboard } from "grammy";
 // Explicit .js extensions: bot is `"type": "module"` and tsc preserves
 // the import paths verbatim, so Node ESM at runtime needs the real file
 // extension. Dev (tsx) is fine without — only prod (`node dist/main.js`) breaks.
@@ -25,25 +25,19 @@ const RETURN_WELCOME =
 
 const SUPPORT_TG_URL = "https://t.me/creometrics";
 
-// Reply-keyboard labels for non-admin users. The webApp button opens
-// the Mini App in one tap; the text button below it triggers the
-// same handler as /support via bot.hears().
+/**
+ * Legacy reply-keyboard label kept here so users whose Telegram still
+ * has the old "🤝 Поддержка" keyboard cached from a previous bot
+ * version still hit the support handler when they tap it. The keyboard
+ * itself is no longer pinned on new /start — the welcome's inline
+ * Поддержка button + the chat menu button cover everything. Safe to
+ * delete once the cached keyboards age out naturally.
+ */
 const USER_BTN_SUPPORT = "🤝 Поддержка";
 
-/** Build a fresh keyboard each call — grammy mutates the Keyboard
- *  instance internally, so reusing it across messages is unsafe.
- *
- *  Single row: only 🤝 Поддержка. The Mini App entry is exposed via
- *  the chat menu button (left of the input bar, set globally on bot
- *  boot via setChatMenuButton). A second "Открыть приложение" tile in
- *  the reply keyboard was a third redundant entry on top of the menu
- *  button and the deep-link in the welcome message. */
-function userReplyKeyboard(): Keyboard {
-  return new Keyboard().text(USER_BTN_SUPPORT).resized();
-}
-
-/** Shared body of the "support" reply — used by both /support and the
- *  reply-keyboard tap on "🤝 Поддержка". */
+/** Shared body of the "support" reply — used by /support, by the
+ *  inline Поддержка button in welcome, and as the fallback for old
+ *  reply-keyboard taps. */
 async function sendSupportReply(ctx: Context): Promise<void> {
   const kb = new InlineKeyboard().url("🤝 Открыть поддержку", SUPPORT_TG_URL);
   await ctx.reply(
@@ -85,22 +79,30 @@ bot.command("start", async (ctx) => {
     }
   }
 
+  // For users coming from previous bot versions, send remove_keyboard
+  // FIRST as a separate quiet "·" message — clears the legacy "🤝
+  // Поддержка" reply keyboard. Then send the actual welcome with the
+  // inline-only kb. New users / users without a cached keyboard see
+  // this as a tiny no-op dot above the welcome; we accept that minor
+  // noise once-per-/start because the alternative (a permanent stale
+  // reply tile) is uglier.
+  try {
+    const ack = await ctx.reply("·", { reply_markup: { remove_keyboard: true } });
+    // Best-effort delete so the dot doesn't linger. Some clients reject
+    // immediate self-delete; that's fine.
+    await ctx.api.deleteMessage(ack.chat.id, ack.message_id).catch(() => {});
+  } catch {
+    /* old client without remove_keyboard support — keyboard stays */
+  }
+
   // Only the Support link in the welcome — the "Open App" entry is
-  // handled by the chat's persistent menu button (left of the input)
-  // and the reply keyboard below. Duplicate webApp button under the
-  // message was redundant and cluttered the chat history.
+  // handled by the chat's persistent menu button (left of the input).
+  // No reply keyboard pinned, no follow-up "menu always available"
+  // message — chat history stays clean.
   const kb = new InlineKeyboard().url("🤝 Поддержка", SUPPORT_TG_URL);
   await ctx.reply(isReturning ? RETURN_WELCOME : FIRST_TIME_WELCOME, {
     parse_mode: "HTML",
     reply_markup: kb,
-  });
-
-  // Pin the persistent reply keyboard. Telegram only supports one
-  // reply_markup per message, so the inline buttons above and the
-  // reply keyboard need separate messages. Once attached, it survives
-  // until the bot sends `remove_keyboard: true` — i.e. forever.
-  await ctx.reply("Меню всегда доступно снизу 👇", {
-    reply_markup: userReplyKeyboard(),
   });
 });
 
