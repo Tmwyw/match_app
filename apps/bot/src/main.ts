@@ -106,11 +106,18 @@ bot.command("start", async (ctx) => {
   });
 });
 
-// Reply-keyboard "🤝 Поддержка" tap → same content as /support.
-// Registered AFTER admin handlers (which run first via grammy's
-// registration order) so admin's awaiting-search/broadcast modes
-// can still consume their text input first when relevant.
-bot.hears(USER_BTN_SUPPORT, sendSupportReply);
+// Legacy reply-keyboard "🤝 Поддержка" tap. Telegram reply-keyboard
+// buttons can't carry a URL action natively — they only send text.
+// So we respond with the bare manager URL: Telegram auto-renders a
+// tappable contact preview (avatar, name, "open chat") that takes
+// the user straight to @creometrics in one tap. Also clears the
+// stale keyboard via remove_keyboard so they don't see this button
+// again on next interaction.
+bot.hears(USER_BTN_SUPPORT, async (ctx) => {
+  await ctx.reply(SUPPORT_TG_URL, {
+    reply_markup: { remove_keyboard: true },
+  });
+});
 
 bot.command("help", (ctx) =>
   ctx.reply("Команды:\n/start — открыть приложение\n/support — связаться с нами")
