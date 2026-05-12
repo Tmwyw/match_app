@@ -155,9 +155,9 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                 placeholder="Команда из 5 человек, льём с 2021…"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                maxLength={100}
+                maxLength={500}
                 error={errors.bio}
-                hint={`${bio.length}/100`}
+                hint={`${bio.length}/500`}
               />
             </Section>
           </Block>
@@ -253,9 +253,9 @@ export function OwnerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                 placeholder="Укажите всё, что важно знать специалисту и не вошло в анкету."
                 value={requirements}
                 onChange={(e) => setRequirements(e.target.value)}
-                maxLength={100}
+                maxLength={500}
                 error={errors.requirements}
-                hint={`${requirements.length}/100`}
+                hint={`${requirements.length}/500`}
               />
             </Section>
           </Block>
