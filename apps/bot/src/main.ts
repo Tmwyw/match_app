@@ -169,6 +169,55 @@ bot.catch((err) => {
 });
 
 /**
+ * Set the bot's public profile metadata (name shown in chat header,
+ * short description on the bot's @username page, long description shown
+ * before the user clicks "Start"). Telegram caches these aggressively
+ * on clients — first launch after a token swap may still show defaults
+ * for a few minutes. Re-applied on every boot so a fresh bot picks up
+ * the brand without manual BotFather poking.
+ *
+ * Avatar/picture CANNOT be set via Bot API — that's BotFather only.
+ * Go to @BotFather → /setuserpic → upload the CREO Metrics logo.
+ */
+const BOT_DISPLAY_NAME = "CREO Metrics";
+const BOT_SHORT_DESCRIPTION =
+  "B2B-площадка для арбитражных команд: баеры и владельцы офферов находят друг друга и общаются анонимно.";
+const BOT_DESCRIPTION =
+  "CREO Metrics — это B2B-площадка для арбитражных команд.\n\n" +
+  "Баеры и владельцы офферов находят друг друга по интересам, свайпают анкеты " +
+  "и общаются анонимно, пока обе стороны не согласятся раскрыть контакты.\n\n" +
+  "Жми Start и заполни анкету 👇";
+
+async function setupBotProfile() {
+  // setMyName / setMyDescription / setMyShortDescription are no-ops when
+  // the current value already matches — safe to call on every boot.
+  // Each is wrapped separately so one transient 429/timeout doesn't skip
+  // the others.
+  try {
+    await bot.api.setMyName(BOT_DISPLAY_NAME);
+  } catch (e) {
+    console.warn(
+      `[bot] setMyName failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  try {
+    await bot.api.setMyShortDescription(BOT_SHORT_DESCRIPTION);
+  } catch (e) {
+    console.warn(
+      `[bot] setMyShortDescription failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  try {
+    await bot.api.setMyDescription(BOT_DESCRIPTION);
+  } catch (e) {
+    console.warn(
+      `[bot] setMyDescription failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  console.log(`[bot] profile metadata applied (name="${BOT_DISPLAY_NAME}")`);
+}
+
+/**
  * Pin the Mini App as the persistent menu button next to the chat input.
  * Without this, every user sees the default "Menu" → command list. With it,
  * the input bar shows a one-tap "Open App" button. Set globally (no chat_id)
@@ -196,6 +245,7 @@ console.log("[bot] starting long-polling…");
 bot.start({
   onStart: async (me) => {
     console.log(`[bot] @${me.username} ready (web app → ${env.WEB_APP_URL})`);
+    await setupBotProfile();
     await setupMenuButton();
     await setupCommands();
     if (env.ADMIN_TELEGRAM_IDS.length > 0) {
