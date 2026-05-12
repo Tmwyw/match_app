@@ -13,15 +13,21 @@ const bot = new Bot(env.BOT_TOKEN);
 // (search query) gets first dibs on incoming messages from admins.
 registerAdminHandlers(bot);
 
+// Both welcome copies point at the synthesized Mini App launcher: the
+// blue "Open App" tile pinned to the input bar (left of the message
+// field). Mentioning it by name + colour beats a vague "кнопка 👇"
+// because on some clients the persistent menu button sits beside (not
+// under) the message — the down-arrow emoji misled users.
 const FIRST_TIME_WELCOME =
   "👋 <b>Добро пожаловать в CREO Metrics</b>\n\n" +
   "Это B2B-площадка для арбитражных команд: баеры и владельцы офферов " +
   "находят друг друга по интересам и общаются анонимно, пока обе стороны " +
   "не согласятся раскрыть контакты.\n\n" +
-  "Заполни анкету и приступай к поиску 👇";
+  "Нажми синюю кнопку <b>Open App</b> внизу слева — заполни анкету и приступай к поиску.";
 
 const RETURN_WELCOME =
-  "С возвращением в <b>CREO Metrics</b>!\n\nЖми кнопку чтобы открыть приложение 👇";
+  "С возвращением в <b>CREO Metrics</b>!\n\n" +
+  "Нажми синюю кнопку <b>Open App</b> внизу слева, чтобы открыть приложение.";
 
 const SUPPORT_TG_URL = "https://t.me/creometrics";
 
@@ -169,6 +175,55 @@ bot.catch((err) => {
 });
 
 /**
+ * Set the bot's public profile metadata (name shown in chat header,
+ * short description on the bot's @username page, long description shown
+ * before the user clicks "Start"). Telegram caches these aggressively
+ * on clients — first launch after a token swap may still show defaults
+ * for a few minutes. Re-applied on every boot so a fresh bot picks up
+ * the brand without manual BotFather poking.
+ *
+ * Avatar/picture CANNOT be set via Bot API — that's BotFather only.
+ * Go to @BotFather → /setuserpic → upload the CREO Metrics logo.
+ */
+const BOT_DISPLAY_NAME = "CREO Metrics";
+const BOT_SHORT_DESCRIPTION =
+  "B2B-площадка для арбитражных команд: баеры и владельцы офферов находят друг друга и общаются анонимно.";
+const BOT_DESCRIPTION =
+  "CREO Metrics — это B2B-площадка для арбитражных команд.\n\n" +
+  "Баеры и владельцы офферов находят друг друга по интересам, свайпают анкеты " +
+  "и общаются анонимно, пока обе стороны не согласятся раскрыть контакты.\n\n" +
+  "Жми Start и заполни анкету 👇";
+
+async function setupBotProfile() {
+  // setMyName / setMyDescription / setMyShortDescription are no-ops when
+  // the current value already matches — safe to call on every boot.
+  // Each is wrapped separately so one transient 429/timeout doesn't skip
+  // the others.
+  try {
+    await bot.api.setMyName(BOT_DISPLAY_NAME);
+  } catch (e) {
+    console.warn(
+      `[bot] setMyName failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  try {
+    await bot.api.setMyShortDescription(BOT_SHORT_DESCRIPTION);
+  } catch (e) {
+    console.warn(
+      `[bot] setMyShortDescription failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  try {
+    await bot.api.setMyDescription(BOT_DESCRIPTION);
+  } catch (e) {
+    console.warn(
+      `[bot] setMyDescription failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  console.log(`[bot] profile metadata applied (name="${BOT_DISPLAY_NAME}")`);
+}
+
+/**
  * Pin the Mini App as the persistent menu button next to the chat input.
  * Without this, every user sees the default "Menu" → command list. With it,
  * the input bar shows a one-tap "Open App" button. Set globally (no chat_id)
@@ -196,6 +251,7 @@ console.log("[bot] starting long-polling…");
 bot.start({
   onStart: async (me) => {
     console.log(`[bot] @${me.username} ready (web app → ${env.WEB_APP_URL})`);
+    await setupBotProfile();
     await setupMenuButton();
     await setupCommands();
     if (env.ADMIN_TELEGRAM_IDS.length > 0) {

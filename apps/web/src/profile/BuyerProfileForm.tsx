@@ -256,9 +256,9 @@ export function BuyerProfileForm({ initial, onSaved, onCancel, onAbort }: Props)
                 placeholder="Укажите всё, что важно знать работодателю и не вошло в анкету."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                maxLength={100}
+                maxLength={500}
                 error={errors.notes}
-                hint={`${notes.length}/100`}
+                hint={`${notes.length}/500`}
               />
             </Section>
           </Block>

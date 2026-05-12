@@ -37,8 +37,8 @@ const BuyerShape = z.object({
   // a "0 years" (or worse, negative via type=number on web) slip
   // through. Frontend also enforces min="1" on the input.
   experience: z.number().int().min(1).max(50),
-  // "Дополнительно" — короткая заметка, ≤100 chars (matches OwnerShape).
-  notes: z.string().max(100).nullish(),
+  // "Дополнительно" — free-form note, ≤500 chars (matches OwnerShape).
+  notes: z.string().max(500).nullish(),
 });
 
 export const BuyerProfileInput = BuyerShape.refine(
@@ -62,10 +62,10 @@ const OwnerShape = z.object({
   // "Оплата" — salary/payment range. Same pattern as buyer's budget.
   payoutMin: z.number().int().positive(),
   payoutMax: z.number().int().positive(),
-  // "Дополнительно" — short note, ≤100 chars.
-  requirements: z.string().max(100).nullish(),
-  // Short team description ≤100 chars.
-  bio: z.string().max(100).nullish(),
+  // "Дополнительно" — free-form note, ≤500 chars.
+  requirements: z.string().max(500).nullish(),
+  // Short team description ≤500 chars.
+  bio: z.string().max(500).nullish(),
 });
 
 export const OwnerProfileInput = OwnerShape.refine(

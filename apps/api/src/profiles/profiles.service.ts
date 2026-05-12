@@ -69,7 +69,7 @@ export class ProfilesService {
             budgetMin: data.budgetMin,
             budgetMax: data.budgetMax,
             experience: data.experience,
-            notes: scrubText(data.notes, 100),
+            notes: scrubText(data.notes, 500),
           },
         }),
       ]);
@@ -95,8 +95,8 @@ export class ProfilesService {
           geos: scrubTags(data.geos),
           payoutMin: data.payoutMin,
           payoutMax: data.payoutMax,
-          requirements: scrubText(data.requirements, 100),
-          bio: scrubText(data.bio, 100),
+          requirements: scrubText(data.requirements, 500),
+          bio: scrubText(data.bio, 500),
         },
       }),
     ]);
@@ -234,7 +234,7 @@ function scrubBuyerPatch(
       : {}),
     ...(patch.geos !== undefined ? { geos: scrubTags(patch.geos) } : {}),
     ...(patch.notes !== undefined
-      ? { notes: scrubText(patch.notes, 100) }
+      ? { notes: scrubText(patch.notes, 500) }
       : {}),
   };
 }
@@ -264,9 +264,9 @@ function scrubOwnerPatch(
       : {}),
     ...(patch.geos !== undefined ? { geos: scrubTags(patch.geos) } : {}),
     ...(patch.requirements !== undefined
-      ? { requirements: scrubText(patch.requirements, 100) }
+      ? { requirements: scrubText(patch.requirements, 500) }
       : {}),
-    ...(patch.bio !== undefined ? { bio: scrubText(patch.bio, 100) } : {}),
+    ...(patch.bio !== undefined ? { bio: scrubText(patch.bio, 500) } : {}),
   };
 }
 
