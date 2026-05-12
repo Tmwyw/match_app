@@ -45,13 +45,16 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    // h-full + overflow-y-auto: body has overflow: hidden globally
-    // (iOS rubber-band fix), so this screen owns its own scroll
-    // container. Previously used `min-h-screen` which clipped the
-    // bottom (Продолжить button) on narrow viewports — desktop
-    // Telegram WebView at small window sizes especially.
-    <Screen className="h-full overflow-y-auto pb-safe">
-      <div className="flex flex-col gap-6 min-h-full pb-6">
+    // h-[100dvh] gives the picker a DEFINITE viewport-height container
+    // independent of whatever ancestor styles it. App.tsx's outer
+    // wrapper only sets `minHeight: 100%` (no fixed height) so a plain
+    // `h-full` on Screen resolved to 0/auto and the bottom button
+    // disappeared on narrow viewports. flex-col + Screen flex-1 +
+    // overflow-y-auto makes the picker its own scroll container, and
+    // mt-auto on the button row keeps it pinned at the bottom of that
+    // scrollable area regardless of content height.
+    <div className="h-[100dvh] flex flex-col">
+      <Screen className="flex-1 overflow-y-auto pb-safe flex flex-col gap-6">
         <div className="flex flex-col items-center text-center mt-6 mb-2 gap-3">
           <Logo glow size={88} />
           <h1 className="text-3xl font-bold">Давайте начнём</h1>
@@ -85,10 +88,7 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
           <p className="text-danger text-sm text-center">{error}</p>
         )}
 
-        {/* mt-auto pushes the button to the bottom of the scroll content
-            when content fits, otherwise it sits naturally below the cards
-            and is reachable via scroll. */}
-        <div className="mt-auto max-w-md w-full mx-auto">
+        <div className="mt-auto max-w-md w-full mx-auto pt-2">
           <Button
             fullWidth
             variant="primary"
@@ -99,7 +99,7 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
             {!submitting && <ArrowRight size={18} />}
           </Button>
         </div>
-      </div>
-    </Screen>
+      </Screen>
+    </div>
   );
 }
