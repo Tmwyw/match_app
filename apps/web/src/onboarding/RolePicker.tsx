@@ -45,50 +45,60 @@ export function RolePicker({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Screen className="flex flex-col gap-6 pb-safe min-h-screen">
-      <div className="flex flex-col items-center text-center mt-6 mb-2 gap-3">
-        <Logo glow size={88} />
-        <h1 className="text-3xl font-bold">Давайте начнём</h1>
-        <p className="text-tg-hint text-sm max-w-sm">
-          Выберите, ради чего вы здесь: заполните анкету и находите
-          подходящие вакансии.
-        </p>
-        <p className="text-danger text-xs max-w-sm font-semibold">
-          ⚠ Роль выбирается один раз и поменять её потом нельзя.
-        </p>
-      </div>
+    // h-full + overflow-y-auto: body has overflow: hidden globally
+    // (iOS rubber-band fix), so this screen owns its own scroll
+    // container. Previously used `min-h-screen` which clipped the
+    // bottom (Продолжить button) on narrow viewports — desktop
+    // Telegram WebView at small window sizes especially.
+    <Screen className="h-full overflow-y-auto pb-safe">
+      <div className="flex flex-col gap-6 min-h-full pb-6">
+        <div className="flex flex-col items-center text-center mt-6 mb-2 gap-3">
+          <Logo glow size={88} />
+          <h1 className="text-3xl font-bold">Давайте начнём</h1>
+          <p className="text-tg-hint text-sm max-w-sm">
+            Выберите, ради чего вы здесь: заполните анкету и находите
+            подходящие вакансии.
+          </p>
+          <p className="text-danger text-xs max-w-sm font-semibold">
+            ⚠ Роль выбирается один раз и поменять её потом нельзя.
+          </p>
+        </div>
 
-      <div className="flex flex-col gap-3 max-w-md w-full mx-auto">
-        {OPTIONS.map((opt) => (
-          <Card
-            key={opt.role}
-            active={selected === opt.role}
-            onClick={() => setSelected(opt.role)}
-            className="flex items-center gap-4"
+        <div className="flex flex-col gap-3 max-w-md w-full mx-auto">
+          {OPTIONS.map((opt) => (
+            <Card
+              key={opt.role}
+              active={selected === opt.role}
+              onClick={() => setSelected(opt.role)}
+              className="flex items-center gap-4"
+            >
+              <RoleAvatar role={opt.role} size="lg" />
+              <div className="flex-1">
+                <div className="font-semibold text-lg">{opt.title}</div>
+                <div className="text-tg-hint text-sm mt-0.5">{opt.desc}</div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {error && (
+          <p className="text-danger text-sm text-center">{error}</p>
+        )}
+
+        {/* mt-auto pushes the button to the bottom of the scroll content
+            when content fits, otherwise it sits naturally below the cards
+            and is reachable via scroll. */}
+        <div className="mt-auto max-w-md w-full mx-auto">
+          <Button
+            fullWidth
+            variant="primary"
+            disabled={!selected || submitting}
+            onClick={submit}
           >
-            <RoleAvatar role={opt.role} size="lg" />
-            <div className="flex-1">
-              <div className="font-semibold text-lg">{opt.title}</div>
-              <div className="text-tg-hint text-sm mt-0.5">{opt.desc}</div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {error && (
-        <p className="text-danger text-sm text-center">{error}</p>
-      )}
-
-      <div className="mt-auto max-w-md w-full mx-auto">
-        <Button
-          fullWidth
-          variant="primary"
-          disabled={!selected || submitting}
-          onClick={submit}
-        >
-          {submitting ? "сохраняем…" : "Продолжить"}
-          {!submitting && <ArrowRight size={18} />}
-        </Button>
+            {submitting ? "сохраняем…" : "Продолжить"}
+            {!submitting && <ArrowRight size={18} />}
+          </Button>
+        </div>
       </div>
     </Screen>
   );
