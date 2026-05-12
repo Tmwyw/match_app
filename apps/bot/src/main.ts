@@ -32,14 +32,17 @@ const USER_BTN_OPEN = "📱 Открыть приложение";
 const USER_BTN_SUPPORT = "🤝 Поддержка";
 
 /** Build a fresh keyboard each call — grammy mutates the Keyboard
- *  instance internally, so reusing it across messages is unsafe. */
+ *  instance internally, so reusing it across messages is unsafe.
+ *  No .persistent() — that flag forces the keyboard always-visible
+ *  and hides Telegram's native collapse toggle. Without it, the user
+ *  gets the standard chevron next to the chat input to hide/show
+ *  the keyboard on demand. */
 function userReplyKeyboard(): Keyboard {
   return new Keyboard()
     .webApp(USER_BTN_OPEN, env.WEB_APP_URL)
     .row()
     .text(USER_BTN_SUPPORT)
-    .resized()
-    .persistent();
+    .resized();
 }
 
 /** Shared body of the "support" reply — used by both /support and the
@@ -85,13 +88,11 @@ bot.command("start", async (ctx) => {
     }
   }
 
-  // Two buttons stacked: primary "Open App" + secondary "Support" link.
-  // The support button is here so first-time users immediately see how
-  // to reach a human, without having to discover the /support command.
-  const kb = new InlineKeyboard()
-    .webApp("Открыть приложение", env.WEB_APP_URL)
-    .row()
-    .url("🤝 Поддержка", SUPPORT_TG_URL);
+  // Only the Support link in the welcome — the "Open App" entry is
+  // handled by the chat's persistent menu button (left of the input)
+  // and the reply keyboard below. Duplicate webApp button under the
+  // message was redundant and cluttered the chat history.
+  const kb = new InlineKeyboard().url("🤝 Поддержка", SUPPORT_TG_URL);
   await ctx.reply(isReturning ? RETURN_WELCOME : FIRST_TIME_WELCOME, {
     parse_mode: "HTML",
     reply_markup: kb,

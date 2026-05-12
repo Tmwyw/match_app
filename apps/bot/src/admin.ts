@@ -122,7 +122,11 @@ const BTN_PENDING = "📋 Модерация";
 const BTN_BROADCAST = "📢 Рассылка";
 const BTN_HIDE = "✕ Скрыть меню";
 
-/** Build a fresh keyboard each call — grammy mutates internally otherwise. */
+/** Build a fresh keyboard each call — grammy mutates internally otherwise.
+ *  No .persistent() so Telegram exposes its native collapse chevron next
+ *  to the chat input. Admins can hide the keyboard temporarily without
+ *  fully closing it via the explicit "✕ Скрыть меню" button (which
+ *  sends remove_keyboard). */
 function adminReplyKeyboard(): Keyboard {
   return new Keyboard()
     .text(BTN_STATS)
@@ -135,8 +139,7 @@ function adminReplyKeyboard(): Keyboard {
     .text(BTN_BROADCAST)
     .row()
     .text(BTN_HIDE)
-    .resized()
-    .persistent();
+    .resized();
 }
 
 // ─── Pending text input (search query / broadcast composition) ────────────
