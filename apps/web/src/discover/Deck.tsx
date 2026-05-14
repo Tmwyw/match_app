@@ -697,6 +697,15 @@ function DraggableCard({
       ref={cardRef}
       style={{ x, rotate, opacity, touchAction: "pan-y" }}
       drag={disabled ? false : "x"}
+      // `dragDirectionLock`: framer detects the initial gesture direction
+      // and locks to it. A vertical-first pan locks to "y" — since drag is
+      // "x"-only, the card stays put AND framer doesn't preventDefault, so
+      // the browser's native vertical scroll (permitted by touch-action:
+      // pan-y) reaches CardView's inner `overflow-y-auto` body. Without
+      // this, the drag handler arbitrated every touch on iOS Telegram
+      // WebView and swallowed vertical scrolls — long `notes` text below
+      // the fold was unreachable (tester: "не могу вниз пролистать").
+      dragDirectionLock
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={1}
       // Snap-back physics for non-committing drags. Default framer
