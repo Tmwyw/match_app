@@ -298,10 +298,64 @@ export class NotificationsService implements OnModuleDestroy {
     return Number(user.telegramId);
   }
 
+  /**
+   * Fire-and-forget DM that fires when contact reveal transitions from
+   * "one-sided" to "both accepted". Carries an HTML `<a href="tg://user
+   * ?id=X">` mention of the OTHER party — Telegram clients render this
+   * as a clickable name that opens the user's profile/chat **even when
+   * they have no public @username**. This is the canonical way around
+   * the "tester has no @handle so reveal is a dead end" problem:
+   * constructing tg://user?id from inside the Mini App doesn't work
+   * (no peer context), but a bot-sent message with the same URL as an
+   * HTML entity works because Telegram resolves it server-side and
+   * embeds the user reference into the client's peer cache.
+   *
+   * Caller invokes this twice per transition (once per direction) so
+   * BOTH users get a mention of their counterpart in their own DM.
+   */
+  async notifyRevealUnlocked(
+    toUserId: string,
+    otherUserId: string,
+    chatId: string,
+  ): Promise<void> {
+    const [toUser, otherUser] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: toUserId },
+        select: { telegramId: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: {
+          telegramId: true,
+          username: true,
+          displayName: true,
+          anonId: true,
+        },
+      }),
+    ]);
+    if (!toUser || !otherUser) return;
+    const toTgId = Number(toUser.telegramId);
+    const otherTgId = Number(otherUser.telegramId);
+    const otherName =
+      (otherUser.displayName?.trim() || otherUser.anonId) ?? "ваш матч";
+    const mention = `<a href="tg://user?id=${otherTgId}">${escapeHtml(otherName)}</a>`;
+    const usernameLine = otherUser.username
+      ? `\n\nИли по нику: @${escapeHtml(otherUser.username)}`
+      : "";
+    const text =
+      `🔓 <b>Контакты открыты!</b>\n\n` +
+      `Ваш собеседник: ${mention}\n\n` +
+      `Нажмите на имя — Telegram откроет с ним чат напрямую (работает даже если у пользователя не настроен @username).${usernameLine}`;
+    this.logger.log(
+      `notifyRevealUnlocked SEND ${toUserId} → tg:${toTgId} (other tg:${otherTgId})`,
+    );
+    await this.send(toTgId, text, { chatId, parseMode: "HTML" });
+  }
+
   private async send(
     tgChatId: number,
     text: string,
-    opts?: { chatId?: string },
+    opts?: { chatId?: string; parseMode?: "HTML" | "MarkdownV2" },
   ): Promise<void> {
     try {
       // When a chatId is provided, deep-link the "Открыть" button
@@ -312,6 +366,7 @@ export class NotificationsService implements OnModuleDestroy {
         ? `${env.WEB_APP_URL}?chat=${encodeURIComponent(opts.chatId)}`
         : env.WEB_APP_URL;
       await this.bot.api.sendMessage(tgChatId, text, {
+        ...(opts?.parseMode ? { parse_mode: opts.parseMode } : {}),
         reply_markup: {
           inline_keyboard: [[{ text: "Открыть", web_app: { url } }]],
         },
@@ -323,6 +378,17 @@ export class NotificationsService implements OnModuleDestroy {
       this.logger.warn(`sendMessage to ${tgChatId} failed: ${msg}`);
     }
   }
+}
+
+/** Escape user-controlled values before embedding into a `parse_mode: HTML`
+ *  Bot API message. We only need the five reserved chars per the docs. */
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function plural(n: number, one: string, few: string, many: string): string {

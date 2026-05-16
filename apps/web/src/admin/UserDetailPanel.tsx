@@ -165,10 +165,34 @@ function UserBody({
           <code>{user.id}</code>
         </Field>
         <Field label="telegramId">
-          <code>{user.telegramId}</code>
+          {/* Always clickable — tapping opens the user's profile in the
+              operator's TG client, even if there's no @username. */}
+          <a
+            href={`tg://user?id=${user.telegramId}`}
+            style={{ color: "inherit" }}
+          >
+            <code>{user.telegramId}</code>
+          </a>
         </Field>
         <Field label="username">
-          {user.username ? `@${user.username}` : "—"}
+          {user.username ? (
+            <a
+              href={`tg://resolve?domain=${user.username}`}
+              style={{ color: "inherit" }}
+            >
+              @{user.username}
+            </a>
+          ) : (
+            // No @handle — the telegramId field above is the way in.
+            // Render an explicit "open chat" link here too so operators
+            // see the action without having to know about the trick.
+            <a
+              href={`tg://user?id=${user.telegramId}`}
+              style={{ color: "inherit", opacity: 0.7 }}
+            >
+              нет — открыть чат по telegramId
+            </a>
+          )}
         </Field>
         <Field label="создан">{fmt(user.createdAt)}</Field>
         <Field label="был онлайн">{fmt(user.lastSeenAt)}</Field>
