@@ -9,6 +9,33 @@ const PREVIEW_MAX = 80;
 const PREFS_CACHE_TTL_MS = 60_000;
 /** Cadence for the message-digest flush loop. */
 const DIGEST_FLUSH_INTERVAL_MS = 10 * 60_000;
+/** Both scheduled-nudge crons tick on this cadence. Per-user cooldown
+ *  (lastProfileNudgeAt / lastUnreadNudgeAt) handles the actual send
+ *  frequency — running the tick more often than the cooldown is safe
+ *  because the SQL filter excludes recently-nudged users. */
+const NUDGE_TICK_INTERVAL_MS = 60 * 60_000;
+/** Per-user cooldown for the "your profile is incomplete" DM. */
+const PROFILE_NUDGE_COOLDOWN_MS = 24 * 60 * 60_000;
+/** Per-user cooldown for the "you have unread messages" DM. */
+const UNREAD_NUDGE_COOLDOWN_MS = 60 * 60_000;
+/** Don't ping a brand-new signup until at least this much has passed —
+ *  gives them a chance to come back on their own without spam. */
+const PROFILE_NUDGE_MIN_AGE_MS = 60 * 60_000;
+/** Stop pinging stuck users older than this — at that point they're
+ *  churn, not "still onboarding", and we'd just be spamming forever. */
+const PROFILE_NUDGE_MAX_AGE_MS = 7 * 24 * 60 * 60_000;
+/** Only count unread messages older than this in the unread-nudge
+ *  aggregate — gives the existing offline-DM (fired from onSend) time
+ *  to land before we pile a second nudge on top. */
+const UNREAD_NUDGE_MIN_MSG_AGE_MS = 60 * 60_000;
+/** Look-back window for unread messages — older than this and we
+ *  consider the chat effectively abandoned, no point nudging. Keeps
+ *  the query bounded too. */
+const UNREAD_NUDGE_LOOKBACK_MS = 24 * 60 * 60_000;
+/** Throttle for the per-recipient DM loop inside a single nudge run —
+ *  Telegram's bot API caps at ~30 msg/s globally, so a 50ms gap between
+ *  sends keeps us well under that even if we hit the same shard. */
+const NUDGE_SEND_THROTTLE_MS = 50;
 
 type CachedPrefs = { value: NotificationPrefs; cachedAt: number };
 type PendingDigest = {
@@ -25,6 +52,8 @@ export class NotificationsService implements OnModuleDestroy {
   // key: recipient userId → pending message-digest accumulator (digestMode users)
   private readonly digestQueue = new Map<string, PendingDigest>();
   private readonly digestTimer: NodeJS.Timeout;
+  private readonly profileNudgeTimer: NodeJS.Timeout;
+  private readonly unreadNudgeTimer: NodeJS.Timeout;
 
   constructor(private readonly prisma: PrismaService) {
     // Bot is used as a Telegram Bot API client only — no .start() here.
@@ -42,10 +71,35 @@ export class NotificationsService implements OnModuleDestroy {
     }, DIGEST_FLUSH_INTERVAL_MS);
     // Don't keep the event loop alive just for the timer.
     this.digestTimer.unref?.();
+
+    // Two scheduled-nudge crons. Both tick hourly; each run checks per-
+    // user cooldown columns so the effective send frequency matches the
+    // intent (24h for profile, 1h for unread). Running in-process is
+    // fine for single-instance API; if we shard later this needs the
+    // same per-shard election treatment as digestTimer.
+    this.profileNudgeTimer = setInterval(() => {
+      void this.runProfileNudges().catch((e) =>
+        this.logger.warn(
+          `profile nudges failed: ${e instanceof Error ? e.message : e}`,
+        ),
+      );
+    }, NUDGE_TICK_INTERVAL_MS);
+    this.profileNudgeTimer.unref?.();
+
+    this.unreadNudgeTimer = setInterval(() => {
+      void this.runUnreadNudges().catch((e) =>
+        this.logger.warn(
+          `unread nudges failed: ${e instanceof Error ? e.message : e}`,
+        ),
+      );
+    }, NUDGE_TICK_INTERVAL_MS);
+    this.unreadNudgeTimer.unref?.();
   }
 
   onModuleDestroy(): void {
     clearInterval(this.digestTimer);
+    clearInterval(this.profileNudgeTimer);
+    clearInterval(this.unreadNudgeTimer);
   }
 
   async getPrefs(userId: string): Promise<NotificationPrefs> {
@@ -245,6 +299,210 @@ export class NotificationsService implements OnModuleDestroy {
     await this.send(tgId, `💬 ${fromAnonId}\n\n${preview}`, { chatId });
   }
 
+  /**
+   * Daily-cadence nudge to users who finished role-pick but never
+   * submitted a profile. Cron ticks hourly; per-user cooldown of 24h is
+   * enforced via the lastProfileNudgeAt column. Window restrictions:
+   *
+   *   - createdAt > NOW - 1h   → skip brand-new signups (let them
+   *     come back on their own; first nudge is the next day)
+   *   - createdAt > NOW - 7d   → skip ancient stuck accounts; they're
+   *     churn, more nudges won't help and look like spam
+   *
+   * Mute and prefs are intentionally NOT honoured here. The nudge is a
+   * one-time-per-day operational ping toward completing onboarding, not
+   * chat traffic — analogous to notifyAdminsNewSubmission. Mute is for
+   * silencing chat noise, not blocking onboarding follow-ups.
+   */
+  private async runProfileNudges(): Promise<void> {
+    const now = Date.now();
+    const cooldown = new Date(now - PROFILE_NUDGE_COOLDOWN_MS);
+    const minAge = new Date(now - PROFILE_NUDGE_MIN_AGE_MS);
+    const maxAge = new Date(now - PROFILE_NUDGE_MAX_AGE_MS);
+
+    const stuck = await this.prisma.user.findMany({
+      where: {
+        role: { not: null },
+        bannedAt: null,
+        deletedAt: null,
+        createdAt: { lt: minAge, gt: maxAge },
+        buyerProfile: { is: null },
+        ownerProfile: { is: null },
+        OR: [
+          { lastProfileNudgeAt: null },
+          { lastProfileNudgeAt: { lt: cooldown } },
+        ],
+      },
+      select: { id: true, telegramId: true, role: true },
+    });
+
+    if (stuck.length === 0) {
+      this.logger.log("runProfileNudges: 0 eligible stuck users");
+      return;
+    }
+    this.logger.log(`runProfileNudges: sending ${stuck.length} reminders`);
+
+    for (const u of stuck) {
+      const tgId = Number(u.telegramId);
+      const roleRu = u.role === "BUYER" ? "баера" : "овнера";
+      const text =
+        `👋 <b>Не забудь про анкету</b>\n\n` +
+        `Ты выбрал роль ${roleRu} в <b>CREO Metrics</b>, но анкета не заполнена. ` +
+        `Пока её нет — тебя никто не найдёт, и ты тоже не увидишь подходящих кандидатов.\n\n` +
+        `Жми кнопку ниже и закончи — займёт минуту.`;
+      try {
+        await this.send(tgId, text, { parseMode: "HTML" });
+        // Mark sent BEFORE the throttle gap so a subsequent crash
+        // doesn't cause us to re-send to anyone we already DM'd.
+        await this.prisma.user.update({
+          where: { id: u.id },
+          data: { lastProfileNudgeAt: new Date() },
+        });
+      } catch (e) {
+        this.logger.warn(
+          `profile nudge failed for ${u.id}: ${e instanceof Error ? e.message : e}`,
+        );
+      }
+      await sleep(NUDGE_SEND_THROTTLE_MS);
+    }
+  }
+
+  /**
+   * Hourly nudge to users with stale unread messages. "Stale" = older
+   * than UNREAD_NUDGE_MIN_MSG_AGE_MS (1h) — that's enough time for the
+   * existing onSend-driven offline DM to have landed; if the user still
+   * hasn't read, they've effectively dropped the conversation and need
+   * a reminder.
+   *
+   * Aggregates per-recipient across all their chats — one DM per user
+   * mentioning total unread count + chat count + age of oldest unread.
+   * Per-user 1h cooldown via lastUnreadNudgeAt prevents the hourly cron
+   * from spamming the same user repeatedly while messages sit unread.
+   *
+   * Honours prefs.messages (same toggle as offline-DM) and mute window
+   * — this IS chat traffic, just batched.
+   */
+  private async runUnreadNudges(): Promise<void> {
+    const now = Date.now();
+    const cooldown = new Date(now - UNREAD_NUDGE_COOLDOWN_MS);
+    const minMsgAge = new Date(now - UNREAD_NUDGE_MIN_MSG_AGE_MS);
+    const lookback = new Date(now - UNREAD_NUDGE_LOOKBACK_MS);
+
+    // Pull all unread messages in the look-back window with enough age.
+    // The match join gives us both participant ids so we can compute the
+    // recipient (= the participant who isn't the sender) in JS.
+    const messages = await this.prisma.message.findMany({
+      where: {
+        readAt: null,
+        createdAt: { lt: minMsgAge, gt: lookback },
+      },
+      select: {
+        chatId: true,
+        senderId: true,
+        createdAt: true,
+        chat: {
+          select: {
+            match: { select: { userAId: true, userBId: true } },
+          },
+        },
+      },
+    });
+
+    if (messages.length === 0) {
+      this.logger.log("runUnreadNudges: 0 stale unread messages");
+      return;
+    }
+
+    // Aggregate per recipient.
+    type Agg = { chats: Set<string>; count: number; oldest: Date };
+    const perUser = new Map<string, Agg>();
+    for (const m of messages) {
+      const userAId = m.chat.match.userAId;
+      const userBId = m.chat.match.userBId;
+      const recipientId = m.senderId === userAId ? userBId : userAId;
+      let agg = perUser.get(recipientId);
+      if (!agg) {
+        agg = { chats: new Set(), count: 0, oldest: m.createdAt };
+        perUser.set(recipientId, agg);
+      }
+      agg.chats.add(m.chatId);
+      agg.count += 1;
+      if (m.createdAt < agg.oldest) agg.oldest = m.createdAt;
+    }
+
+    // Filter by per-user cooldown and ban/delete state. notifPrefs is
+    // joined so we can honour prefs.messages + mute without N+1 lookups.
+    const recipientIds = Array.from(perUser.keys());
+    const eligible = await this.prisma.user.findMany({
+      where: {
+        id: { in: recipientIds },
+        bannedAt: null,
+        deletedAt: null,
+        OR: [
+          { lastUnreadNudgeAt: null },
+          { lastUnreadNudgeAt: { lt: cooldown } },
+        ],
+      },
+      select: {
+        id: true,
+        telegramId: true,
+        notifPrefs: {
+          select: { messages: true, mutedUntil: true },
+        },
+      },
+    });
+
+    if (eligible.length === 0) {
+      this.logger.log(
+        `runUnreadNudges: ${perUser.size} candidates, 0 eligible after cooldown filter`,
+      );
+      return;
+    }
+    this.logger.log(
+      `runUnreadNudges: ${perUser.size} candidates, sending to ${eligible.length}`,
+    );
+
+    for (const u of eligible) {
+      // prefs.messages controls offline-DMs; the unread nudge is the
+      // same surface. Default-true if no notifPrefs row exists.
+      if (u.notifPrefs?.messages === false) continue;
+      // Mute window — same logic as isMuted helper but inlined to
+      // work against the joined slim prefs shape.
+      if (u.notifPrefs?.mutedUntil && u.notifPrefs.mutedUntil.getTime() > now)
+        continue;
+
+      const agg = perUser.get(u.id);
+      if (!agg) continue; // shouldn't happen — both came from the same id set
+
+      const tgId = Number(u.telegramId);
+      const ageMin = Math.floor((now - agg.oldest.getTime()) / 60_000);
+      const ageStr = formatAge(ageMin);
+      const msgWord = plural(
+        agg.count,
+        "непрочитанное сообщение",
+        "непрочитанных сообщения",
+        "непрочитанных сообщений",
+      );
+      const chatWord = plural(agg.chats.size, "чате", "чатах", "чатах");
+      const text =
+        `💬 <b>У тебя ${agg.count} ${msgWord}</b>` +
+        ` в ${agg.chats.size} ${chatWord} (давностью ${ageStr}).\n\n` +
+        `Зайди и ответь, чтобы не теряться.`;
+      try {
+        await this.send(tgId, text, { parseMode: "HTML" });
+        await this.prisma.user.update({
+          where: { id: u.id },
+          data: { lastUnreadNudgeAt: new Date() },
+        });
+      } catch (e) {
+        this.logger.warn(
+          `unread nudge failed for ${u.id}: ${e instanceof Error ? e.message : e}`,
+        );
+      }
+      await sleep(NUDGE_SEND_THROTTLE_MS);
+    }
+  }
+
   private enqueueDigest(toUserId: string, chatId: string, fromAnonId: string): void {
     let bucket = this.digestQueue.get(toUserId);
     if (!bucket) {
@@ -402,6 +660,25 @@ function escapeHtml(input: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/** Tiny helper used by the per-recipient send loops to space out Bot
+ *  API calls and stay under Telegram's 30 msg/sec global throughput. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Human-readable age string for the unread-nudge DM. Decides between
+ *  minutes / hours / days based on magnitude so the message reads
+ *  naturally ("давностью 2 ч" beats "давностью 120 мин"). */
+function formatAge(minutes: number): string {
+  if (minutes < 60) return `${minutes} мин`;
+  if (minutes < 60 * 24) {
+    const h = Math.floor(minutes / 60);
+    return `${h} ${plural(h, "час", "часа", "часов")}`;
+  }
+  const d = Math.floor(minutes / (60 * 24));
+  return `${d} ${plural(d, "день", "дня", "дней")}`;
 }
 
 function plural(n: number, one: string, few: string, many: string): string {
