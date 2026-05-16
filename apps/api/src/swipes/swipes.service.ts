@@ -119,8 +119,35 @@ export class SwipesService {
       where: { fromId_toId: { fromId: meId, toId: body.toUserId } },
     });
     if (existing) {
-      const state = await matchedStateFor(tx, meId, body.toUserId, existing.action);
-      return { ...state, justMatched: false, freshInboundLike: false };
+      // SKIP → LIKE: user changed their mind. Tear down the old SKIP and
+      // fall through to the normal LIKE-create path so the recipient
+      // gets a fresh inbound-like push exactly as if this were the very
+      // first swipe. The "first impression" the recipient gets is the
+      // LIKE — they were never told about the SKIP because skips don't
+      // emit anything.
+      //
+      // Same-action re-swipe (LIKE→LIKE / SKIP→SKIP) and the LIKE→SKIP
+      // demotion stay as before: silent no-op returning the current
+      // state. LIKE→SKIP is unsupported on purpose — once a LIKE has
+      // gone out the recipient may have already seen the inbound-like
+      // badge / push, and retracting it silently would be misleading.
+      // For genuine "tap-wrong, undo" cases there's DELETE /swipes/last
+      // within the 60s undo window.
+      const isUpgrade =
+        existing.action === "SKIP" && body.action === "LIKE";
+      if (!isUpgrade) {
+        const state = await matchedStateFor(
+          tx,
+          meId,
+          body.toUserId,
+          existing.action,
+        );
+        return { ...state, justMatched: false, freshInboundLike: false };
+      }
+      await tx.swipe.delete({
+        where: { fromId_toId: { fromId: meId, toId: body.toUserId } },
+      });
+      // fall through to the create + match-check path below
     }
 
     await tx.swipe.create({
