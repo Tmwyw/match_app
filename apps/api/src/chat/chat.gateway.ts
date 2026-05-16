@@ -247,7 +247,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
 
       // Push DM only when the recipient has no live socket. Fire-and-forget:
       // the bot API call shouldn't block the sender's ack.
-      if (!this.isOnline(recipientId)) {
+      const recipientOnline = this.isOnline(recipientId);
+      this.logger.log(
+        `onSend chat=${parsed.data.chatId} from=${userId} to=${recipientId} recipientOnline=${recipientOnline}`,
+      );
+      if (!recipientOnline) {
         void this.notifications
           .notifyMessage(
             recipientId,
