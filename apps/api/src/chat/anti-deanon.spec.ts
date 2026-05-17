@@ -126,10 +126,28 @@ describe("antiDeanon", () => {
     expect(r.content).not.toContain("durov");
   });
 
-  it("[bypass] platform keyword + handle 'пиши в тг arbi_pro'", () => {
-    const r = antiDeanon("пиши в тг arbi_pro если интересно");
+  it("[bypass] platform keyword + @-handle 'пиши в тг @arbi_pro'", () => {
+    // After dropping the bare-tail rule for platform keywords (it nuked
+    // ordinary chat about traffic sources), the platform detector now
+    // requires an explicit @ on the handle. Bare-tail deanon attempts
+    // ("пиши в тг arbi_pro") slip through this layer and are expected
+    // to be caught by reports + bans instead; we test @-prefixed shape
+    // here as the supported path.
+    const r = antiDeanon("пиши в тг @arbi_pro если интересно");
     expect(r.filtered).toBe(true);
     expect(r.content).not.toContain("arbi_pro");
+  });
+
+  it("does NOT scrub plain platform-name mentions in arbitrage chat", () => {
+    // The whole reason for tightening the platform detector: arbitrage
+    // workers constantly talk about traffic sources by name. Anything of
+    // the shape "platform + bareword" used to be scrubbed; now it's free
+    // text. Real handle-leak shapes (@handle, fb.com/foo, t.me/foo)
+    // continue to be caught by their own dedicated patterns.
+    expect(antiDeanon("ФБ только лили").filtered).toBe(false);
+    expect(antiDeanon("льём с фб трафик").filtered).toBe(false);
+    expect(antiDeanon("тг сейчас сильно банит").filtered).toBe(false);
+    expect(antiDeanon("инста хорошо работает").filtered).toBe(false);
   });
 
   it("[bypass] platform keyword + handle 'whatsapp +7999...'", () => {
@@ -175,11 +193,12 @@ describe("antiDeanon", () => {
   });
 
   it("retains a clean message with the word 'telegram' in passing context", () => {
-    // No handle nearby — 'telegram' alone doesn't trigger.
+    // No @-handle nearby — 'telegram-канале' is just resume context.
+    // Previously this DID trip the platform-keyword regex because of
+    // the adjacent token; after tightening the platform detector to
+    // require '@' in the tail, ordinary mentions like this pass clean.
     const r = antiDeanon("работал в telegram-канале раньше");
-    // Note: this DOES match the platform-keyword regex because of the
-    // adjacent token 'канале'. Ack — a common-word false-positive is
-    // acceptable here; user can rephrase. Asserting current behaviour.
-    expect(r.filtered).toBe(true);
+    expect(r.filtered).toBe(false);
+    expect(r.content).toBe("работал в telegram-канале раньше");
   });
 });
