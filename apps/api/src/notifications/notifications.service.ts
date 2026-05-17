@@ -209,10 +209,19 @@ export class NotificationsService implements OnModuleDestroy {
     content: string,
   ): Promise<void> {
     const prefs = await this.safePrefs(toUserId);
-    if (!prefs.messages) return;
-    if (this.isMuted(prefs)) return;
+    if (!prefs.messages) {
+      this.logger.warn(`notifyMessage SKIP ${toUserId}: prefs.messages=false`);
+      return;
+    }
+    if (this.isMuted(prefs)) {
+      this.logger.warn(
+        `notifyMessage SKIP ${toUserId}: muted until ${prefs.mutedUntil?.toISOString()}`,
+      );
+      return;
+    }
 
     if (prefs.digestMode) {
+      this.logger.log(`notifyMessage DIGEST ${toUserId} chat=${chatId}`);
       this.enqueueDigest(toUserId, chatId, fromAnonId);
       return;
     }
@@ -223,10 +232,14 @@ export class NotificationsService implements OnModuleDestroy {
     // multiple messages and only the first surfaced.)
 
     const tgId = await this.resolveTelegramId(toUserId);
-    if (tgId === null) return;
+    if (tgId === null) {
+      this.logger.warn(`notifyMessage SKIP ${toUserId}: no telegramId resolved`);
+      return;
+    }
 
     const preview =
       content.length > PREVIEW_MAX ? content.slice(0, PREVIEW_MAX - 1) + "…" : content;
+    this.logger.log(`notifyMessage SEND ${toUserId} → tg:${tgId} chat=${chatId}`);
     // Pass chatId so the inline "Открыть" button deep-links straight
     // into this conversation when the user taps it from the bot DM.
     await this.send(tgId, `💬 ${fromAnonId}\n\n${preview}`, { chatId });
