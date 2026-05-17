@@ -95,14 +95,28 @@ const NB_AFTER = "(?![\\p{L}\\p{N}_])";
 const platform = (kw: string, tail: string) =>
   new RegExp(`${NB_BEFORE}(?:${kw})${NB_AFTER}${tail}`, "giu");
 
+// Platform-keyword detection now REQUIRES an `@` (or `+` for phone-shaped
+// platforms) in the tail. The previous `@?` made the platform name + any
+// 3+ char word match, so casual chat like "льём с ФБ только" / "тг бан
+// жёсткий" / "инста сейчас режет" got scrubbed into "[скрыто] только" —
+// arbitrage workers regularly talk about traffic sources, and that copy
+// is unusable. By requiring an explicit handle marker we keep catching
+// the real deanon shapes ("пиши в фб @arbi_pro", "тг @durov", "+79991234567
+// в вотс") without nuking ordinary conversation. The bare-handle case
+// ("пиши в тг arbi_pro" without @) is still caught by the @-handle
+// pattern below if the recipient uses @, by the URL pattern (fb.com/foo,
+// t.me/foo), by the catch-all "пиши + … + @" rule, and ultimately by
+// reports + bans — false-negative is cheaper than the false-positive of
+// scrambling every legitimate message.
 const PLATFORM_KEYWORDS: RegExp[] = [
-  platform("telegram|телеграм|телега|tg|тг|тгшк[ао]", "\\s*[-–—:.,]?\\s*@?[\\p{L}\\p{N}_.+\\-]{3,}"),
-  platform("whatsapp|wa|вотс|вотсап|вац", "\\s*[-–—:.,]?\\s*@?[+\\p{L}\\p{N}_.+\\-]{3,}"),
-  platform("instagram|инстаграм|инста|insta|ig", "\\s*[-–—:.,]?\\s*@?[\\p{L}\\p{N}_.\\-]{3,}"),
-  platform("discord|дискорд|disc", "\\s*[-–—:.,]?\\s*[@#]?[\\p{L}\\p{N}_.#\\-]{3,}"),
-  platform("viber|вайбер|skype|скайп|signal|сигнал", "\\s*[-–—:.,]?\\s*[@+]?[\\p{L}\\p{N}_.+\\-]{3,}"),
-  platform("facebook|фейсбук|фб|fb|twitter|твиттер|твиттр", "\\s*[-–—:.,]?\\s*@?[\\p{L}\\p{N}_.\\-]{3,}"),
+  platform("telegram|телеграм|телега|tg|тг|тгшк[ао]", "\\s*[-–—:.,]?\\s*@[\\p{L}\\p{N}_.+\\-]{3,}"),
+  platform("whatsapp|wa|вотс|вотсап|вац", "\\s*[-–—:.,]?\\s*[@+][\\p{L}\\p{N}_.+\\-]{3,}"),
+  platform("instagram|инстаграм|инста|insta|ig", "\\s*[-–—:.,]?\\s*@[\\p{L}\\p{N}_.\\-]{3,}"),
+  platform("discord|дискорд|disc", "\\s*[-–—:.,]?\\s*[@#][\\p{L}\\p{N}_.#\\-]{3,}"),
+  platform("viber|вайбер|skype|скайп|signal|сигнал", "\\s*[-–—:.,]?\\s*[@+][\\p{L}\\p{N}_.+\\-]{3,}"),
+  platform("facebook|фейсбук|фб|fb|twitter|твиттер|твиттр", "\\s*[-–—:.,]?\\s*@[\\p{L}\\p{N}_.\\-]{3,}"),
   // "пиши/напиши/связь/контакт + handle" — broader natural-language catch.
+  // Already requires @ in the tail (correct from the start).
   platform("пиши|напиши|пишите|стучи|связь|контакт|контакты|конт", "[^.\\n]{0,30}@[\\p{L}\\p{N}_.\\-]{3,}"),
 ];
 
