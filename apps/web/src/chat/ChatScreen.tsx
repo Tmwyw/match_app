@@ -406,7 +406,11 @@ function RevealBanner({
           </p>
         ) : (
           <p className="text-xs text-tg-hint">
-            Контакт открыт, но собеседник скрыл @username в Telegram. Попроси его установить и обнови чат.
+            Контакт открыт. У собеседника не задан @username — мы прислали тебе
+            личное сообщение от{" "}
+            <span className="font-semibold text-tg-text">@CreoMetricsHR_bot</span>
+            {" "}со ссылкой на его профиль. Открой бот, нажми на имя — Telegram
+            откроет чат напрямую.
           </p>
         )}
       </BannerShell>

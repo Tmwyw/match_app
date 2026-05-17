@@ -283,8 +283,14 @@ function usersListText(data: AdminUsersResponse, skip: number, q?: string): stri
       if (u.deletedAt) tags.push("🗑");
       if (u.isOnline) tags.push("🟢");
       const tag = tags.length ? ` ${tags.join("")}` : "";
-      const handle = u.username ? `@${u.username}` : "—";
-      return `${skip + i + 1}. <b>${escapeHtml(u.anonId ?? "(нет роли)")}</b>${tag} · ${escapeHtml(handle)} · 🤝${u.counts.matches} · 🚨${u.counts.reportsAgainst}`;
+      // Username link: real @handle when set, otherwise an HTML mention
+      // built from telegramId. Telegram renders <a href="tg://user?id=X">
+      // even when the target has no @username, and tapping opens that
+      // user's profile — gives operators a one-tap path to ping anyone.
+      const handle = u.username
+        ? `@${escapeHtml(u.username)}`
+        : `<a href="tg://user?id=${u.telegramId}">tg:${u.telegramId}</a>`;
+      return `${skip + i + 1}. <b>${escapeHtml(u.anonId ?? "(нет роли)")}</b>${tag} · ${handle} · 🤝${u.counts.matches} · 🚨${u.counts.reportsAgainst}`;
     }),
   ];
   return lines.join("\n");
@@ -332,7 +338,9 @@ function userDetailText(u: AdminUserDetail): string {
     `<b>${escapeHtml(u.anonId ?? "(нет роли)")}</b> · ${roleLabel}${tags.length ? "\n" + tags.join(" · ") : ""}`,
     "",
     `id: <code>${u.id}</code>`,
-    `tg: <code>${u.telegramId}</code>${u.username ? ` · @${escapeHtml(u.username)}` : ""}`,
+    // tg: line always renders the numeric id as a clickable mention so
+    // operators can DM the user in one tap even without a @username.
+    `tg: <a href="tg://user?id=${u.telegramId}">${u.telegramId}</a>${u.username ? ` · @${escapeHtml(u.username)}` : ""}`,
     `создан: ${fmtDate(u.createdAt)} · был онлайн: ${fmtDateTime(u.lastSeenAt)}`,
     `🤝 матчей: ${u.counts.matches} · 💬 сообщений: ${u.counts.messages} · 🚨 жалоб: ${u.counts.reportsAgainst} · 🚫 блоков: ${u.counts.blocksAgainst}`,
   ];

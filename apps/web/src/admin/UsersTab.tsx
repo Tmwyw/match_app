@@ -163,7 +163,34 @@ function UserRow({
         <b>{u.anonId ?? "—"}</b>
       </td>
       <td style={styles.td}>{u.role ?? "—"}</td>
-      <td style={styles.td}>{u.username ? `@${u.username}` : "—"}</td>
+      <td style={styles.td}>
+        {u.username ? (
+          // Even with a @handle, anchor to tg://resolve so the operator can
+          // tap the cell instead of copy-paste. stopPropagation keeps the
+          // row's onOpen from firing when the link is what was clicked.
+          <a
+            href={`tg://resolve?domain=${u.username}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: "inherit" }}
+          >
+            @{u.username}
+          </a>
+        ) : (
+          // No @handle → fall back to tg://user?id=<telegramId>. Works for
+          // operators because their TG client has a peer reference to the
+          // user (they've at minimum DM'd them via the bot, or will when
+          // they tap this link). Numeric ID is shown so they can also
+          // copy it manually if the tg:// scheme doesn't resolve.
+          <a
+            href={`tg://user?id=${u.telegramId}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: "inherit", opacity: 0.7 }}
+            title={`нет @username; tg://user?id=${u.telegramId}`}
+          >
+            tg:{u.telegramId}
+          </a>
+        )}
+      </td>
       <td style={styles.td}>{shortDate(u.createdAt)}</td>
       <td style={styles.td}>{shortDate(u.lastSeenAt)}</td>
       <td style={styles.td}>{u.counts.matches}</td>
