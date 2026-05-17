@@ -19,11 +19,10 @@ const PROFILE_NUDGE_COOLDOWN_MS = 24 * 60 * 60_000;
 /** Per-user cooldown for the "you have unread messages" DM. */
 const UNREAD_NUDGE_COOLDOWN_MS = 60 * 60_000;
 /** Don't ping a brand-new signup until at least this much has passed —
- *  gives them a chance to come back on their own without spam. */
+ *  gives them a chance to come back on their own without spam. After
+ *  this grace ends, the daily nudge runs FOREVER until the user
+ *  submits a profile (operator policy: бесконечные алёрты). */
 const PROFILE_NUDGE_MIN_AGE_MS = 60 * 60_000;
-/** Stop pinging stuck users older than this — at that point they're
- *  churn, not "still onboarding", and we'd just be spamming forever. */
-const PROFILE_NUDGE_MAX_AGE_MS = 7 * 24 * 60 * 60_000;
 /** Only count unread messages older than this in the unread-nudge
  *  aggregate — gives the existing offline-DM (fired from onSend) time
  *  to land before we pile a second nudge on top. */
@@ -218,10 +217,10 @@ export class NotificationsService implements OnModuleDestroy {
    * Mute window also respected.
    */
   async notifyInboundLike(toUserId: string): Promise<void> {
-    const prefs = await this.safePrefs(toUserId);
-    if (!prefs.matches) return; // shared "Лайки" toggle in Settings
-    if (this.isMuted(prefs)) return;
-
+    // Notification prefs / mute are NOT consulted any more — operator
+    // policy is "every user gets every notification, no opt-out". The
+    // Settings UI toggles for matches/messages/mute still exist client-
+    // side but are effectively cosmetic; server bypasses them.
     const tgId = await this.resolveTelegramId(toUserId);
     if (tgId === null) return;
     this.logger.log(`notifyInboundLike SEND ${toUserId} → tg:${tgId}`);
@@ -232,18 +231,7 @@ export class NotificationsService implements OnModuleDestroy {
   }
 
   async notifyMatch(toUserId: string, otherAnonId: string): Promise<void> {
-    const prefs = await this.safePrefs(toUserId);
-    if (!prefs.matches) {
-      this.logger.warn(`notifyMatch SKIP ${toUserId}: prefs.matches=false`);
-      return;
-    }
-    if (this.isMuted(prefs)) {
-      this.logger.warn(
-        `notifyMatch SKIP ${toUserId}: muted until ${prefs.mutedUntil?.toISOString()}`,
-      );
-      return;
-    }
-
+    // Prefs/mute bypassed by policy — see notifyInboundLike for context.
     const tgId = await this.resolveTelegramId(toUserId);
     if (tgId === null) {
       this.logger.warn(`notifyMatch SKIP ${toUserId}: no telegramId resolved`);
@@ -262,29 +250,11 @@ export class NotificationsService implements OnModuleDestroy {
     chatId: string,
     content: string,
   ): Promise<void> {
-    const prefs = await this.safePrefs(toUserId);
-    if (!prefs.messages) {
-      this.logger.warn(`notifyMessage SKIP ${toUserId}: prefs.messages=false`);
-      return;
-    }
-    if (this.isMuted(prefs)) {
-      this.logger.warn(
-        `notifyMessage SKIP ${toUserId}: muted until ${prefs.mutedUntil?.toISOString()}`,
-      );
-      return;
-    }
-
-    if (prefs.digestMode) {
-      this.logger.log(`notifyMessage DIGEST ${toUserId} chat=${chatId}`);
-      this.enqueueDigest(toUserId, chatId, fromAnonId);
-      return;
-    }
-
-    // No debounce — every offline message gets its own push, per user
-    // request. (Previously was 1 push per (chat, recipient) per 30s
-    // to avoid spam, but users found it confusing when partners sent
-    // multiple messages and only the first surfaced.)
-
+    // Prefs/mute/digestMode all bypassed by operator policy — every
+    // offline message produces its own immediate DM regardless of the
+    // recipient's Settings choices. The digestQueue/flushDigests
+    // infrastructure stays around in case a future flow wants batching,
+    // but no caller currently routes through it.
     const tgId = await this.resolveTelegramId(toUserId);
     if (tgId === null) {
       this.logger.warn(`notifyMessage SKIP ${toUserId}: no telegramId resolved`);
@@ -302,30 +272,32 @@ export class NotificationsService implements OnModuleDestroy {
   /**
    * Daily-cadence nudge to users who finished role-pick but never
    * submitted a profile. Cron ticks hourly; per-user cooldown of 24h is
-   * enforced via the lastProfileNudgeAt column. Window restrictions:
+   * enforced via the lastProfileNudgeAt column.
    *
    *   - createdAt > NOW - 1h   → skip brand-new signups (let them
-   *     come back on their own; first nudge is the next day)
-   *   - createdAt > NOW - 7d   → skip ancient stuck accounts; they're
-   *     churn, more nudges won't help and look like spam
+   *     come back on their own; first nudge fires the next day)
    *
-   * Mute and prefs are intentionally NOT honoured here. The nudge is a
-   * one-time-per-day operational ping toward completing onboarding, not
-   * chat traffic — analogous to notifyAdminsNewSubmission. Mute is for
-   * silencing chat noise, not blocking onboarding follow-ups.
+   * No upper age limit — the nudge fires every 24h FOREVER until the
+   * user submits a profile (at which point they fall out of the query
+   * because buyerProfile/ownerProfile is no longer null). Operator
+   * policy: "бесконечные алёрты, прекращаются только когда доделают".
+   *
+   * Mute and prefs are intentionally NOT honoured here either — this is
+   * an operational onboarding follow-up, not chat traffic.
    */
   private async runProfileNudges(): Promise<void> {
     const now = Date.now();
     const cooldown = new Date(now - PROFILE_NUDGE_COOLDOWN_MS);
     const minAge = new Date(now - PROFILE_NUDGE_MIN_AGE_MS);
-    const maxAge = new Date(now - PROFILE_NUDGE_MAX_AGE_MS);
 
     const stuck = await this.prisma.user.findMany({
       where: {
         role: { not: null },
         bannedAt: null,
         deletedAt: null,
-        createdAt: { lt: minAge, gt: maxAge },
+        // Only the "still onboarding, give them an hour" lower bound.
+        // No upper bound — keep nudging until the profile is filled.
+        createdAt: { lt: minAge },
         buyerProfile: { is: null },
         ownerProfile: { is: null },
         OR: [
@@ -379,8 +351,9 @@ export class NotificationsService implements OnModuleDestroy {
    * Per-user 1h cooldown via lastUnreadNudgeAt prevents the hourly cron
    * from spamming the same user repeatedly while messages sit unread.
    *
-   * Honours prefs.messages (same toggle as offline-DM) and mute window
-   * — this IS chat traffic, just batched.
+   * Bypasses prefs.messages and mute per operator policy — every user
+   * with unread messages older than 1h gets the hourly nudge, no opt-
+   * out. The 1h cooldown via lastUnreadNudgeAt is the only throttle.
    */
   private async runUnreadNudges(): Promise<void> {
     const now = Date.now();
@@ -430,8 +403,9 @@ export class NotificationsService implements OnModuleDestroy {
       if (m.createdAt < agg.oldest) agg.oldest = m.createdAt;
     }
 
-    // Filter by per-user cooldown and ban/delete state. notifPrefs is
-    // joined so we can honour prefs.messages + mute without N+1 lookups.
+    // Filter by per-user cooldown and ban/delete state only — prefs and
+    // mute are bypassed per operator policy ("без ограничений"). The
+    // 1h cooldown via lastUnreadNudgeAt is the only throttle.
     const recipientIds = Array.from(perUser.keys());
     const eligible = await this.prisma.user.findMany({
       where: {
@@ -443,13 +417,7 @@ export class NotificationsService implements OnModuleDestroy {
           { lastUnreadNudgeAt: { lt: cooldown } },
         ],
       },
-      select: {
-        id: true,
-        telegramId: true,
-        notifPrefs: {
-          select: { messages: true, mutedUntil: true },
-        },
-      },
+      select: { id: true, telegramId: true },
     });
 
     if (eligible.length === 0) {
@@ -463,14 +431,6 @@ export class NotificationsService implements OnModuleDestroy {
     );
 
     for (const u of eligible) {
-      // prefs.messages controls offline-DMs; the unread nudge is the
-      // same surface. Default-true if no notifPrefs row exists.
-      if (u.notifPrefs?.messages === false) continue;
-      // Mute window — same logic as isMuted helper but inlined to
-      // work against the joined slim prefs shape.
-      if (u.notifPrefs?.mutedUntil && u.notifPrefs.mutedUntil.getTime() > now)
-        continue;
-
       const agg = perUser.get(u.id);
       if (!agg) continue; // shouldn't happen — both came from the same id set
 
