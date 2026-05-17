@@ -61,6 +61,15 @@ model User {
   // users at migration time are backfilled with `createdAt` so they aren't
   // suddenly locked out.
   profileApprovedAt  DateTime?
+  // Cooldown timestamps for the two scheduled-nudge cron jobs in
+  // NotificationsService:
+  //   - lastProfileNudgeAt: last time we DM'd this user "ты выбрал роль
+  //     но не заполнил анкету". Cron runs hourly but only sends per
+  //     user once per 24h.
+  //   - lastUnreadNudgeAt:  last time we DM'd this user "у тебя N
+  //     непрочитанных". Cron runs hourly, sends per user once per hour.
+  lastProfileNudgeAt DateTime?
+  lastUnreadNudgeAt  DateTime?
 
   buyerProfile   BuyerProfile?
   ownerProfile   OwnerProfile?
